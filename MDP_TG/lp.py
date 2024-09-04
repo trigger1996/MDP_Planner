@@ -163,15 +163,16 @@ def syn_plan_prefix(prod_mdp, MEC, gamma):
         Sn = set(path_init.keys()).difference(sf)
         # ----find bad states that can not reach MEC
         simple_digraph = DiGraph()
-        simple_digraph.add_edges_from(((v, u) for u, v in prod_mdp.edges()))               # 原product_mdp所有的边组成的图
+        simple_digraph.add_edges_from(((v, u) for u, v in prod_mdp.edges()))                # 原product_mdp所有的边组成的图
         #
         # ip <- MEC[1] 这个东西应该是MEC本身的状态
+        # 之所以可以用随机状态，是因为MEC内的状态是可以互相到达的，所以只要一个能到剩下都能到
         path = single_source_shortest_path(
-            simple_digraph, random.sample(ip, 1)[0])                                    # 为什么这边要随机初始状态?
+            simple_digraph, random.sample(ip, 1)[0])                                     # 为什么这边要随机初始状态?
         reachable_set = set(path.keys())
         print('States that can reach sf, size: %s' % str(len(reachable_set)))
-        Sd = Sn.difference(reachable_set)
-        Sr = Sn.intersection(reachable_set)
+        Sd = Sn.difference(reachable_set)                                                   # Sn \ { 可达状态 } -> 不可以到达MEC的状态,  可以由初态s0到达, 但不可到达MEC的状态
+        Sr = Sn.intersection(reachable_set)                                                 # Sn ^ { 可达状态 } -> 可以到达MEC的所有状态, 论文里是所有可以由s0到达的状态
         # #--------------
         print('Sn size: %s; Sd inside size: %s; Sr inside size: %s' %
               (len(Sn), len(Sd), len(Sr)))
@@ -187,16 +188,20 @@ def syn_plan_prefix(prod_mdp, MEC, gamma):
             for s in Sr:
                 for u in prod_mdp.nodes[s]['act'].copy():
                     Y[(s, u)] = prefix_solver.NumVar(
-                        0, 1000, 'y[(%s, %s)]' % (s, u))
+                        0, 1000, 'y[(%s, %s)]' % (s, u))        # 下界，上界，名称
             print('Variables added')
             # set objective
             obj = 0
             for s in Sr:
                 for t in prod_mdp.successors(s):
+                    #
+                    # s -> t, \forall s \in Sr 相当于这里直接把图给进去了?
                     prop = prod_mdp[s][t]['prop'].copy()
                     for u in prop.keys():
                         pe = prop[u][0]
                         ce = prop[u][1]
+                        #
+                        # \mu * 状态转移概率p_E * 代价c_E
                         obj += Y[(s, u)]*pe*ce
             prefix_solver.Minimize(obj)
             print('Objective function set')
