@@ -43,7 +43,7 @@ def syn_full_plan(prod_mdp, gamma, alpha=1):
     # ----Optimal plan synthesis, total cost over plan prefix and suffix----
     print("==========[Optimal full plan synthesis start]==========")
     Plan = []
-    for l, S_fi in enumerate(prod_mdp.Sf):
+    for l, S_fi in enumerate(prod_mdp.Sf):                                                  # prod_mdp.Sf 对应所有的AMEC
         print("---for one S_fi---")
         plan = []
         for k, MEC in enumerate(S_fi):
@@ -149,17 +149,25 @@ def syn_plan_prefix(prod_mdp, MEC, gamma):
     ip = MEC[1]  # force convergence to ip
     delta = 0.01
     for init_node in prod_mdp.graph['initial']:
+        #
+        # Compute the shortest path between source and all other nodes reachable from source.
         path_init = single_source_shortest_path(prod_mdp, init_node)
         print('Reachable from init size: %s' % len(list(path_init.keys())))
+        #
+        # 能否到达当前MEC
         if not set(path_init.keys()).intersection(sf):
             print("Initial node can not reach sf")
             return None, None, None, None, None, None
+        #
+        # path_init.keys(): 路径的初态, 和sf的差集, 求解可以到达MEC, 但是初态不在MEC内的状态
         Sn = set(path_init.keys()).difference(sf)
         # ----find bad states that can not reach MEC
         simple_digraph = DiGraph()
-        simple_digraph.add_edges_from(((v, u) for u, v in prod_mdp.edges()))
+        simple_digraph.add_edges_from(((v, u) for u, v in prod_mdp.edges()))               # 原product_mdp所有的边组成的图
+        #
+        # ip <- MEC[1] 这个东西应该是MEC本身的状态
         path = single_source_shortest_path(
-            simple_digraph, random.sample(ip, 1)[0])
+            simple_digraph, random.sample(ip, 1)[0])                                    # 为什么这边要随机初始状态?
         reachable_set = set(path.keys())
         print('States that can reach sf, size: %s' % str(len(reachable_set)))
         Sd = Sn.difference(reachable_set)
