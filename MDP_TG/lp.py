@@ -99,10 +99,14 @@ def syn_full_plan_rex(prod_mdp, gamma, d, alpha=1):
         print("---for one S_fi---")
         plan = []
         for k, MEC in enumerate(S_fi):
+            #
+            # 从s0到MEC
             plan_prefix, prefix_cost, prefix_risk, y_in_sf, Sr, Sd = syn_plan_prefix(
                 prod_mdp, MEC, gamma)
             print("Best plan prefix obtained, cost: %s, risk %s" %
                   (str(prefix_cost), str(prefix_risk)))
+            #
+            # 是否能到达MEC
             if y_in_sf:
                 plan_suffix, suffix_cost, suffix_risk = syn_plan_suffix_rex(
                     prod_mdp, MEC, d, y_in_sf)
@@ -113,11 +117,16 @@ def syn_full_plan_rex(prod_mdp, gamma, d, alpha=1):
             if plan_prefix and plan_suffix:
                 plan.append([[plan_prefix, prefix_cost, prefix_risk, y_in_sf], [
                             plan_suffix, suffix_cost, suffix_risk], [MEC[0], MEC[1], Sr, Sd]])
+        #
+        # 先对每个MEC求解local optimal
+        # 为啥能在一个MEC内能求出多组?
         if plan:
             best_k_plan = min(plan, key=lambda p: p[0][1] + alpha*p[1][1])
             Plan.append(best_k_plan)
         else:
             "No valid found!"
+    #
+    # 再求解所有MEC中global optimal的
     if Plan:
         print("=========================")
         print(" || Final compilation  ||")
@@ -145,6 +154,9 @@ def syn_plan_prefix(prod_mdp, MEC, gamma):
     # ----Synthesize optimal plan prefix to reach accepting MEC or SCC----
     # ----with bounded risk and minimal expected total cost----
     print("===========[plan prefix synthesis starts]===========")
+    #
+    # sf对应MEC全集
+    # ip对应MEC和DRA中接收集和MEC的交集
     sf = MEC[0]
     ip = MEC[1]  # force convergence to ip
     delta = 0.01
@@ -202,6 +214,13 @@ def syn_plan_prefix(prod_mdp, MEC, gamma):
                         ce = prop[u][1]
                         #
                         # \mu * 状态转移概率p_E * 代价c_E
+                        # 1 如果Y[(s, u)] = 0, 是不是所有的都到最小值了?
+                        #   所以需要in_flow和out_flow的约束, 而且必须满足policy之和为1, 即所有策略必须选一个
+                        # 2 解的历史相关性
+                        #   a. 根据Principle of model checking里的结论, 历史无关的策略能做到和历史有关策略一样的最优性？
+                        #      （Lemma 10.102)
+                        #   b. 这里的Y[(s, u)]其实是对整体进行求解, 一边动了根据约束条件另一边也得动
+                        #      是不是这样也能理解为是一种memoryless policy
                         obj += Y[(s, u)]*pe*ce
             prefix_solver.Minimize(obj)
             print('Objective function set')
@@ -215,13 +234,22 @@ def syn_plan_prefix(prod_mdp, MEC, gamma):
                         prop = prod_mdp[s][t]['prop'].copy()
                         for u in prop.keys():
                             pe = prop[u][0]
-                            y_to_sd += Y[(s, u)]*pe
+                            y_to_sd += Y[(s, u)]*pe                                 # Sd: 可由s_0到达, 但不可以到达MEC的状态集合
                     elif t in sf:
                         prop = prod_mdp[s][t]['prop'].copy()
                         for u in prop.keys():
                             pe = prop[u][0]
-                            y_to_sf += Y[(s, u)]*pe
-            # prefix_solver.Add(y_to_sf+y_to_sd >= delta)
+                            y_to_sf += Y[(s, u)]*pe                                 # Sf <- MEC[0]
+            # prefix_solver.Add(y_to_sf+y_to_sd >= delta)                           # old result
+            #
+            # delta = 0.01, 松弛变量?
+            # Sr: 可由s_0到达的状态
+            # y_to_sf = \sum_{s \in Sr} \mu(s, u) * pe, 就是这一条路径的概率
+            # y_to_sd : 到不了MEC的概率
+            # 所以y_to_sf + y_to_sd是所有概率之和
+            # 所以不等式可以理解为: 到达MEC的概率 >= (1 - gamma) * 从s_0出发的所有概率
+            # 这么干是make sense的
+            # 但是为什么不能 y_to_sf >= 1 - gamma - delta?
             prefix_solver.Add(y_to_sf >= (1.0-gamma-delta)*(y_to_sf+y_to_sd))
             print('Risk constraint added')
             # --------------------
@@ -235,6 +263,9 @@ def syn_plan_prefix(prod_mdp, MEC, gamma):
                         prop = prod_mdp[f][t]['prop'].copy()
                         for uf in prop.keys():
                             node_y_in += Y[(f, uf)]*prop[uf][0]
+                #
+                # 对应论文中公式 (8c)
+                # 其实可以理解为, 初始状态in_flow就是1? node_y_in = 0
                 if t == init_node:
                     prefix_solver.Add(node_y_out == 1.0 + node_y_in)
                 else:
@@ -244,6 +275,8 @@ def syn_plan_prefix(prod_mdp, MEC, gamma):
             # ----------------------
             # solve
             print('--optimization starts--')
+            #
+            # 求解在这里
             status = prefix_solver.Solve()
             if status == pywraplp.Solver.OPTIMAL:
                 print('Solution:')
@@ -256,6 +289,9 @@ def syn_plan_prefix(prod_mdp, MEC, gamma):
             else:
                 print('The problem does not have an optimal solution.')
                 return None, None, None, None, None, None
+            #
+            # 这后面是输出了应该
+            #
             # plan
             plan_prefix = dict()
             for s in Sr:
@@ -328,11 +364,11 @@ def syn_plan_suffix(prod_mdp, MEC, y_in_sf):
     # ----Synthesize optimal plan suffix to stay within the accepting MEC----
     # ----with minimal expected total cost of accepting cyclic paths----
     print("===========[plan suffix synthesis starts]")
-    sf = MEC[0]
-    ip = MEC[1]
-    act = MEC[2].copy()
-    delta = 0.01
-    gamma = 0.00
+    sf = MEC[0]                     # MEC
+    ip = MEC[1]                     # MEC 和 ip 的交集
+    act = MEC[2].copy()             # 所有状态的动作集合全集
+    delta = 0.01                    # 松弛变量?
+    gamma = 0.00                    # 根据(11), 整个系统进入MEC内以后就不用概率保证了?
     for init_node in prod_mdp.graph['initial']:
         paths = single_source_shortest_path(prod_mdp, init_node)
         Sn = set(paths.keys()).intersection(sf)
@@ -348,6 +384,16 @@ def syn_plan_suffix(prod_mdp, MEC, y_in_sf):
             Y = defaultdict(float)
             suffix_solver = pywraplp.Solver.CreateSolver('GLOP')
             # create variables
+            #
+            # 注意这里和prefix不同的是, prefix
+            # prefix -> Sr:
+            #       path = single_source_shortest_path(simple_digraph, random.sample(ip, 1)[0]), 即可以到达MEC的状态
+            #       Sn: path_init.keys() 和 Sf的交集, 两变Sf定义是一样的都是MEC
+            #       Sr: path.keys() 和 Sn相交, 也就是从初始状态可以到达MEC的状态
+            # suffix -> Sn:
+            #       Sn = set(paths.keys()).intersection(sf)
+            #       这里Sn和之前定义其实是一样的
+            #       可由初态到达, 且可到达MEC但是不在MEC内
             for s in Sn:
                 for u in act[s]:
                     Y[(s, u)] = suffix_solver.NumVar(0, 1000, 'y[(%s, %s)]' % (s, u))
@@ -366,12 +412,29 @@ def syn_plan_suffix(prod_mdp, MEC, y_in_sf):
             print('Objective added')
             # add constraints
             # --------------------
+            #
+            # 这个地方和prefix差别很大
             for s in Sn:
+                #
+                # constr3: sum of outflow
+                # constr4: sum of inflow
                 constr3 = 0
                 constr4 = 0
                 for u in act[s]:
+                    #
+                    # 这里也有不同
+                    # prefix
+                    #       s in Sr
+                    # suffix
+                    #       s in Sn
                     constr3 += Y[(s, u)]
                 for f in prod_mdp.predecessors(s):
+                    #
+                    # 这里也有不同
+                    # prefix
+                    #       if f in Sr:
+                    # suffix
+                    #       if f in Sn 且 s in Sn 且 s not in ip
                     if (f in Sn) and (s not in ip):
                         prop = prod_mdp[f][s]['prop'].copy()
                         for uf in act[f]:
@@ -386,12 +449,26 @@ def syn_plan_suffix(prod_mdp, MEC, y_in_sf):
                                 constr4 += Y[(f, uf)]*prop[uf][0]
                             else:
                                 constr4 += Y[(f, uf)]*0.00
+                #
+                # y_in_sf input flow of sf, sf的输入状态转移概率
+                #     if t not in y_in_sf:
+                #         y_in_sf[t] = Y[(s, u)].solution_value()*pe
+                #     else:
+                #         y_in_sf[t] += Y[(s, u)].solution_value()*pe
+                #     最后还需要归一化
+                #     当单状态状态转移Sn -> sf时会被记录到Sf
+                #
+                # 如果 s in Sf且上一时刻状态属于Sn, 但不在MEC内
                 if (s in list(y_in_sf.keys())) and (s not in ip):
-                    suffix_solver.Add(constr3 == constr4 + y_in_sf[s])
+                    suffix_solver.Add(constr3 == constr4 + y_in_sf[s])          # 可能到的了的要计算?
+                #
+                # 如果 s in Sf, 且上一时刻状态在Sn，且在MEC内
                 if (s in list(y_in_sf.keys())) and (s in ip):
-                    suffix_solver.Add(constr3 == y_in_sf[s])
+                    suffix_solver.Add(constr3 == y_in_sf[s])                    # 在里面的永远到的了?
+                #
+                # 如果s不在Sf内且不在NEC内
                 if (s not in list(y_in_sf.keys())) and (s not in ip):
-                    suffix_solver.Add(constr3 == constr4)
+                    suffix_solver.Add(constr3 == constr4)                       # 到不了的永远到不了?
             print('Balance condition added')
             print('Initial sf condition added')
             # --------------------
@@ -404,11 +481,15 @@ def syn_plan_suffix(prod_mdp, MEC, y_in_sf):
                         for u in prop.keys():
                             if u in act[s]:
                                 pe = prop[u][0]
+                                #
+                                # Sn里出Sn的
                                 y_out += Y[(s, u)]*pe
                     elif t in ip:
                         prop = prod_mdp[s][t]['prop'].copy()
                         for u in prop.keys():
                             if u in act[s]:
+                                #
+                                # Sn里进Ip的
                                 pe = prop[u][0]
                                 y_to_ip += Y[(s, u)]*pe
             # suffix_solver.Add(y_to_ip+y_out >= delta)
@@ -480,9 +561,9 @@ def syn_plan_suffix_rex(prod_mdp, MEC, d, y_in_sf):
     # ----with minimal expected total cost of accepting cyclic paths----
     # ----and penalty over the risk in the suffix
     print("===========[plan suffix synthesis starts]")
-    sf = MEC[0]
-    ip = MEC[1]
-    act = MEC[2].copy()
+    sf = MEC[0]                 # MEC
+    ip = MEC[1]                 # MEC和接收状态ip的交集
+    act = MEC[2].copy()         # 当前MEC中状态对应的动作
     delta = 1.0
     for init_node in prod_mdp.graph['initial']:
         paths = single_source_shortest_path(prod_mdp, init_node)

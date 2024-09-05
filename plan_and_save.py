@@ -262,6 +262,14 @@ def plan_and_save(ws_robot_model, task):
     print('prod_dra_edges.p saved')
 
     # ----
+    #
+    # 在这个地方计算S_f, 即MEC
+    # S_f 数据结构: [MEC, MEC ^ Ip, loop_act],
+    #       第一项是所有MEC,
+    #       第二项是所有MEC和Ip的交集,
+    #       第三项是一个字典,
+    #       for s in mdp.nodes():
+    #           A[s] = mdp.nodes[s]['act'].copy()
     prod_dra.compute_S_f_rex()
     t42 = time.time()
     print('Compute ASCC done, time: %s' % str(t42-t41))
