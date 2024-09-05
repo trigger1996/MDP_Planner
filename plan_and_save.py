@@ -2,27 +2,13 @@ from MDP_TG.mdp import Motion_MDP
 from MDP_TG.dra import Dra, Product_Dra
 from MDP_TG.lp import syn_full_plan, syn_full_plan_rex
 #from MDP_TG.vis import visualize_run                        # sudo apt install texlive-latex-extra -y
+from User.vis2 import visualize_run_sequence, visualiza_in_animation, print_c
 
 import pickle
 import time
 import networkx
 
-import matplotlib
 import matplotlib.pyplot as plt
-
-
-def print_c(data, color=32):
-    """
-    https://blog.csdn.net/XianZhe_/article/details/113075983
-    颜色样式打印输出功能
-    :param data: 打印内容
-    :param color: 指定颜色, 默认为绿色(32)
-    :return:
-    """
-    if isinstance(color, int):
-        color = str(color)
-    print(f"\033[1;{color}m{data}\033[0m")
-
 
 def build_model(N_x=8, N_y=10):
     t0 = time.time()
@@ -167,69 +153,6 @@ def build_model(N_x=8, N_y=10):
     print('ws_robot_model returned, time: %s' % str(t1-t0))
     return ws_robot_model
 
-def visualize_run(XX, LL, UU, MM, name=None):
-    # -----plot the sequence of states for the test run
-    figure = plt.figure()
-    ax = figure.add_subplot(1, 1, 1)
-    N = len(XX)
-    # print 'N: %s' %N
-    # ----
-    for n in range(0, N):
-        X = list(XX[n])
-        L = list(LL[n])
-        U = list(UU[n])
-        M = list(MM[n])
-        K = len(X)
-        # print 'K: %s' %K
-        RAD = 0.3
-        for k in range(0, K):
-            if M[k] == 0:
-                color = 'blue'
-            if M[k] == 1:
-                color = 'magenta'
-            if M[k] == 2:
-                color = 'black'
-            # ----
-            rec = matplotlib.patches.Rectangle((4*k-RAD, 3*n-RAD),
-                                               RAD*2, RAD*2,
-                                               fill=False,
-                                               edgecolor=color,
-                                               linewidth=3,
-                                               ls='solid',
-                                               alpha=1)
-            ax.add_patch(rec)
-            setstr = r''
-            for s in L[k]:
-                setstr += s
-                setstr += ','
-            ax.text(4*k-RAD, 3*n+RAD*4, r'$(%s, \{%s\})$' %
-                    (str(X[k]), str(setstr)), fontsize=6, fontweight='bold')
-            # ----
-            if (k <= K-2):
-                line = matplotlib.lines.Line2D([4*k+RAD, 4*k+4-RAD],
-                                               [3*n, 3*n],
-                                               linestyle='-',
-                                               linewidth=1,
-                                               color='black')
-                ax.add_line(line)
-                actstr = r''
-                for s in U[k]:
-                    actstr += s
-                ax.text(4*k+2, 3*n+RAD, r'%s' %
-                        str(actstr), fontsize=6, fontweight='bold')
-    ax.set_aspect(0.7)
-    ax.set_xlim(-1, 4*K)
-    ax.set_ylim(-1, 3*N)
-    ax.set_xlabel(r'$state\; sequence$')
-    ax.set_ylabel(r'$run$')
-    # ax.axis('off')
-    # if name:
-    #     plt.savefig('%s.pdf' % name, bbox_inches='tight')
-
-    plt.show()
-
-    return figure
-
 def plan_and_save(ws_robot_model, task):
 
     #
@@ -308,10 +231,13 @@ def plan_and_save(ws_robot_model, task):
 
         print('[Product Dra] process all done')
 
-        fig = visualize_run(XX, LL, UU, MM, 'surv_result')
+        fig = visualize_run_sequence(XX, LL, UU, MM, 'surv_result', is_visuaize=False)
 
     except:
         print_c("No best plan synthesized, try re-run this program", color=33)
+
+    visualiza_in_animation(motion_mdp, initial_node, XX, LL, UU, MM, 'surv_animation')
+    plt.show()
 
 if __name__ == "__main__":
     ws_robot_model = build_model()
