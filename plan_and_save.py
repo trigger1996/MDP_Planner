@@ -2,7 +2,7 @@ from MDP_TG.mdp import Motion_MDP
 from MDP_TG.dra import Dra, Product_Dra
 from MDP_TG.lp import syn_full_plan, syn_full_plan_rex
 #from MDP_TG.vis import visualize_run                        # sudo apt install texlive-latex-extra -y
-from User.vis2 import visualize_run_sequence, visualiza_in_animation, print_c
+from User.vis2 import visualize_run_sequence, visualize_trajectories, visualiza_in_animation, print_c
 
 import pickle
 import time
@@ -209,7 +209,7 @@ def plan_and_save(ws_robot_model, task):
     print('best_plan.p saved!')
 
     # Added
-    total_T = 20
+    total_T = 40
     state_seq = [initial_node, ]
     label_seq = [initial_label, ]
     N = 5
@@ -236,7 +236,7 @@ def plan_and_save(ws_robot_model, task):
     except:
         print_c("No best plan synthesized, try re-run this program", color=33)
 
-    visualiza_in_animation(motion_mdp, initial_node, XX, LL, UU, MM, 'surv_animation')
+    visualize_trajectories(motion_mdp, initial_node, XX, LL, UU, MM, 'surv_animation')
     plt.show()
 
 if __name__ == "__main__":
