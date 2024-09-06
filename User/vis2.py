@@ -120,12 +120,7 @@ def visualize_trajectories(mdp, s0, XX, LL, UU, MM, name=None, is_illustrate_tog
     #plt.figure(figsize=(cols, rows))
     #plt.figure()
     fig, ax = plt.subplots()
-    ax.set_xlim(Ym - grid_size, Ys + grid_size)
-    ax.set_ylim(Xm - grid_size, Xs + grid_size)
-    ax.set_xticks(np.arange(Xm, Xs, grid_size))
-    ax.set_yticks(np.arange(Ym, Ys, grid_size))
-    ax.set_aspect('equal')
-    
+
     # 选色
     color_index_ap = {}
     color_chosen_arr_ap = [10, 11, 12, 13, 14, 15]
@@ -174,9 +169,15 @@ def visualize_trajectories(mdp, s0, XX, LL, UU, MM, name=None, is_illustrate_tog
 
     # 轨迹
     traj = []
+    x_offset_0 = 0.05
+    y_offset_0 = 0.05
+    run_number = run_xy_set.__len__()
     for i in range(0, run_xy_set.__len__()):
-        x_t = [x_y_label[0] for x_y_label in run_xy_set[i]]
-        y_t = [x_y_label[1] for x_y_label in run_xy_set[i]]
+        x_offset =  x_offset_0 * (i - run_number / 2)
+        y_offset = -y_offset_0 * (i - run_number / 2)
+
+        x_t = [x_y_label[0] + x_offset for x_y_label in run_xy_set[i]]
+        y_t = [x_y_label[1] + y_offset for x_y_label in run_xy_set[i]]
         #
         # method 1
         #line_t = ax.plot(y_t, x_t, color=color_index_traj[i], lw=3)                    # x和y是反过来的, 下同
@@ -190,7 +191,7 @@ def visualize_trajectories(mdp, s0, XX, LL, UU, MM, name=None, is_illustrate_tog
         cmap = plt.cm.colors.LinearSegmentedColormap.from_list("", colors)
         points = np.array([y_t, x_t]).T.reshape(-1, 1, 2)
         segments = np.concatenate([points[:-1], points[1:]], axis=1)
-        lc = LineCollection(segments, cmap=cmap)
+        lc = LineCollection(segments, cmap=cmap, label='run_%d' % (i,))
         lc.set_array(np.linspace(0, 1, len(y_t)))
         lc.set_linewidth(3)
         #
@@ -206,6 +207,14 @@ def visualize_trajectories(mdp, s0, XX, LL, UU, MM, name=None, is_illustrate_tog
         # 色条
         # cbar = plt.colorbar(lc, ax=ax)
         # cbar.set_label('Time Normalized')
+
+    ax.set_xlim(Ym - grid_size, Ys + grid_size)
+    ax.set_ylim(Xm - grid_size, Xs + grid_size)
+    ax.set_xticks(np.arange(Ym - grid_size, Ys + grid_size, grid_size))
+    ax.set_yticks(np.arange(Xm - grid_size, Xs + grid_size, grid_size))
+    ax.set_aspect('equal')
+    #ax.legend()
+
 
     return field
 
@@ -261,7 +270,7 @@ def visualiza_in_animation(mdp, s0, XX, LL, UU, MM, name=None, is_illustrate_tog
 
     def xy2sub(len, x, y, grid_size):
         r = int(len - y / grid_size - 1)
-        c = int(x  / grid_size)
+        c = int(x / grid_size)
         return [r, c]
 
     def sub2xy(len, r, c, grid_size):
@@ -270,19 +279,20 @@ def visualiza_in_animation(mdp, s0, XX, LL, UU, MM, name=None, is_illustrate_tog
         return [x, y]
 
     # step 1 find all grids from motion mdp
+    grid_size = 0.5
     grids = []
     ap_list = []
     for state_t in list(mdp.nodes.keys()):
         #
-        #x_t = state_t[0]
-        #y_t = state_t[1]
+        # x_t = state_t[0]
+        # y_t = state_t[1]
         x_t, y_t = state_2_grid_center(state_t)
         #
         label_t = []
         act_t = []
         for key_t in mdp.nodes[state_t]:
             if key_t == 'label':
-                label_t = list(mdp.nodes[state_t]['label'].keys())[0]         # 这个是试出来的
+                label_t = list(mdp.nodes[state_t]['label'].keys())[0]  # 这个是试出来的
                 label_t = tuple(label_t)
                 #
                 for label_t_t in label_t:
@@ -293,12 +303,12 @@ def visualiza_in_animation(mdp, s0, XX, LL, UU, MM, name=None, is_illustrate_tog
         grids.append((x_t, y_t, label_t))
     grids = list(set(grids))
     ap_list = list(set(ap_list))
+    ap_list.sort()
 
     Ys = max(x_y_ap[1] for x_y_ap in grids)
     Xs = max(x_y_ap[0] for x_y_ap in grids)
     Ym = min(x_y_ap[1] for x_y_ap in grids)
     Xm = min(x_y_ap[0] for x_y_ap in grids)
-
 
     # 其中X和矩阵地图的cols对应
     rows = int(Ys / grid_size)
@@ -306,10 +316,6 @@ def visualiza_in_animation(mdp, s0, XX, LL, UU, MM, name=None, is_illustrate_tog
     # 创建全部为空地的地图栅格，其中空地以数字1表征
     # ！！！注意ones(行列个数，因此rows需要+1)
     field = np.ones([rows, cols])
-
-    startxy = [s0[0], s0[1]]
-    goalxy = [2, 0.5]
-    obsxy = [[1, 0], [1, 0.5], [1, 1]]
 
     run_xy_set = []
     for run_t in XX:
@@ -319,27 +325,27 @@ def visualiza_in_animation(mdp, s0, XX, LL, UU, MM, name=None, is_illustrate_tog
             run_xy_t.append((x_t, y_t,))
         run_xy_set.append(run_xy_t)
 
-
-    # 修改栅格地图中起始点和终点的数值，其中起点以数值4表征，终点以数值5表示
-    startsub = xy2sub(rows, startxy[0], startxy[1], grid_size)
-    goalsub = xy2sub(rows, goalxy[0], goalxy[1], grid_size)
-    field[startsub[0], startsub[1]] = 4
-    field[goalsub[0], goalsub[1]] = 5
-
-    # 修改栅格地图中障碍物的数值，其中以数值5表示
-    for i in range(len(obsxy)):
-        obssub = xy2sub(rows, obsxy[i][0], obsxy[i][1], grid_size)
-        field[obssub[0], obssub[1]] = 2
-
     # 设置画布属性
-    #plt.figure(figsize=(cols, rows))
-    #plt.figure()
+    # plt.figure(figsize=(cols, rows))
+    # plt.figure()
     fig, ax = plt.subplots()
-    ax.set_xlim(Ym - grid_size, Ys + grid_size)
-    ax.set_ylim(Xm - grid_size, Xs + grid_size)
-    ax.set_xticks(np.arange(Xm, Xs, grid_size))
-    ax.set_yticks(np.arange(Ym, Ys, grid_size))
-    ax.set_aspect('equal')
+
+    # 选色
+    color_index_ap = {}
+    color_chosen_arr_ap = [10, 11, 12, 13, 14, 15]
+    i = 0
+    for ap_t in ap_list:
+        color_index_ap[ap_t] = color_set[color_chosen_arr_ap[i]]
+        i += 1
+
+    color_index_traj = []
+    interval = 3
+    color_chosen_arr_traj = [j for j in range(0, run_xy_set.__len__() + interval * 2)]
+    for i in range(0, run_xy_set.__len__()):
+        color_1 = color_set[color_chosen_arr_traj[i]]
+        color_2 = color_set[color_chosen_arr_traj[i + interval]]
+        color_3 = color_set[color_chosen_arr_traj[i + interval * 2]]
+        color_index_traj.append([color_1, color_2, color_3])
 
     # 绘制栅格
     grid_edge = grid_size / 40
@@ -357,45 +363,68 @@ def visualiza_in_animation(mdp, s0, XX, LL, UU, MM, name=None, is_illustrate_tog
 
     # 绘制AP List
     # 注意覆盖关系
-    color_index_ap = [0, 1, 2]
     for grid_t in grids:
         ap_in_grid_t = grid_t[2]
         for i in range(0, ap_list.__len__()):
             for ap_t in ap_in_grid_t:
                 if ap_list[i] == ap_t:
                     #
-                    x_start = grid_t[1] - grid_size / 2     # x和y是反过来的
+                    x_start = grid_t[1] - grid_size / 2  # x和y是反过来的
                     y_start = grid_t[0] - grid_size / 2
                     #
-                    color_t = list(color_set[i]) + [0.5]        # RGB-alpha
+                    color_t = list(color_index_ap[ap_t]) + [0.5]  # RGB-alpha
                     #
                     ax.add_patch(pc.Rectangle((x_start, y_start), grid_size, grid_size, color=color_t))
 
     # 轨迹
     traj = []
+    x_offset_0 = 0.05
+    y_offset_0 = 0.05
+    run_number = run_xy_set.__len__()
     for i in range(0, run_xy_set.__len__()):
-        x_t = [x_y_label[0] for x_y_label in run_xy_set[i]]
-        y_t = [x_y_label[1] for x_y_label in run_xy_set[i]]
-        line_t = ax.plot(y_t, x_t)                           # x和y是反过来的
-        traj.append(line_t)
+        x_offset = x_offset_0 * (i - run_number / 2)
+        y_offset = -y_offset_0 * (i - run_number / 2)
+
+        x_t = [x_y_label[0] + x_offset for x_y_label in run_xy_set[i]]
+        y_t = [x_y_label[1] + y_offset for x_y_label in run_xy_set[i]]
+        #
+        # method 1
+        # line_t = ax.plot(y_t, x_t, color=color_index_traj[i], lw=3)                    # x和y是反过来的, 下同
+        #
+        # method 2
+        #
+        color_1 = color_index_traj[i][0]
+        color_2 = color_index_traj[i][1]
+        color_3 = color_index_traj[i][2]
+        colors = [color_1, color_2, color_3]  # [color_1, color_2]
+        cmap = plt.cm.colors.LinearSegmentedColormap.from_list("", colors)
+        points = np.array([y_t, x_t]).T.reshape(-1, 1, 2)
+        segments = np.concatenate([points[:-1], points[1:]], axis=1)
+        lc = LineCollection(segments, cmap=cmap, label='run_%d' % (i,))
+        lc.set_array(np.linspace(0, 1, len(y_t)))
+        lc.set_linewidth(3)
+        #
+        ax.add_collection(lc)
+        traj.append(lc)
 
         # 标注起点
         # 注意覆盖关系
-        c = pc.Circle(xy=(y_t[0], x_t[0], ), radius=grid_size / 6, alpha=0.5, color='red')
+        circle_r = grid_size / 6 + 0.005 * (run_xy_set.__len__() - i)
+        c = pc.Circle(xy=(y_t[0], x_t[0],), radius=circle_r, alpha=0.85, color=color_index_traj[i][0])
         ax.add_patch(c)
 
+        # 色条
+        # cbar = plt.colorbar(lc, ax=ax)
+        # cbar.set_label('Time Normalized')
+
+    ax.set_xlim(Ym - grid_size, Ys + grid_size)
+    ax.set_ylim(Xm - grid_size, Xs + grid_size)
+    ax.set_xticks(np.arange(Ym - grid_size, Ys + grid_size, grid_size))
+    ax.set_yticks(np.arange(Xm - grid_size, Xs + grid_size, grid_size))
+    ax.set_aspect('equal')
+    # ax.legend()
+
     return field
-
-
-
-
-
-
-
-
-
-
-
 
 def visualize_run_sequence(XX, LL, UU, MM, name=None, is_visuaize=False):
     # -----plot the sequence of states for the test run

@@ -231,12 +231,13 @@ def plan_and_save(ws_robot_model, task):
 
         print('[Product Dra] process all done')
 
-        fig = visualize_run_sequence(XX, LL, UU, MM, 'surv_result', is_visuaize=False)
+        #fig = visualize_run_sequence(XX, LL, UU, MM, 'surv_result', is_visuaize=False)
+        #visualize_trajectories(motion_mdp, initial_node, XX, LL, UU, MM, 'surv_trajectories', is_visuaize=False)
 
     except:
         print_c("No best plan synthesized, try re-run this program", color=33)
 
-    visualize_trajectories(motion_mdp, initial_node, XX, LL, UU, MM, 'surv_animation')
+    visualiza_in_animation(motion_mdp, initial_node, XX, LL, UU, MM, 'surv_animation')
     plt.show()
 
 if __name__ == "__main__":
