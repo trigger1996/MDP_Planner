@@ -333,7 +333,7 @@ def syn_plan_prefix(prod_mdp, MEC, gamma):
                   (y_to_sd, y_to_sf, y_to_sd+y_to_sf))
             print("----Prefix risk computed: %s" % str(risk))
             # compute the input flow to the suffix
-            y_in_sf = dict()
+            y_in_sf = dict()                                            # Sn -> Sf, 从S0能到达但不在AMEC的状态, 到达AMEC的状态, 其中keys为AMEC的状态
             for s in Sn:
                 for t in prod_mdp.successors(s):
                     if t in sf:

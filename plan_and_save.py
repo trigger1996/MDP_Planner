@@ -1,7 +1,8 @@
 from MDP_TG.mdp import Motion_MDP
 from MDP_TG.dra import Dra, Product_Dra
-from MDP_TG.lp import syn_full_plan, syn_full_plan_rex
+#from MDP_TG.lp import syn_full_plan, syn_full_plan_rex
 #from MDP_TG.vis import visualize_run                        # sudo apt install texlive-latex-extra -y
+from User.lp import syn_full_plan
 from User.vis2 import visualize_run_sequence, visualize_trajectories, visualiza_in_animation, print_c
 
 import pickle
