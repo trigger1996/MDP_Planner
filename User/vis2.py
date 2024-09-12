@@ -10,7 +10,19 @@ from matplotlib.colors import LinearSegmentedColormap
 from matplotlib.patches import Polygon
 from matplotlib import colors
 import matplotlib.patches as pc
+import matplotlib.ticker as ticker
 from matplotlib.style import available
+
+# 设置公式字体
+from matplotlib import rcParams
+config = {
+    "font.family":'serif',
+    "font.size": 20,
+    "mathtext.fontset":'stix',
+    "font.serif": ['SimSun'], # simsun字体中文版就是宋体
+    'text.usetex': True,
+}
+rcParams.update(config)
 
 color_set = np.array([[188, 195, 48],                # in rgb
                       [204, 0,   111],
@@ -270,8 +282,8 @@ def visualize_trajectories(mdp, s0, XX, LL, UU, MM, name=None, is_gradient_color
     ax.set_ylim(Xm - grid_size, Xs + grid_size)
     ax.set_xticks(np.arange(Ym - grid_size, Ys + grid_size, grid_size))
     ax.set_yticks(np.arange(Xm - grid_size, Xs + grid_size, grid_size))
-    ax.set_xlabel('y')
-    ax.set_ylabel('x')
+    ax.set_xlabel(r'$y(m)$')
+    ax.set_ylabel(r'$x(m)$')
     ax.set_aspect('equal')
     if not is_gradient_color:
         ax.legend()
@@ -647,8 +659,8 @@ def visualiza_in_animation(mdp, s0, XX, LL, UU, MM, name=None, is_illustrate_tog
     ax.set_ylim(Xm - grid_size, Xs + grid_size)
     ax.set_xticks(np.arange(Ym - grid_size, Ys + grid_size, grid_size))
     ax.set_yticks(np.arange(Xm - grid_size, Xs + grid_size, grid_size))
-    ax.set_xlabel('y')
-    ax.set_ylabel('x')
+    ax.set_xlabel(r'$y(m)$')
+    ax.set_ylabel(r'$x(m)$')
     ax.set_aspect('equal')
     if not is_gradient_color:
         ax.legend()
@@ -727,3 +739,339 @@ def visualize_run_sequence(XX, LL, UU, MM, name=None, is_visuaize=False):
         plt.show()
 
     return figure
+
+def draw_mdp_principle():
+    fig, ax = plt.subplots(figsize=(10.5, 7))
+
+    # draw grids
+    grid_size = 0.25
+    #
+    grids = [[0,      0],         [grid_size,     0],         [-grid_size,     0],
+             [0,     -grid_size], [grid_size,    -grid_size], [-grid_size,    -grid_size],
+             [0,      grid_size], [grid_size,     grid_size], [-grid_size,     grid_size],
+             [0,  2 * grid_size], [grid_size, 2 * grid_size], [-grid_size, 2 * grid_size],
+             [0,  3 * grid_size], [grid_size, 3 * grid_size], [-grid_size, 3 * grid_size],]
+    grid_edge = grid_size / 40
+    for grid_t in grids:
+        #
+        x_start = grid_t[1] - grid_size / 2 + grid_edge
+        y_start = grid_t[0] - grid_size / 2 + grid_edge
+        grid_width = grid_size - grid_edge * 2
+        #
+        color_t = [0.8, 0.8, 0.8, 0.5]
+        #
+        ax.add_patch(pc.Rectangle((x_start, y_start), grid_width, grid_width, color=color_t))
+
+    state_seq = [(0.,   0.,   'E'),
+                 (0.25, 0.,   'E'),
+                 (0.25, 0.,   'N'),
+                 (0.25, 0.25, 'N'),
+                 (0.,   0.5,  'N'),
+                 ]
+    possible_action_seq = [['FR', (0.25,         -0.25, 'E'), (0.25,        0.,          'E'), ( 0.25,  0.25,        'E'),],
+                           ['RT', (0.25 + 0.05,  0.,    'E'), (0.25 + 0.05, 0. + 0.05,   'N'), ( 0.25,  0. + 0.05,   'W'),],
+                           ['FR', (0.25,         0.25,  'N'), (0.,          0.25,        'N'),],
+                           ['FR', (0.25,         0.5,   'N'), (0.0,         0.5,         'N'),],
+                           ['FR', (0.25,         0.75,  'N'), (0.0,         0.75,        'N'), (-0.25,  0.75,        'N'),],]
+    color_0 = color_set[0]
+    color_motion  = color_set[22]
+    color_actions = [[color_set[5],  color_set[20],  color_set[15]],
+                     [color_set[6],  color_set[11],  color_set[16]],
+                     [color_set[7],  color_set[12],  color_set[17]],
+                     [color_set[8],  color_set[13],  color_set[18]],
+                     [color_set[9],  color_set[14],  color_set[21]],
+                     ]
+    #                    act,   x,       y,       pr,   x,      y,       pr,  x,      y          pr,   x,     y
+    text_xy_actions = [[('FR', -0.125,   0.,),   (0.1,  0.175, -0.35,), (0.8,  0.175, -0.115,), (0.1,  0.175, 0.115,),],
+                       [('TR',  0.125,  -0.15,), (0.15, 0.275, -0.15,), (0.7,  0.315, -0.15,),  (0.15, 0.315, 0.075,),],
+                       [('FR',  0.315,   0.25,), (0.9,  0.15,   0.25,), (0.1, -0.105,  0.25,),],
+                       [('FR',  0.065,   0.5,),  (0.9,  0.15,   0.5,),  (0.1, -0.105,   0.5,),],
+                       [('FR',  0.065,   0.75,), (0.1,  0.15,   0.75,), (0.8, -0.105,   0.75,), (0.1,  -0.35, 0.75,),],]
+    for i in range(0, state_seq.__len__()):
+        x_t = state_seq[i][0]
+        y_t = state_seq[i][1]
+        heading_t = state_seq[i][2]
+
+        # action
+        if i > 0:
+            x_t_last = state_seq[i - 1][0]
+            y_t_last = state_seq[i - 1][1]
+
+            ax.plot([y_t_last, y_t], [x_t_last, x_t], color=color_motion, lw=5.5, linestyle='-')
+
+        # position
+        # 注意遮盖
+        draw_fuselage(ax, (x_t, y_t), heading_t, face_color=color_0)
+
+        #
+        action_t = text_xy_actions[i][0][0]
+        x_text_t = text_xy_actions[i][0][1]
+        y_text_t = text_xy_actions[i][0][2]
+        ax.text(y_text_t, x_text_t, r"\textbf{%s}" % (action_t, ), color=color_motion, fontsize=25)
+
+        for j in range(1, possible_action_seq[i].__len__()):
+            x_next_t       = possible_action_seq[i][j][0]
+            y_next_t       = possible_action_seq[i][j][1]
+            heading_next_t = possible_action_seq[i][j][2]
+
+            draw_fuselage(ax, (x_next_t, y_next_t), heading_next_t, face_color=color_actions[i][j - 1], alpha=0.375)
+
+            ax.plot([y_t, y_next_t], [x_t, x_next_t], color=color_actions[i][j - 1], lw=3.5, linestyle='--', alpha=0.375)
+
+            #
+            action_t = text_xy_actions[i][j][0]
+            x_text_t = text_xy_actions[i][j][1]
+            y_text_t = text_xy_actions[i][j][2]
+            ax.text(y_text_t, x_text_t, r"\textbf{%s}" % (action_t, ), color=color_actions[i][j - 1], fontsize=17.5)
+
+    #
+    ax.set_xlim(-grid_size * 1.5, grid_size * 3.5)
+    ax.set_ylim(-grid_size * 1.5, grid_size * 1.5)
+    #
+    ax.xaxis.set_major_locator(ticker.MultipleLocator(grid_size))
+    ax.yaxis.set_major_locator(ticker.MultipleLocator(grid_size))
+    #
+    ax.set_xlabel(r'$y(m)$')
+    ax.set_ylabel(r'$x(m)$')
+    ax.set_aspect('equal')
+
+def draw_action_principle():
+    '''
+    # method 1
+    fig, axs = plt.subplots(1, 4)  # 创建2行2列的子图网格
+
+    # 在第1个子图上绘图
+    axs[0, 0].plot([1, 2, 3], [4, 5, 6])
+    axs[0, 0].set_title('Plot 1')
+
+    # 在第2个子图上绘图
+    axs[0, 1].plot([1, 2, 3], [6, 5, 4])
+    axs[0, 1].set_title('Plot 2')
+
+    # 在第3个子图上绘图
+    axs[1, 0].plot([1, 2, 3], [1, 2, 1])
+    axs[1, 0].set_title('Plot 3')
+
+    # 在第4个子图上绘图
+    axs[1, 1].plot([1, 2, 3], [3, 3, 3])
+    axs[1, 1].set_title('Plot 4')
+
+    # method 2
+    fig, axs = plt.subplots(2, 2)  # 创建2行2列的子图网格
+
+    # 在第1个子图上绘图
+    #axs[0, 0].plot([1, 2, 3], [4, 5, 6])
+    axs[0, 0].set_title('Plot 1')
+
+    # 在第2个子图上绘图
+    #axs[0, 1].plot([1, 2, 3], [6, 5, 4])
+    axs[0, 1].set_title('Plot 2')
+
+    # 在第3个子图上绘图
+    #axs[1, 0].plot([1, 2, 3], [1, 2, 1])
+    axs[1, 0].set_title('Plot 3')
+
+    # 在第4个子图上绘图
+    #axs[1, 1].plot([1, 2, 3], [3, 3, 3])
+    axs[1, 1].set_title('Plot 4')
+    '''
+
+    fig, axs = plt.subplots(2, 2, figsize=(12, 12))  # 创建2行2列的子图网格
+    axs_fr = axs[0, 0]
+    axs_bk = axs[1, 0]
+    axs_lt = axs[0, 1]
+    axs_rt = axs[1, 1]
+
+    grid_size = 0.25
+    #
+    grids = [[0,   0],         [grid_size,  0],         [-grid_size,  0],
+             [0,   grid_size], [grid_size,  grid_size], [-grid_size,  grid_size],
+             [0,  -grid_size], [grid_size, -grid_size], [-grid_size, -grid_size]]
+    grid_edge = grid_size / 40
+    for grid_t in grids:
+        #
+        x_start = grid_t[1] - grid_size / 2 + grid_edge
+        y_start = grid_t[0] - grid_size / 2 + grid_edge
+        grid_width = grid_size - grid_edge * 2
+        #
+        color_t = [0.8, 0.8, 0.8, 0.5]
+        #
+        axs_fr.add_patch(pc.Rectangle((x_start, y_start), grid_width, grid_width, color=color_t))
+        axs_bk.add_patch(pc.Rectangle((x_start, y_start), grid_width, grid_width, color=color_t))
+        axs_lt.add_patch(pc.Rectangle((x_start, y_start), grid_width, grid_width, color=color_t))
+        axs_rt.add_patch(pc.Rectangle((x_start, y_start), grid_width, grid_width, color=color_t))
+
+    #
+    color_0 = color_set[0]
+    color_motion = [color_set[1], color_set[5], color_set[15]]
+    color_action = color_set[9]
+
+    #
+    # FR actions
+    initial_pos = [0, 0, 'E']
+    draw_fuselage(axs_fr, [initial_pos[0], initial_pos[1]], initial_pos[2], face_color=color_0)
+    tgt_prob_set = [(0.25, -0.25, 'E', 0.1),
+                       (0.25,  0,    'E', 0.8),
+                       (0.25,  0.25, 'E', 0.1),]
+    text_xy_set = [(-0.275, 0.295),
+                   ( 0,     0.295),
+                   ( 0.195, 0.295),
+                   ( 0.15,  0)]
+    for i in range(0, tgt_prob_set.__len__()):
+        #
+        x_t_t = initial_pos[0]
+        y_t_t = initial_pos[1]
+        #
+        x_next_t = tgt_prob_set[i][0]
+        y_next_t = tgt_prob_set[i][1]
+        heading_next_t = tgt_prob_set[i][2]
+        probability_t  = tgt_prob_set[i][3]
+        #
+        axs_fr.plot([y_t_t, y_next_t], [x_t_t, x_next_t], color=color_motion[i], lw=5.5, linestyle='--', alpha=0.375)
+        draw_fuselage(axs_fr, (x_next_t, y_next_t), heading_next_t, face_color=color_motion[i], alpha=0.45)
+        #
+        y_text_t = text_xy_set[i][0]
+        x_text_t = text_xy_set[i][1]
+        #
+        text_t = axs_fr.text(y_text_t, x_text_t, r"$%.2f$" % (probability_t,), color=color_motion[i], fontsize=22.5)
+    y_text_t = text_xy_set[list(text_xy_set).__len__() - 1][0]
+    x_text_t = text_xy_set[list(text_xy_set).__len__() - 1][1]
+    text_t = axs_fr.text(y_text_t, x_text_t, r"\textbf{FR}", color=color_action, fontsize=25)
+
+    #
+    # BK actions
+    initial_pos = [0, 0, 'E']
+    draw_fuselage(axs_bk, [initial_pos[0], initial_pos[1]], initial_pos[2], face_color=color_0)
+    #
+    tgt_prob_set = [(-0.25, -0.25, 'E', 0.15),
+                    (-0.25, 0,     'E', 0.7),
+                    (-0.25, 0.25,  'E', 0.15), ]
+    text_xy_set = [(-0.275, -0.35),
+                   (0,      -0.35),
+                   (0.195,  -0.35),
+                   (0.15,    0)]
+    for i in range(0, tgt_prob_set.__len__()):
+        #
+        x_t_t = initial_pos[0]
+        y_t_t = initial_pos[1]
+        #
+        x_next_t = tgt_prob_set[i][0]
+        y_next_t = tgt_prob_set[i][1]
+        heading_next_t = tgt_prob_set[i][2]
+        probability_t = tgt_prob_set[i][3]
+        #
+        axs_bk.plot([y_t_t, y_next_t], [x_t_t, x_next_t], color=color_motion[i], lw=5.5, linestyle='--', alpha=0.375)
+        draw_fuselage(axs_bk, (x_next_t, y_next_t), heading_next_t, face_color=color_motion[i], alpha=0.45)
+        #
+        y_text_t = text_xy_set[i][0]
+        x_text_t = text_xy_set[i][1]
+        #
+        text_t = axs_bk.text(y_text_t, x_text_t, r"$%.2f$" % (probability_t,), color=color_motion[i], fontsize=22.5)
+    y_text_t = text_xy_set[list(text_xy_set).__len__() - 1][0]
+    x_text_t = text_xy_set[list(text_xy_set).__len__() - 1][1]
+    text_t = axs_bk.text(y_text_t, x_text_t, r"\textbf{BK}", color=color_action, fontsize=25)
+
+    #
+    # LT actions
+    initial_pos = [0, 0.0, 'E']
+    draw_fuselage(axs_lt, [initial_pos[0], initial_pos[1]], initial_pos[2], face_color=color_0)
+    #
+    tgt_prob_set = [(0.05, 0,      'E', 0.05),
+                    (0.05, -0.05,  'S', 0.9),
+                    (0,    -0.05,  'W', 0.05), ]
+    text_xy_set = [(0.,     0.15),                       # 不转
+                   (-0.25,   0.0),                       # 转90
+                   (0.,    -0.115),                      # 转90, 再多转90
+                   (0.15,  0)]
+    alpha_set = [0.25, 0.45, 0.45]
+    for i in range(0, tgt_prob_set.__len__()):
+        #
+        x_t_t = initial_pos[0]
+        y_t_t = initial_pos[1]
+        #
+        x_next_t = tgt_prob_set[i][0]
+        y_next_t = tgt_prob_set[i][1]
+        heading_next_t = tgt_prob_set[i][2]
+        probability_t = tgt_prob_set[i][3]
+        #
+        draw_fuselage(axs_lt, (x_next_t, y_next_t), heading_next_t, face_color=color_motion[i], alpha=alpha_set[i])
+        #
+        y_text_t = text_xy_set[i][0]
+        x_text_t = text_xy_set[i][1]
+        #
+        text_t = axs_lt.text(y_text_t, x_text_t, r"$%.2f$" % (probability_t,), color=color_motion[i], fontsize=22.5)
+    y_text_t = text_xy_set[list(text_xy_set).__len__() - 1][0]
+    x_text_t = text_xy_set[list(text_xy_set).__len__() - 1][1]
+    text_t = axs_lt.text(y_text_t, x_text_t, r"\textbf{TL}", color=color_action, fontsize=25)
+
+    #
+    # RT actions
+    initial_pos = [0, 0.0, 'E']
+    draw_fuselage(axs_rt, [initial_pos[0], initial_pos[1]], initial_pos[2], face_color=color_0)
+    #
+    tgt_prob_set = [(0.05, 0,     'E', 0.05),
+                    (0.05, 0.05,  'N', 0.9),
+                    (0,    0.05,  'W', 0.05), ]
+    text_xy_set = [(0.,     0.15),                      # 不转
+                   (0.15,   0.0),                       # 转90
+                   (0.,    -0.115),                     # 转90, 再多转90
+                   (-0.25,  0)]
+    alpha_set = [0.25, 0.45, 0.45]
+    for i in range(0, tgt_prob_set.__len__()):
+        #
+        x_t_t = initial_pos[0]
+        y_t_t = initial_pos[1]
+        #
+        x_next_t = tgt_prob_set[i][0]
+        y_next_t = tgt_prob_set[i][1]
+        heading_next_t = tgt_prob_set[i][2]
+        probability_t = tgt_prob_set[i][3]
+        #
+        draw_fuselage(axs_rt, (x_next_t, y_next_t), heading_next_t, face_color=color_motion[i], alpha=alpha_set[i])
+        #
+        y_text_t = text_xy_set[i][0]
+        x_text_t = text_xy_set[i][1]
+        #
+        text_t = axs_rt.text(y_text_t, x_text_t, r"$%.2f$" % (probability_t,), color=color_motion[i], fontsize=22.5)
+    y_text_t = text_xy_set[list(text_xy_set).__len__() - 1][0]
+    x_text_t = text_xy_set[list(text_xy_set).__len__() - 1][1]
+    text_t = axs_rt.text(y_text_t, x_text_t, r"\textbf{TR}", color=color_action, fontsize=25)
+
+    #
+    axs_fr.set_xlim(-grid_size * 1.5, grid_size * 1.5)
+    axs_bk.set_xlim(-grid_size * 1.5, grid_size * 1.5)
+    axs_lt.set_xlim(-grid_size * 1.5, grid_size * 1.5)
+    axs_rt.set_xlim(-grid_size * 1.5, grid_size * 1.5)
+    #
+    axs_fr.set_ylim(-grid_size * 1.5, grid_size * 1.5)
+    axs_bk.set_ylim(-grid_size * 1.5, grid_size * 1.5)
+    axs_lt.set_ylim(-grid_size * 1.5, grid_size * 1.5)
+    axs_rt.set_ylim(-grid_size * 1.5, grid_size * 1.5)
+    #
+    axs_fr.xaxis.set_major_locator(ticker.MultipleLocator(grid_size))
+    axs_bk.xaxis.set_major_locator(ticker.MultipleLocator(grid_size))
+    axs_lt.xaxis.set_major_locator(ticker.MultipleLocator(grid_size))
+    axs_rt.xaxis.set_major_locator(ticker.MultipleLocator(grid_size))
+    #
+    axs_fr.yaxis.set_major_locator(ticker.MultipleLocator(grid_size))
+    axs_bk.yaxis.set_major_locator(ticker.MultipleLocator(grid_size))
+    axs_lt.yaxis.set_major_locator(ticker.MultipleLocator(grid_size))
+    axs_rt.yaxis.set_major_locator(ticker.MultipleLocator(grid_size))
+    #
+    axs_fr.set_xlabel(r'$y(m)$')
+    axs_fr.set_ylabel(r'$x(m)$')
+    axs_fr.set_aspect('equal')
+    #
+    axs_bk.set_xlabel(r'$y(m)$')
+    axs_bk.set_ylabel(r'$x(m)$')
+    axs_bk.set_aspect('equal')
+    #
+    axs_lt.set_xlabel(r'$y(m)$')
+    axs_lt.set_ylabel(r'$x(m)$')
+    axs_lt.set_aspect('equal')
+    #
+    axs_rt.set_xlabel(r'$y(m)$')
+    axs_rt.set_ylabel(r'$x(m)$')
+    axs_rt.set_aspect('equal')
+
+    plt.tight_layout()  # 调整布局以避免子图之间重叠

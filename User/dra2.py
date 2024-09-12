@@ -51,11 +51,15 @@ class Sync_Product_Dra(DiGraph):
         pass
 
     def synthesize_from_sync_mdp(self, prod_mdp, amec, amec_prime, initial_state, observation_function=is_with_identical_observation_2):
+        # amec:
+        #   [0] amec
+        #   [1] amec ^ Ip
+        #   [2] action set
 
         #
         # 1 find all proper initial states
         stack_t = []
-        visited_in_stack = []
+        visited = []
 
         # 1.1 check the available state as initial sets
         #     初始状态如何确定? 由prefix可达?
@@ -67,23 +71,42 @@ class Sync_Product_Dra(DiGraph):
 
         while stack_t.__len__():
             current_state = stack_t.pop()           # (state_in_amec, ref_state_in_amec', )
-            stack_dfs  = [ current_state ]
-            visited_dfs = []
+            state_in_amec = current_state[0]
+            state_in_amec_prime = current_state[1]
 
             #
-            # 2. make depth_first_search from current_state
-            while stack_dfs.__len__():
-                dfs_state = stack_dfs.pop()
-                state_in_amec = dfs_state[0]
-                state_in_amec_prime = dfs_state[1]
+            # 3. find successive states
+            # conditions:
+            #   a. successor state must be in AMEC
+            #   b. there exists the corresponding successor state in AMEC', s.t. the observations in a. and b. are identical
+            #   c. 定量关系最后放到求解中作为约束, 不在这里求解
+            #   d. the state pair must NOT be visited
+            #      if visited, then check whether the edge is visited
+            for state_p_in_amec in prod_mdp.successors(state_in_amec):
+                for state_p_in_amec_p in prod_mdp.successors(state_in_amec_prime):          # b.1
+                    if state_p_in_amec in amec[0]:                                          # a
+                        if observation_function(state_p_in_amec, state_p_in_amec_p):        # b.2
+                            state_tuple_p = (state_p_in_amec, state_p_in_amec_p)
+                            if state_tuple_p not in visited:
+                                # add edge
+                                # aa. obtain probability
+                                # ab. calculate differential probability
 
-                #
-                # 3. find successive states
-                # conditions:
-                #   a.
-                #   b.
-                #   c.
-                for state_p_in_amec in prod_mdp.successors(state_in_amec):
-                    pass
 
+                                # add to visited
+                                visited.append(state_tuple_p)
+                            else:
+                                # to check the edge
+                                # ba. the probability is identical
+                                # bb. differential probability is identical
+                                pass
+
+                # edge information
+                # a. transition probabilistic of states in AMEC
+                # b. absolute differential transition probabilistic between two transitions
+
+        #
+        # remeber:
+        #   finally, only the AMEC with proper structure can be applied for suffix synthesis
+        #   otherwise, a modified version of synthesis method must be given
         return None

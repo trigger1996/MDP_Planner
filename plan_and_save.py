@@ -1,9 +1,10 @@
 from MDP_TG.mdp import Motion_MDP
 from MDP_TG.dra import Dra, Product_Dra
 #from MDP_TG.lp import syn_full_plan, syn_full_plan_rex
-#from MDP_TG.vis import visualize_run                        # sudo apt install texlive-latex-extra -y
+#from MDP_TG.vis import visualize_run                        # sudo apt install texlive-latex-extra dvipng -y
 from User.lp import syn_full_plan
 from User.vis2 import visualize_run_sequence, visualize_trajectories, visualiza_in_animation, print_c
+from User.vis2 import draw_mdp_principle, draw_action_principle
 
 import pickle
 import time
@@ -237,6 +238,9 @@ def plan_and_save(ws_robot_model, task):
 
     except:
         print_c("No best plan synthesized, try re-run this program", color=33)
+
+    draw_mdp_principle()
+    draw_action_principle()
 
     visualize_trajectories(motion_mdp, initial_node, XX, LL, UU, MM, 'surv_trajectories', is_gradient_color=True)
     visualiza_in_animation(motion_mdp, initial_node, XX, LL, UU, MM, 'surv_animation', is_show_action=True, is_gradient_color=True)
