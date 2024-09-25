@@ -77,6 +77,7 @@ best_all_plan = syn_full_plan(prod_dra, allowed_risk)
 Dependence
 ----
 * Install python packages like Networkx, ply
+* Compile [libspot](https://spot.lre.epita.fr/install.html) for your OS.
 * Compile [ltl2ba executable](http://www.lsv.ens-cachan.fr/%7Egastin/ltl2ba/download.php) for your OS.
 * Compile [ltl2dstar executable](http://www.ltl2dstar.de) for your OS. 
 * [Gurobi solver](http://www.gurobi.com) for linear programs. Free for academic use. 

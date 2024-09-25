@@ -5,12 +5,16 @@ from MDP_TG.dra import Dra, Product_Dra
 from User.lp import syn_full_plan
 from User.vis2 import visualize_run_sequence, visualize_trajectories, visualiza_in_animation, print_c
 from User.vis2 import draw_mdp_principle, draw_action_principle
+from subprocess import check_output
 
 import pickle
 import time
 import networkx
 
 import matplotlib.pyplot as plt
+
+from v_rep.plan_synthesis import all_base
+
 
 def build_model(N_x=8, N_y=10):
     t0 = time.time()
@@ -155,7 +159,30 @@ def build_model(N_x=8, N_y=10):
     print('ws_robot_model returned, time: %s' % str(t1-t0))
     return ws_robot_model
 
-def plan_and_save(ws_robot_model, task):
+def obtain_all_aps_from_mdp(mdp:Motion_MDP):
+    ap_list = []
+    for state_t in mdp.nodes():
+        state_attr_t = mdp.nodes()[state_t]
+        label_t = state_attr_t['label']
+        for ap_t in list(state_attr_t['label'])[0]:
+            ap_list.append(ap_t)
+
+    return list(set(ap_list))
+
+def ltl_convert(task, is_display=True):
+    #
+    # https://www.ltl2dstar.de/docs/ltl2dstar.html#:~:text=ltl2dstar%20is%20designed%20to%20use%20an%20external%20tool%20to%20convert
+    # LTL是有两个格式的, 一个ltl2dstar notation, 一个spin notation
+    # 后者是常用的, 要从后者转到前者ltl2dstar才能用
+    cmd_ltl_convert = 'ltlfilt -l -f \'%s\'' % (task, )
+    ltl_converted = str(check_output(cmd_ltl_convert, shell=True))
+    ltl_converted = ltl_converted[2 : len(ltl_converted) - 3]               # tested
+    if is_display:
+        print_c('converted ltl: ' + ltl_converted)
+
+    return ltl_converted
+
+def plan_and_save_with_opacity(ws_robot_model, task, optimizing_ap):
 
     #
     # 这里的MDP系统是将栅格和状态挂在一起
@@ -168,23 +195,58 @@ def plan_and_save(ws_robot_model, task):
     t2 = time.time()
     print('MDP done, time: %s' % str(t2-t0))
 
+    ap_list = obtain_all_aps_from_mdp(motion_mdp)
+
     pickle.dump(networkx.get_edge_attributes(motion_mdp, 'prop'),
                 open('motion_mdp_edges.p', "wb"))
     print('motion_mdp_edges.p saved!')
+
     # ----
-    dra = Dra(task)
+    task_pi = task + ' & GF ' + optimizing_ap
+    ltl_converted_pi = ltl_convert(task_pi)
+
+    dra = Dra(ltl_converted_pi)
     t3 = time.time()
     print('DRA done, time: %s' % str(t3-t2))
 
     # ----
-    prod_dra = Product_Dra(motion_mdp, dra)
+    prod_dra_pi = Product_Dra(motion_mdp, dra)
     # prod_dra.dotify()
     t41 = time.time()
     print('Product DRA done, time: %s' % str(t41-t3))
 
-    pickle.dump((networkx.get_edge_attributes(prod_dra, 'prop'),
-                prod_dra.graph['initial']), open('prod_dra_edges.p', "wb"))
+    pickle.dump((networkx.get_edge_attributes(prod_dra_pi, 'prop'),
+                prod_dra_pi.graph['initial']), open('prod_dra_edges.p', "wb"))
     print('prod_dra_edges.p saved')
+
+
+    # new main loop
+    for ap_4_opacity in ap_list:
+        if ap_4_opacity == optimizing_ap:
+            continue
+
+        # synthesize product mdp for opacity
+        task_gamma = task + ' & GF ' + ap_4_opacity
+        ltl_converted_gamma = ltl_convert(task_gamma)
+        dra = Dra(ltl_converted_gamma)
+        prod_dra_gamma = Product_Dra(motion_mdp, dra)
+
+        # synthesize sync mdp
+        
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
     # ----
     #
@@ -195,7 +257,7 @@ def plan_and_save(ws_robot_model, task):
     #       第三项是一个字典,
     #       for s in mdp.nodes():
     #           A[s] = mdp.nodes[s]['act'].copy()
-    prod_dra.compute_S_f_rex()
+    prod_dra_pi.compute_S_f_rex()
     t42 = time.time()
     print('Compute ASCC done, time: %s' % str(t42-t41))
 
@@ -203,7 +265,7 @@ def plan_and_save(ws_robot_model, task):
     gamma = 0.1
     d = 100
     #best_all_plan = syn_full_plan_rex(prod_dra, gamma, d)
-    best_all_plan = syn_full_plan(prod_dra, gamma)
+    best_all_plan = syn_full_plan(prod_dra_pi, gamma)
     t5 = time.time()
     print('Plan synthesis done, time: %s' % str(t5-t42))
 
@@ -223,7 +285,7 @@ def plan_and_save(ws_robot_model, task):
         MM = []
         PP = []
         for n in range(0, N):
-            X, L, U, M, PX = prod_dra.execution(best_all_plan, total_T, state_seq, label_seq)
+            X, L, U, M, PX = prod_dra_pi.execution(best_all_plan, total_T, state_seq, label_seq)
 
             XX.append(X)
             LL.append(L)
@@ -249,13 +311,20 @@ def plan_and_save(ws_robot_model, task):
 if __name__ == "__main__":
     ws_robot_model = build_model()
     # ----
-    test_task = 'G F base1'
-    all_base = '& G F base1 & G F base2 & G F base3 G ! obstacle'
-    order1 = 'G i supply X U ! supply base'
-    order2 = 'G i base X U ! base supply'
-    order = '& %s %s' % (order1, order2)
-    task1 = '& %s & G ! obstacle %s' % (all_base, order2)
-    task2 = '& %s G F supply' % all_base
-    task3 = '& %s %s' % (all_base, order2)
-    plan_and_save(ws_robot_model, all_base)
+    # test_task = 'G F base1'
+    # all_base = '& G F base1 & G F base2 & G F base3 G ! obstacle'
+    # order1 = 'G i supply X U ! supply base'
+    # order2 = 'G i base X U ! base supply'
+    # order = '& %s %s' % (order1, order2)
+    # task1 = '& %s & G ! obstacle %s' % (all_base, order2)
+    # task2 = '& %s G F supply' % all_base
+    # task3 = '& %s %s' % (all_base, order2)
+    #
+    # 改用标准的Ltl
+    # https://spot.lre.epita.fr/ltlfilt.html#:~:text=ltlfilt.%20Table%20of%20Contents.%20Changing%20syntaxes.%20Altering%20the%20formula.%20Filtering.
+    all_base = 'GF base1 & G !obstacle'
+    #
+    optimizing_ap = 'base3'
+
+    plan_and_save_with_opacity(ws_robot_model, all_base, optimizing_ap)
 
