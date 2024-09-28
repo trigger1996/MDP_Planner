@@ -2,11 +2,10 @@ from MDP_TG.mdp import Motion_MDP
 from MDP_TG.dra import Dra, Product_Dra
 #from MDP_TG.lp import syn_full_plan, syn_full_plan_rex
 #from MDP_TG.vis import visualize_run                        # sudo apt install texlive-latex-extra dvipng -y
-from User.lp import syn_full_plan
+from User.lp import syn_full_plan, synthesize_full_plan_w_opacity
 from User.dra2 import product_mdp2
 from User.vis2 import visualize_run_sequence, visualize_trajectories, visualiza_in_animation, print_c
 from User.vis2 import draw_mdp_principle, draw_action_principle
-from subprocess import check_output
 
 import pickle
 import time
@@ -167,19 +166,6 @@ def obtain_all_aps_from_mdp(mdp:Motion_MDP):
 
     return list(set(ap_list))
 
-def ltl_convert(task, is_display=True):
-    #
-    # https://www.ltl2dstar.de/docs/ltl2dstar.html#:~:text=ltl2dstar%20is%20designed%20to%20use%20an%20external%20tool%20to%20convert
-    # LTL是有两个格式的, 一个ltl2dstar notation, 一个spin notation
-    # 后者是常用的, 要从后者转到前者ltl2dstar才能用
-    cmd_ltl_convert = 'ltlfilt -l -f \'%s\'' % (task, )
-    ltl_converted = str(check_output(cmd_ltl_convert, shell=True))
-    ltl_converted = ltl_converted[2 : len(ltl_converted) - 3]               # tested
-    if is_display:
-        print_c('converted ltl: ' + ltl_converted)
-
-    return ltl_converted
-
 def plan_and_save_with_opacity(ws_robot_model, task, optimizing_ap):
 
     #
@@ -200,53 +186,9 @@ def plan_and_save_with_opacity(ws_robot_model, task, optimizing_ap):
     print('motion_mdp_edges.p saved!')
 
     # ----
-    task_pi = task + ' & GF ' + optimizing_ap
-    ltl_converted_pi = ltl_convert(task_pi)
-
-    dra = Dra(ltl_converted_pi)
-    t3 = time.time()
-    print('DRA done, time: %s' % str(t3-t2))
-
-    # ----
-    prod_dra_pi = product_mdp2(motion_mdp, dra)
-    prod_dra_pi.compute_S_f()                       # for AMECs
-    # prod_dra.dotify()
-    t41 = time.time()
-    print('Product DRA done, time: %s' % str(t41-t3))
-
-    pickle.dump((networkx.get_edge_attributes(prod_dra_pi, 'prop'),
-                prod_dra_pi.graph['initial']), open('prod_dra_edges.p', "wb"))
-    print('prod_dra_edges.p saved')
-
-
-    # new main loop
-    for amec_pi in prod_dra_pi.Sf:
-        for ap_4_opacity in ap_list:
-            if ap_4_opacity == optimizing_ap:
-                continue
-
-            # synthesize product mdp for opacity
-            task_gamma = task + ' & GF ' + ap_4_opacity
-            ltl_converted_gamma = ltl_convert(task_gamma)
-            dra = Dra(ltl_converted_gamma)
-            prod_dra_gamma = Product_Dra(motion_mdp, dra)
-            prod_dra_gamma.compute_S_f()                    # for AMECs
-
-            # synthesize sync mdp
-            for amec_gamma in prod_dra_gamma.Sf:
-                #
-                # calculate sync_amec
-                prod_dra_pi.re_synthesize_sync_amec(prod_dra_gamma)
-
-
-
-
-
-
-
-
-
-
+    risk_pr = 0.1
+    d = 100
+    synthesize_full_plan_w_opacity(motion_mdp, task, optimizing_ap, ap_list, risk_pr)
 
 
 
@@ -260,12 +202,13 @@ def plan_and_save_with_opacity(ws_robot_model, task, optimizing_ap):
     #       第三项是一个字典,
     #       for s in mdp.nodes():
     #           A[s] = mdp.nodes[s]['act'].copy()
+    '''
     prod_dra_pi.compute_S_f_rex()
     t42 = time.time()
     print('Compute ASCC done, time: %s' % str(t42-t41))
 
     # ------
-    gamma = 0.1
+    risk_pr = 0.1
     d = 100
     #best_all_plan = syn_full_plan_rex(prod_dra, gamma, d)
     best_all_plan = syn_full_plan(prod_dra_pi, gamma)
@@ -310,6 +253,7 @@ def plan_and_save_with_opacity(ws_robot_model, task, optimizing_ap):
     visualize_trajectories(motion_mdp, initial_node, XX, LL, UU, MM, 'surv_trajectories', is_gradient_color=True)
     visualiza_in_animation(motion_mdp, initial_node, XX, LL, UU, MM, 'surv_animation', is_show_action=True, is_gradient_color=True)
     plt.show()
+    '''
 
 if __name__ == "__main__":
     ws_robot_model = build_model()

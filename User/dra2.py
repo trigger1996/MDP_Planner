@@ -25,7 +25,7 @@ def is_with_identical_observation_2(state, state_prime):
     else:
         return False
 
-def is_with_identical_observation_3(state, state_prime, dist_threshold=1.):
+def is_with_identical_observation_3(state, state_prime, dist_threshold=0.5):
     #
     # if the Cartesian distance is smaller than the given threshold
     dx = state[0][0] - state_prime[0][0]
@@ -56,13 +56,17 @@ def is_ap_identical(state_pi, state_gamma):
         return False
 
 
-def find_initial_state(state_set_pi, state_set_gamma, is_observed_identical=is_with_identical_observation_1):
-    for state_pi_t in state_set_pi:
+def find_initial_state(y_in_sf, state_set_gamma, is_observed_identical=is_with_identical_observation_1):
+    state_list = []
+    for state_pi_t in y_in_sf.keys():
+        if y_in_sf[state_pi_t] == 0:
+            continue
         for state_gamma_t in state_set_gamma:
             #
             if is_observed_identical(state_pi_t, state_gamma_t):
                 if is_ap_identical(state_pi_t, state_gamma_t):
-                    return (state_pi_t, state_gamma_t, )
+                    state_list.append((state_pi_t, state_gamma_t, ))
+    return state_list
 
 class product_mdp2(Product_Dra):
     def __init__(self, mdp, dra):
@@ -118,78 +122,63 @@ class product_mdp2(Product_Dra):
             print("Check your MDP and Task formulation")
             print("Or try the relaxed plan")
 
-    def re_synthesize_sync_amec(self, mdp_gamma:Product_Dra, is_observed_identical=is_with_identical_observation_1, is_re_compute_Sf=True):
+    def re_synthesize_sync_amec(self, y_in_sf, MEC_pi, MEC_gamma, product_mdp_gamma:Product_Dra, is_observed_identical=is_with_identical_observation_3, is_re_compute_Sf=True):
         # amec:
         #   [0] amec
         #   [1] amec ^ Ip
         #   [2] action set
-        if mdp_gamma.Sf.__len__() == 0 and is_re_compute_Sf:
-            mdp_gamma.compute_S_f()
-        if self.Sf.__len__() == 0 and is_re_compute_Sf:
-            self.compute_S_f()
-        amec_set_pi = self.Sf
-        amec_set_gamma = mdp_gamma.Sf
         #
-        if amec_set_gamma.__len__() == 0 or amec_set_pi.__len__() == 0:
-            return None
+        mec_state_set_pi    = MEC_pi[0]
+        mec_state_set_gamma = MEC_gamma[0]
 
-        self.sync_amec_set.clear()
+        stack_t = find_initial_state(y_in_sf, list(MEC_gamma[0]))
+        stack_t = list(set(stack_t))
+        visited = []
 
-        for amec_pi_t in amec_set_pi:
+        sync_mec_t = DiGraph()
+        for state_t in stack_t:
+            sync_mec_t.add_node(state_t)
+        while stack_t.__len__():
+            current_state = stack_t.pop()
+            visited.append(current_state)
             #
-            for amec_gamma_t in amec_set_gamma:
-                #
-                for mec_set_pi in amec_pi_t:
-                    state_set_pi = mec_set_pi[0]
+            next_state_list_pi    = list(self.out_edges(current_state[0]))
+            next_state_list_gamma = list(product_mdp_gamma.out_edges(current_state[1]))
+            #
+            for edge_t_pi in next_state_list_pi:
+                for edge_t_gamma in next_state_list_gamma:
                     #
-                    for mec_set_gamma in amec_gamma_t:
-                        state_set_gamma = mec_set_gamma[0]
-
-                        #
-                        # 1 find all proper initial states
-                        initial_state_t = find_initial_state(state_set_pi, state_set_gamma, is_observed_identical)
-                        stack_t = [ initial_state_t ]
-                        visited = []
-                        #
-                        sync_mec_t = DiGraph()
-                        sync_mec_t.add_node(initial_state_t)
-                        while stack_t.__len__():
-                            current_state = stack_t.pop()
-                            visited.append(current_state)
-                            #
-                            next_state_list_pi    = list(self.out_edges(current_state[0]))
-                            next_state_list_gamma = list(mdp_gamma.out_edges(current_state[1]))
-                            #
-                            for edge_t_pi in next_state_list_pi:
-                                for edge_t_gamma in next_state_list_gamma:
-                                    #
-                                    next_state_pi    = edge_t_pi[1]
-                                    next_state_gamma = edge_t_gamma[1]
-                                    next_sync_state = (next_state_pi, next_state_gamma)
-                                    #
-                                    # 要求这个状态没有被考虑过
-                                    if next_sync_state in visited:
-                                        continue
-                                    #
-                                    if is_observed_identical(next_state_pi, next_state_gamma):
-                                        if is_ap_identical(next_state_pi, next_state_gamma):
-                                            #
-                                            # TODO
-                                            # 状态转移概率和cost
-                                            sync_mec_t.add_edge(current_state, next_sync_state)
-                                            #
-                                            if next_sync_state not in stack_t:
-                                                stack_t.append(next_sync_state)
-                        #
-                        if sync_mec_t.edges().__len__():
+                    next_state_pi    = edge_t_pi[1]
+                    next_state_gamma = edge_t_gamma[1]
+                    next_sync_state = (next_state_pi, next_state_gamma)
+                    #
+                    # 要求这个状态没有被考虑过
+                    if next_sync_state in visited:
+                        continue
+                    #
+                    is_next_state_pi_in_amec    = next_state_pi    in mec_state_set_pi
+                    is_next_state_gamma_in_amec = next_state_gamma in mec_state_set_gamma
+                    if not is_next_state_pi_in_amec or not is_next_state_gamma_in_amec:
+                        continue
+                    #
+                    if is_observed_identical(next_state_pi, next_state_gamma):
+                        if is_ap_identical(next_state_pi, next_state_gamma):
                             #
                             # TODO
-                            # 检查连接性
-                            for state_sync_t in sync_mec_t.nodes():
-                                pass
+                            # 状态转移概率和cost
+                            sync_mec_t.add_edge(current_state, next_sync_state)
                             #
-                            self.sync_amec_set.append(sync_mec_t)
-
+                            if next_sync_state not in stack_t:
+                                stack_t.append(next_sync_state)
+        #
+        if sync_mec_t.edges().__len__():
+            #
+            # TODO
+            # 检查连接性
+            for state_sync_t in sync_mec_t.nodes():
+                pass
+            #
+            self.sync_amec_set.append(sync_mec_t)
 
 
 class Sync_AMEC(DiGraph):
