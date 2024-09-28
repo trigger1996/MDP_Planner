@@ -3,6 +3,7 @@ from MDP_TG.dra import Dra, Product_Dra
 #from MDP_TG.lp import syn_full_plan, syn_full_plan_rex
 #from MDP_TG.vis import visualize_run                        # sudo apt install texlive-latex-extra dvipng -y
 from User.lp import syn_full_plan
+from User.dra2 import product_mdp2
 from User.vis2 import visualize_run_sequence, visualize_trajectories, visualiza_in_animation, print_c
 from User.vis2 import draw_mdp_principle, draw_action_principle
 from subprocess import check_output
@@ -12,9 +13,6 @@ import time
 import networkx
 
 import matplotlib.pyplot as plt
-
-from v_rep.plan_synthesis import all_base
-
 
 def build_model(N_x=8, N_y=10):
     t0 = time.time()
@@ -210,7 +208,8 @@ def plan_and_save_with_opacity(ws_robot_model, task, optimizing_ap):
     print('DRA done, time: %s' % str(t3-t2))
 
     # ----
-    prod_dra_pi = Product_Dra(motion_mdp, dra)
+    prod_dra_pi = product_mdp2(motion_mdp, dra)
+    prod_dra_pi.compute_S_f()                       # for AMECs
     # prod_dra.dotify()
     t41 = time.time()
     print('Product DRA done, time: %s' % str(t41-t3))
@@ -221,19 +220,23 @@ def plan_and_save_with_opacity(ws_robot_model, task, optimizing_ap):
 
 
     # new main loop
-    for ap_4_opacity in ap_list:
-        if ap_4_opacity == optimizing_ap:
-            continue
+    for amec_pi in prod_dra_pi.Sf:
+        for ap_4_opacity in ap_list:
+            if ap_4_opacity == optimizing_ap:
+                continue
 
-        # synthesize product mdp for opacity
-        task_gamma = task + ' & GF ' + ap_4_opacity
-        ltl_converted_gamma = ltl_convert(task_gamma)
-        dra = Dra(ltl_converted_gamma)
-        prod_dra_gamma = Product_Dra(motion_mdp, dra)
+            # synthesize product mdp for opacity
+            task_gamma = task + ' & GF ' + ap_4_opacity
+            ltl_converted_gamma = ltl_convert(task_gamma)
+            dra = Dra(ltl_converted_gamma)
+            prod_dra_gamma = Product_Dra(motion_mdp, dra)
+            prod_dra_gamma.compute_S_f()                    # for AMECs
 
-        # synthesize sync mdp
-        
-
+            # synthesize sync mdp
+            for amec_gamma in prod_dra_gamma.Sf:
+                #
+                # calculate sync_amec
+                prod_dra_pi.re_synthesize_sync_amec(prod_dra_gamma)
 
 
 

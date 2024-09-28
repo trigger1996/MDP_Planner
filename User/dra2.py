@@ -1,5 +1,6 @@
 from math import fabs, sqrt
 from networkx import DiGraph
+from MDP_TG.mdp import find_MECs, find_SCCs
 from MDP_TG.dra import Product_Dra
 
 def observation_func_1(state, observation='X'):
@@ -46,10 +47,172 @@ def is_with_identical_observation_4(state, state_prime, dist_threshold=1.):
     else:
         return False
 
-class Sync_Product_Dra(DiGraph):
+def is_ap_identical(state_pi, state_gamma):
+    if list(state_pi[1]).__len__() == 0 and list(state_gamma[1]).__len__() == 0:
+        return True
+    elif set(state_pi[1]) == set(state_gamma[1]):
+        return True
+    else:
+        return False
+
+
+def find_initial_state(state_set_pi, state_set_gamma, is_observed_identical=is_with_identical_observation_1):
+    for state_pi_t in state_set_pi:
+        for state_gamma_t in state_set_gamma:
+            #
+            if is_observed_identical(state_pi_t, state_gamma_t):
+                if is_ap_identical(state_pi_t, state_gamma_t):
+                    return (state_pi_t, state_gamma_t, )
+
+class product_mdp2(Product_Dra):
+    def __init__(self, mdp, dra):
+        Product_Dra.__init__(self, mdp, dra)
+        self.compute_S_f()
+        #
+        self.sync_amec_set = list()
+
+    def compute_S_f(self):
+        # ----find all accepting End components----
+        S = set(self.nodes())
+        acc_pairs = self.graph['accept']
+        S_f = []
+        k = 1
+        for pair in acc_pairs:
+            # ---for each accepting pair
+            print("+++++++++++++++++++++++++++++++++++++")
+            print("++++++++++++ acc_pair %s ++++++++++++" % k)
+            print("+++++++++++++++++++++++++++++++++++++")
+            S_fi = []
+            Ip = pair[0]
+            Hp = pair[1]
+            print("Ip size: %s" % len(Ip))
+            print("Hp size: %s" % len(Hp))
+            # ---find all MECs
+            MEC, Act = find_MECs(self, S.difference(Hp))
+            # ---find accepting ones
+            for T in MEC:
+                common = set(T.intersection(Ip))
+                if common:
+                    if len(T) > 1:
+                        S_fi.append([T, common, Act])
+                        print('S_fii added to S_fi!!, size: %s' % len(T))
+                    if len(T) == 1:  # self-loop
+                        common_cp = common.copy()
+                        s = common_cp.pop()
+                        loop_act_set = set(self[s][s]['prop'].keys())
+                        loop_act = dict()
+                        loop_act[s] = loop_act_set
+                        S_fi.append([T, common, loop_act])
+                        print('S_fii added to S_fi!!, size: %s' % len(T))
+            if len(S_fi) > 0:
+                S_f.append(S_fi)
+                print("****S_fi added to S_f!!!, size: %s******" % len(S_fi))
+            k += 1
+        self.Sf = S_f
+        if S_f:
+            print("-------Accepting MEC for Prod DRA Computed-------")
+            print("acc_pair number: %s" % str(k-1))
+            print("Sf AMEC number: %s" % len(S_f))
+        else:
+            print("No accepting ECs found!")
+            print("Check your MDP and Task formulation")
+            print("Or try the relaxed plan")
+
+    def re_synthesize_sync_amec(self, mdp_gamma:Product_Dra, is_observed_identical=is_with_identical_observation_1, is_re_compute_Sf=True):
+        # amec:
+        #   [0] amec
+        #   [1] amec ^ Ip
+        #   [2] action set
+        if mdp_gamma.Sf.__len__() == 0 and is_re_compute_Sf:
+            mdp_gamma.compute_S_f()
+        if self.Sf.__len__() == 0 and is_re_compute_Sf:
+            self.compute_S_f()
+        amec_set_pi = self.Sf
+        amec_set_gamma = mdp_gamma.Sf
+        #
+        if amec_set_gamma.__len__() == 0 or amec_set_pi.__len__() == 0:
+            return None
+
+        self.sync_amec_set.clear()
+
+        for amec_pi_t in amec_set_pi:
+            #
+            for amec_gamma_t in amec_set_gamma:
+                #
+                for mec_set_pi in amec_pi_t:
+                    state_set_pi = mec_set_pi[0]
+                    #
+                    for mec_set_gamma in amec_gamma_t:
+                        state_set_gamma = mec_set_gamma[0]
+
+                        #
+                        # 1 find all proper initial states
+                        initial_state_t = find_initial_state(state_set_pi, state_set_gamma, is_observed_identical)
+                        stack_t = [ initial_state_t ]
+                        visited = []
+                        #
+                        sync_mec_t = DiGraph()
+                        sync_mec_t.add_node(initial_state_t)
+                        while stack_t.__len__():
+                            current_state = stack_t.pop()
+                            visited.append(current_state)
+                            #
+                            next_state_list_pi    = list(self.out_edges(current_state[0]))
+                            next_state_list_gamma = list(mdp_gamma.out_edges(current_state[1]))
+                            #
+                            for edge_t_pi in next_state_list_pi:
+                                for edge_t_gamma in next_state_list_gamma:
+                                    #
+                                    next_state_pi    = edge_t_pi[1]
+                                    next_state_gamma = edge_t_gamma[1]
+                                    next_sync_state = (next_state_pi, next_state_gamma)
+                                    #
+                                    # 要求这个状态没有被考虑过
+                                    if next_sync_state in visited:
+                                        continue
+                                    #
+                                    if is_observed_identical(next_state_pi, next_state_gamma):
+                                        if is_ap_identical(next_state_pi, next_state_gamma):
+                                            #
+                                            # TODO
+                                            # 状态转移概率和cost
+                                            sync_mec_t.add_edge(current_state, next_sync_state)
+                                            #
+                                            if next_sync_state not in stack_t:
+                                                stack_t.append(next_sync_state)
+                        #
+                        if sync_mec_t.edges().__len__():
+                            #
+                            # TODO
+                            # 检查连接性
+                            for state_sync_t in sync_mec_t.nodes():
+                                pass
+                            #
+                            self.sync_amec_set.append(sync_mec_t)
+
+
+
+class Sync_AMEC(DiGraph):
     def init(self):
         pass
 
+    def synthesize_from_prod_mdps(self, amec_pi, amec_gamma, mdp_pi:Product_Dra, mdp_gamma:Product_Dra):
+        # find out all amecs
+        # amec:
+        #   [0] amec
+        #   [1] amec ^ Ip
+        #   [2] action set
+
+        #
+        # 1 find all proper initial states
+        stack_t = []
+        visited = []
+
+        for state_pi_t in amec_pi[0]:
+            for state_gamma_t in amec_gamma[0]:
+                pass
+
+    '''
     def synthesize_from_sync_mdp(self, prod_mdp, amec, amec_prime, initial_state, observation_function=is_with_identical_observation_2):
         # amec:
         #   [0] amec
@@ -110,3 +273,4 @@ class Sync_Product_Dra(DiGraph):
         #   finally, only the AMEC with proper structure can be applied for suffix synthesis
         #   otherwise, a modified version of synthesis method must be given
         return None
+    '''
