@@ -1,13 +1,38 @@
 from math import fabs, sqrt
-from networkx import DiGraph
+
+import networkx as nx
+from networkx import DiGraph, is_connected
 from MDP_TG.mdp import find_MECs, find_SCCs
 from MDP_TG.dra import Product_Dra
+from User.vis2 import print_c
+
 
 def observation_func_1(state, observation='X'):
     if observation == 'X':
         return state[0][0]
     if observation == 'y':
         return state[0][1]     # x and y are NOT inverted here, they are only inverted in plotting
+
+def observation_func_2(state):
+    observation_set = [(0, 0), (0, 1), (0, 2), (0, 3), (0, 4), (0, 5),
+                       (1, 0), (1, 1), (1, 2), (1, 3), (1, 4), (1, 5),
+                       (2, 0), (2, 1), (2, 2), (2, 3), (2, 4), (2, 5),
+                       (3, 0), (3, 1), (3, 2), (3, 3), (3, 4), (3, 5),
+                       (4, 0), (4, 1), (4, 2), (4, 3), (4, 4), (4, 5),
+                       (5, 0), (5, 1), (5, 2), (5, 3), (5, 4), (5, 5),]
+    min_dist = 1e6
+    observed_state = (0, 0)
+    for state_obs_t in observation_set:
+        x_obs = state_obs_t[0]
+        y_obs = state_obs_t[1]
+        #
+        dx = state[0][0] - x_obs
+        dy = state[0][1] - y_obs
+        dist = sqrt(dx * dx + dy * dy)
+        if dist < min_dist:
+            min_dist = dist
+            observed_state = state_obs_t
+    return observed_state
 
 def is_with_identical_observation_1(state, state_prime):
     #
@@ -56,17 +81,40 @@ def is_ap_identical(state_pi, state_gamma):
         return False
 
 
-def find_initial_state(y_in_sf, state_set_gamma, is_observed_identical=is_with_identical_observation_1):
+def find_initial_state(y_in_sf, state_set_gamma, observation_func=observation_func_1):
     state_list = []
     for state_pi_t in y_in_sf.keys():
         if y_in_sf[state_pi_t] == 0:
             continue
         for state_gamma_t in state_set_gamma:
             #
-            if is_observed_identical(state_pi_t, state_gamma_t):
+            if observation_func(state_pi_t) == observation_func(state_gamma_t):
                 if is_ap_identical(state_pi_t, state_gamma_t):
                     state_list.append((state_pi_t, state_gamma_t, ))
     return state_list
+
+def obtain_differential_expected_cost(current_action, edge_pi, edge_gamma):
+    #
+    pr_pi   = edge_pi[2]['prop'][current_action][0]
+    cost_pi = edge_pi[2]['prop'][current_action][1]
+    expected_cost_pi = pr_pi * cost_pi
+    #
+    try:
+        pr_gamma   = edge_gamma[2]['prop'][current_action][0]
+        cost_gamma = edge_gamma[2]['prop'][current_action][1]
+        expected_cost_gamma = pr_gamma * cost_gamma
+        #
+        different_expected_cost = fabs(expected_cost_pi - expected_cost_gamma)
+    except KeyError:
+        #
+        # TODO
+        # 看来两个必须action相同
+        # 不然根据MDP的定义, transition cost是X \times U \times -> R, U不同整个transition也不同, 最后秋出来的cost也不同
+        # print_c("[synthesize_w_opacity] WARNING no corresponding actions  %s // %s" % (str(edge_pi), str(edge_gamma),), color=36)
+        different_expected_cost = fabs(expected_cost_pi)
+
+    return different_expected_cost
+
 
 class product_mdp2(Product_Dra):
     def __init__(self, mdp, dra):
@@ -74,6 +122,7 @@ class product_mdp2(Product_Dra):
         self.compute_S_f()
         #
         self.sync_amec_set = list()
+        self.current_sync_amec_index = 0
 
     def compute_S_f(self):
         # ----find all accepting End components----
@@ -122,7 +171,7 @@ class product_mdp2(Product_Dra):
             print("Check your MDP and Task formulation")
             print("Or try the relaxed plan")
 
-    def re_synthesize_sync_amec(self, y_in_sf, MEC_pi, MEC_gamma, product_mdp_gamma:Product_Dra, is_observed_identical=is_with_identical_observation_3, is_re_compute_Sf=True):
+    def re_synthesize_sync_amec(self, y_in_sf, MEC_pi, MEC_gamma, product_mdp_gamma:Product_Dra, observation_func=observation_func_2, is_re_compute_Sf=True):
         # amec:
         #   [0] amec
         #   [1] amec ^ Ip
@@ -136,14 +185,17 @@ class product_mdp2(Product_Dra):
         visited = []
 
         sync_mec_t = DiGraph()
-        for state_t in stack_t:
-            sync_mec_t.add_node(state_t)
+        # for state_t in stack_t:
+        #     sync_mec_t.add_node(state_t)
         while stack_t.__len__():
             current_state = stack_t.pop()
+            if current_state in visited:
+                continue
             visited.append(current_state)
+
             #
-            next_state_list_pi    = list(self.out_edges(current_state[0]))
-            next_state_list_gamma = list(product_mdp_gamma.out_edges(current_state[1]))
+            next_state_list_pi    = list(self.out_edges(current_state[0], data=True))
+            next_state_list_gamma = list(product_mdp_gamma.out_edges(current_state[1], data=True))
             #
             for edge_t_pi in next_state_list_pi:
                 for edge_t_gamma in next_state_list_gamma:
@@ -152,8 +204,10 @@ class product_mdp2(Product_Dra):
                     next_state_gamma = edge_t_gamma[1]
                     next_sync_state = (next_state_pi, next_state_gamma)
                     #
-                    # 要求这个状态没有被考虑过
-                    if next_sync_state in visited:
+                    u_pi    = list(edge_t_pi[2]['prop'].keys())[0]
+                    u_gamma = list(edge_t_gamma[2]['prop'].keys())[0]
+                    #
+                    if u_pi != u_gamma:
                         continue
                     #
                     is_next_state_pi_in_amec    = next_state_pi    in mec_state_set_pi
@@ -161,25 +215,52 @@ class product_mdp2(Product_Dra):
                     if not is_next_state_pi_in_amec or not is_next_state_gamma_in_amec:
                         continue
                     #
-                    if is_observed_identical(next_state_pi, next_state_gamma):
+                    if observation_func(next_state_pi) == observation_func(next_state_gamma):
                         if is_ap_identical(next_state_pi, next_state_gamma):
+
                             #
-                            # TODO
-                            # 状态转移概率和cost
-                            sync_mec_t.add_edge(current_state, next_sync_state)
+                            trans_pr_cost_list = dict()
+                            diff_expected_cost_list = dict()
+                            for current_action_t in edge_t_pi[2]['prop'].keys():
+                                #
+                                transition_prop = edge_t_pi[2]['prop'][current_action_t][0]
+                                transition_cost = edge_t_pi[2]['prop'][current_action_t][1]
+                                diff_expected_cost = obtain_differential_expected_cost(current_action_t, edge_t_pi, edge_t_gamma)
+                                #
+                                trans_pr_cost_list[current_action_t] = (transition_prop, transition_cost, )
+                                diff_expected_cost_list[current_action_t] = diff_expected_cost
                             #
-                            if next_sync_state not in stack_t:
-                                stack_t.append(next_sync_state)
+                            sync_mec_t.add_edge(current_state, next_sync_state, prop=trans_pr_cost_list, diff_exp=diff_expected_cost_list)
+                            stack_t.append(next_sync_state)
         #
+        print_c("[synthesize_w_opacity] DFS completed, states: %d, edges: %d" % (sync_mec_t.nodes.__len__(), sync_mec_t.edges.__len__(),), color=33)
         if sync_mec_t.edges().__len__():
             #
             # TODO
             # 检查连接性
-            for state_sync_t in sync_mec_t.nodes():
-                pass
+            scc_list = list(nx.strongly_connected_components(sync_mec_t))
+            if scc_list.__len__() == 0:
+                print_c("[synthesize_w_opacity] NO SCCs found ..." , color=33)
+
+            num_node_removed = 0
+            for i, state_list_t in enumerate(scc_list):
+                if i == 0:
+                    continue
+                for state_t in state_list_t:
+                    try:
+                        sync_mec_t.remove_node(state_t)
+                        num_node_removed += 1
+                        print_c("[synthesize_w_opacity] removing node: " + str(state_t), color=35)
+                    except:
+                        pass
+
+            print_c("[synthesize_w_opacity] number of state to remove: %d" % (num_node_removed,), color=33)
+
             #
             self.sync_amec_set.append(sync_mec_t)
-
+            self.current_sync_amec_index = self.sync_amec_set.__len__() - 1
+        #
+        print_c("[synthesize_w_opacity] Generated sync_amec, states: %d, edges: %d" % (sync_mec_t.nodes.__len__(), sync_mec_t.edges.__len__(),))
 
 class Sync_AMEC(DiGraph):
     def init(self):

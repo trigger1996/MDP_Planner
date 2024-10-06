@@ -23,6 +23,9 @@ def ltl_convert(task, is_display=True):
 
     return ltl_converted
 
+def synthesize_suffix_cycle_in_sync_amec(sync_amec):
+    pass
+
 def syn_full_plan(prod_mdp, gamma, alpha=1):
     # ----Optimal plan synthesis, total cost over plan prefix and suffix----
     print("==========[Optimal full plan synthesis start]==========")
@@ -123,6 +126,9 @@ def synthesize_full_plan_w_opacity(mdp, task, optimizing_ap, ap_list, risk_pr, a
                     for p, S_fi_gamma in enumerate(prod_dra_gamma.Sf):
                         for q, MEC_gamma in enumerate(S_fi_gamma):
                             prod_dra_pi.re_synthesize_sync_amec(y_in_sf, MEC_pi, MEC_gamma, prod_dra_gamma)
+
+                            # LP
+                            # prod_dra_pi.sync_amec_set[prod_dra_pi.current_sync_amec_index]
 
 
                 # TODO
