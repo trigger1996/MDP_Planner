@@ -224,8 +224,8 @@ def synthesize_suffix_cycle_in_sync_amec(prod_mdp, sync_mec, MEC_pi, y_in_sf):
                 #    suffix_solver.Add(constr3 == constr4 + y_in_sf[s_pi_t])  # 可能到的了的要计算?
                 #
                 # 如果 s in Sf, 且上一时刻状态在Sn，且在MEC内
-                # if (s_pi_t in list(y_in_sf.keys())) and (s in ip):
-                #     suffix_solver.Add(constr3 == y_in_sf[s_pi_t])  # 在里面的永远到的了?
+                if (s_pi_t in list(y_in_sf.keys())) and (s in ip):
+                    suffix_solver.Add(constr3 == y_in_sf[s_pi_t])  # 在里面的永远到的了?
                 #
                 # 如果s不在Sf内且不在NEC内
                 #if (s_pi_t not in list(y_in_sf.keys())) and (s not in ip):
@@ -298,17 +298,37 @@ def synthesize_suffix_cycle_in_sync_amec(prod_mdp, sync_mec, MEC_pi, y_in_sf):
                 P = []
                 for s_sync_t in Sn:
                     for u_t in act[s_sync_t]:
-                        norm += Y[(s_sync_t, u_t)].solution_value()
+                        if s_pi_t == s_sync_t[0]:
+                            Y_t = Y[(s_sync_t, u_t)].solution_value()
+                            norm += Y_t
+                #
+                # TODO
+                # 整个cost要基于原product_mdp映射回来
+                # 映射回来的概率要乘以gamma系统的状态转移概率
+                # 后面这一步是会有很大问题的
+                norm_sync_state_t = dict()
+                for s_sync_t in Sn:
+                    if s_pi_t != s_sync_t[0]:
+                        continue
+
                     for u_t in act[s_sync_t]:
-                        U.append(u_t)
-                        if norm > 0.01:
-                            P.append(Y[(s_sync_t, u_t)].solution_value() / norm)
+                        if u_t not in U:
+                            U.append(u_t)
+                        if u_t not in norm_sync_state_t.keys():
+                            norm_sync_state_t[u_t]  = Y[(s_sync_t, u_t)].solution_value()
                         else:
-                            P.append(1.0 / len(act[s_sync_t]))             # round robin
+                            norm_sync_state_t[u_t] += Y[(s_sync_t, u_t)].solution_value()
+                if norm > 0.01:
+                    for u_t in norm_sync_state_t.keys():
+                        # U.append(u_t)
+                        P.append(norm_sync_state_t[u_t] / norm)
+                else:
+                    P.append(1.0 / len(act_pi[s_pi_t]))             # round robin
                 plan_suffix[s_pi_t] = [U, P]
 
             # TODO
             # compute optimal plan suffix given the LP solution
+            '''
             plan_suffix = dict()
             for s in Sn:
                 norm = 0
@@ -323,6 +343,7 @@ def synthesize_suffix_cycle_in_sync_amec(prod_mdp, sync_mec, MEC_pi, y_in_sf):
                     else:
                         P.append(1.0 / len(act[s]))             # round robin
                 plan_suffix[s] = [U, P]
+            '''
             print("----Suffix plan added")
             cost = suffix_solver.Objective().Value()
             print("----Suffix cost computed")
@@ -332,6 +353,26 @@ def synthesize_suffix_cycle_in_sync_amec(prod_mdp, sync_mec, MEC_pi, y_in_sf):
             risk = 0.0
             y_to_ip = 0.0
             y_out = 0.0
+            for s_sync_t in Sn:
+                s_pi_t = s_sync_t[0]
+                for t_pi_t in prod_mdp.successors(s_pi_t):
+                    if t_pi_t not in Sn_pi:
+                        prop = prod_mdp[s_pi_t][t_pi_t]['prop'].copy()
+                        for u_t in prop.keys():
+                            if u_t in act[s_sync_t]:
+                                pe = prop[u_t][0]
+                                Y_t = Y[(s_sync_t, u_t)].solution_value()
+                                y_out += Y_t * pe
+                    elif t_pi_t in ip_pi:
+                        prop = prod_mdp[s_pi_t][t_pi_t]['prop'].copy()
+                        for u_t in prop.keys():
+                            if u_t in act[s_sync_t]:
+                                Y_t = Y[(s_sync_t, u_t)].solution_value()
+                                y_to_ip += Y_t * pe
+            if (y_to_ip + y_out) > 0:
+                risk = y_out / (y_to_ip + y_out)
+
+            '''
             for s in Sn:
                 for t in sync_mec.successors(s):
                     if t not in Sn:
@@ -348,6 +389,7 @@ def synthesize_suffix_cycle_in_sync_amec(prod_mdp, sync_mec, MEC_pi, y_in_sf):
                                 y_to_ip += Y[(s, u)].solution_value() * pe
             if (y_to_ip + y_out) > 0:
                 risk = y_out / (y_to_ip + y_out)
+            '''
             print_c('y_out: %s; y_to_ip+y_out: %s' % (y_out, y_to_ip + y_out,), color=32)
             print_c("----Suffix risk computed", color=32)
 
@@ -357,26 +399,24 @@ def synthesize_suffix_cycle_in_sync_amec(prod_mdp, sync_mec, MEC_pi, y_in_sf):
             # for display
             for k, s_pi_t in enumerate(Sn_pi):
                 #
-                for s_sync_t in Sn:
-                    if s_sync_t[0] == s_pi_t:
-                        print(str(s_sync_t) + " " + str(plan_suffix[s_sync_t]))
+                # for s_sync_t in Sn:
+                #     if s_sync_t[0] == s_pi_t:
+                #         print(str(s_sync_t) + " " + str(plan_suffix[s_sync_t]))
+                print(str(s_pi_t) + " " + str(plan_suffix[s_pi_t]))
                 #
                 try:
                     constr_t = suffix_solver.constraint(k)
                     sum_ret_t = 0.
                     for s_sync_t in Sn:
                         for u_t in act[s_sync_t]:
-                            Y_t = Y[(s_sync_t, u_t)]
-                            ki_t = constr_t.GetCoefficient(Y_t)
-                            #
-                            index_t = plan_suffix[s_sync_t][0].index(u_t)
-                            prob_t  = plan_suffix[s_sync_t][1][index_t]
-                            sum_ret_t += ki_t * prob_t
-                    print("constraint_%d: %f <= %f <= %f", (k, constr_t.lb(), sum_ret_t ,constr_t.ub(), ))
+                            if s_sync_t[0] == s_pi_t:
+                                Y_t = Y[(s_sync_t, u_t)]  # 单独拿出来是为了debugging
+                                if type(Y_t) != float:
+                                    ki_t = constr_t.GetCoefficient(Y_t)
+                                    sum_ret_t += ki_t * Y_t.solution_value()
+                    print("\tconstraint_%d: %f <= %f <= %f", (k, constr_t.lb(), sum_ret_t ,constr_t.ub(), ))
                 except IndexError:
                     pass
-                #
-                print("")
 
             return plan_suffix, cost, risk
         '''
