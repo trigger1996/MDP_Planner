@@ -211,6 +211,16 @@ def plan_and_save(ws_robot_model, task):
     print('best_plan.p saved!')
 
     # Added
+    # for printing policies
+    print_c("state action: probabilities")
+    print_c("Prefix", color=42)
+    for state_t in best_all_plan[0][0]:
+        print_c("%s, %s: %s" % (str(state_t), str(best_all_plan[0][0][state_t][0]), str(best_all_plan[0][0][state_t][1]), ), color=42)
+    print_c("Suffix", color=45)
+    for state_t in best_all_plan[1][0]:
+        print_c("%s, %s: %s" % (str(state_t), str(best_all_plan[1][0][state_t][0]), str(best_all_plan[1][0][state_t][1]), ), color=45)
+
+    # for visualization
     total_T = 40
     state_seq = [initial_node, ]
     label_seq = [initial_label, ]

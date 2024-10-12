@@ -272,8 +272,8 @@ if __name__ == "__main__":
     all_base = 'GF base1 & G !obstacle'
     #
     optimizing_ap = 'base3'
-    risk_threshold = 0.15                           # default: 0.1
-    differential_exp_cost = 1.590106 - 0.075
+    risk_threshold = 0.095                                       # default:  0.1
+    differential_exp_cost = 1.590106 - 0.075                     #           1.590106
 
     plan_and_save_with_opacity(ws_robot_model, all_base, optimizing_ap, risk_threshold, differential_exp_cost)
 

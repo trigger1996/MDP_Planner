@@ -159,7 +159,7 @@ def find_i_in_and_i_out_in_sync_amec(prod_mdp, sync_mec, sync_ip):
 
     return i_in, i_out, transitions_i_in, transitions_i_out
 
-def synthesize_suffix_cycle_in_sync_amec(prod_mdp, sync_mec, MEC_pi, y_in_sf, differential_expected_cost=1.55):
+def synthesize_suffix_cycle_in_sync_amec(prod_mdp, sync_mec, MEC_pi, y_in_sf, differential_expected_cost=1.55, is_enable_inter_state_constraints=False):
     # ----Synthesize optimal plan suffix to stay within the accepting MEC----
     # ----with minimal expected total cost of accepting cyclic paths----
     print_c("===========[plan suffix synthesis starts]", color=32)
@@ -240,21 +240,22 @@ def synthesize_suffix_cycle_in_sync_amec(prod_mdp, sync_mec, MEC_pi, y_in_sf, di
             # Added
             # constraint 1
             # 由于sync_mec内所有sync_state[0]对应的状态是一个状态, 所以其对应概率之和就应该是1
-            '''            
-            for s_pi_t in Sn_pi:
-                constr_s_pi = []
-                for s_sync_t in Sn:
-                    for u_t in act[s_sync_t]:
-                        if s_sync_t[0] == s_pi_t:
-                            Y_t = Y[(s_sync_t, u_t)]            # 单独拿出来是为了debugging
-                            constr_s_pi.append(Y_t)
-                if constr_s_pi.__len__():
-                    sum_t = suffix_solver.Sum(constr_s_pi)
-                    suffix_solver.Add(sum_t == 1.)
-                    constr_descrip.append("merge of " + str(s_pi_t))
-            print_c('inter-state constraints added', color=42)
-            print_c('number of constraints: %d' % (suffix_solver.NumConstraints(), ), color=42)
-            '''
+            # it seems that there are some issues on the model, so this constraint cannot be applied,
+            # but we use the normalized result as policies such that all values can be constrainted into [0, 1]
+            if is_enable_inter_state_constraints:
+                for s_pi_t in Sn_pi:
+                    constr_s_pi = []
+                    for s_sync_t in Sn:
+                        for u_t in act[s_sync_t]:
+                            if s_sync_t[0] == s_pi_t:
+                                Y_t = Y[(s_sync_t, u_t)]            # 单独拿出来是为了debugging
+                                constr_s_pi.append(Y_t)
+                    if constr_s_pi.__len__():
+                        sum_t = suffix_solver.Sum(constr_s_pi)
+                        suffix_solver.Add(sum_t == 1.)
+                        constr_descrip.append("merge of " + str(s_pi_t))
+                print_c('inter-state constraints added', color=42)
+                print_c('number of constraints: %d' % (suffix_solver.NumConstraints(), ), color=42)
 
             # constraint 2 / 11b
             #
@@ -378,6 +379,8 @@ def synthesize_suffix_cycle_in_sync_amec(prod_mdp, sync_mec, MEC_pi, y_in_sf, di
             # solve
             print('--optimization for suffix starts--')
             status = suffix_solver.Solve()
+            #
+            # TODO
             if status == pywraplp.Solver.OPTIMAL:
                 print('Solution:')
                 print('Objective value =', suffix_solver.Objective().Value())
@@ -387,8 +390,8 @@ def synthesize_suffix_cycle_in_sync_amec(prod_mdp, sync_mec, MEC_pi, y_in_sf, di
                 print('Problem solved in %d iterations' %
                       suffix_solver.iterations())
             else:
-                print('The problem does not have an optimal solution.')
-                return None, None, None
+               print('The problem does not have an optimal solution.')
+               return None, None, None
 
             #
             #
