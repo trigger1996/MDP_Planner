@@ -166,11 +166,12 @@ def obtain_all_aps_from_mdp(mdp:Motion_MDP):
 
     return list(set(ap_list))
 
-def plan_and_save_with_opacity(ws_robot_model, task, optimizing_ap):
+def plan_and_save_with_opacity(ws_robot_model, task, optimizing_ap, risk_pr, differential_exp_cost):
 
     #
     # 这里的MDP系统是将栅格和状态挂在一起
     # 相当于一个栅格对应多个状态，e.g., 同样位置车头不同朝向在以前算一个状态，在这里可以算4个
+    print_c("[synthesize_w_opacity] process STARTED: risk: %f differential_exp_cost: %f" % (risk_pr, differential_exp_cost,), color=31)
 
     t0 = time.time()
     (robot_nodes, robot_edges, U, initial_node, initial_label) = ws_robot_model[:]
@@ -186,9 +187,8 @@ def plan_and_save_with_opacity(ws_robot_model, task, optimizing_ap):
     print('motion_mdp_edges.p saved!')
 
     # ----
-    risk_pr = 0.1
     d = 100
-    synthesize_full_plan_w_opacity(motion_mdp, task, optimizing_ap, ap_list, risk_pr)
+    synthesize_full_plan_w_opacity(motion_mdp, task, optimizing_ap, ap_list, risk_pr, differential_exp_cost)
 
 
 
@@ -272,6 +272,8 @@ if __name__ == "__main__":
     all_base = 'GF base1 & G !obstacle'
     #
     optimizing_ap = 'base3'
+    risk_threshold = 0.15                           # default: 0.1
+    differential_exp_cost = 1.590106 - 0.075
 
-    plan_and_save_with_opacity(ws_robot_model, all_base, optimizing_ap)
+    plan_and_save_with_opacity(ws_robot_model, all_base, optimizing_ap, risk_threshold, differential_exp_cost)
 
