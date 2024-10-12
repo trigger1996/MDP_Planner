@@ -87,6 +87,33 @@ def sn_pi_2_sync_sn(sn_pi, sync_mec):
 
     return sync_sn
 
+def y_in_sf_2_sync_states(sync_mec, y_in_sf):
+    y_in_sf_sync = dict()
+
+    # use averaged probability
+    # is there any better ideas?
+    number_shared_states_list = dict()              # for further possible improvement
+    for state_pi_t in y_in_sf.keys():
+        # if y_in_sf[state_pi_t] == 0.:
+        #     continue
+
+        number_shared_states = 0
+        shared_state_list = []
+        # find the number
+        for sync_state_t in sync_mec.nodes:
+            #
+            if sync_state_t[0] == state_pi_t:
+                number_shared_states += 1
+                shared_state_list.append(sync_state_t)
+        #
+        number_shared_states_list[state_pi_t] = shared_state_list
+        #
+        for sync_state_t in shared_state_list:
+            # take average value
+            y_in_sf_sync[sync_state_t] = y_in_sf[state_pi_t] / number_shared_states
+
+    return y_in_sf_sync
+
 def synthesize_suffix_cycle_in_sync_amec(prod_mdp, sync_mec, MEC_pi, y_in_sf):
     # ----Synthesize optimal plan suffix to stay within the accepting MEC----
     # ----with minimal expected total cost of accepting cyclic paths----
@@ -97,7 +124,7 @@ def synthesize_suffix_cycle_in_sync_amec(prod_mdp, sync_mec, MEC_pi, y_in_sf):
     # act: actions available for each state
     sf, sf_pi, ip, ip_pi, act, act_pi = state_action_sets_pi_from_sync_mec(sync_mec, MEC_pi)
 
-    state_action_sets_pi_from_sync_mec(sync_mec, MEC_pi)
+    y_in_sf_sync = y_in_sf_2_sync_states(sync_mec, y_in_sf)
 
     delta = 0.01                    # 松弛变量?
     gamma = 0.00                    # 根据(11), 整个系统进入MEC内以后就不用概率保证了?
@@ -172,12 +199,16 @@ def synthesize_suffix_cycle_in_sync_amec(prod_mdp, sync_mec, MEC_pi, y_in_sf):
             # constraint 2
             # inflow and outflow
             # 是不是这个地方直接用他的约束也是可以的
-            for s in Sn:
+            #
+            # for debugging
+            balance_constr_num = 0
+            #
+            for k, s in enumerate(Sn):
                 #
                 # constr3: sum of outflow
                 # constr4: sum of inflow
-                constr3 = 0
-                constr4 = 0
+                constr3 = []
+                constr4 = []
                 for u in act[s]:
                     #
                     # 这里也有不同
@@ -185,7 +216,7 @@ def synthesize_suffix_cycle_in_sync_amec(prod_mdp, sync_mec, MEC_pi, y_in_sf):
                     #       s in Sr
                     # suffix
                     #       s in Sn
-                    constr3 += Y[(s, u)]
+                    constr3.append(Y[(s, u)])
                 for f in sync_mec.predecessors(s):                      # 求解对象不一样了, product mdp -> sync_mec
                     #
                     # 这里也有不同
@@ -197,16 +228,18 @@ def synthesize_suffix_cycle_in_sync_amec(prod_mdp, sync_mec, MEC_pi, y_in_sf):
                         prop = sync_mec[f][s]['prop'].copy()
                         for uf in act[f]:
                             if uf in list(prop.keys()):
-                                constr4 += Y[(f, uf)] * prop[uf][0]
+                                constr4_t = Y[(f, uf)] * prop[uf][0]
                             else:
-                                constr4 += Y[(f, uf)] * 0.00
+                                constr4_t = Y[(f, uf)] * 0.00
+                            constr4.append(constr4_t)
                     if (f in Sn) and (s in ip) and (f != s):
                         prop = sync_mec[f][s]['prop'].copy()
                         for uf in act[f]:
                             if uf in list(prop.keys()):
-                                constr4 += Y[(f, uf)] * prop[uf][0]
+                                constr4_t = Y[(f, uf)] * prop[uf][0]
                             else:
-                                constr4 += Y[(f, uf)] * 0.00
+                                constr4_t = Y[(f, uf)] * 0.00
+                            constr4.append(constr4_t)
                 #
                 # y_in_sf input flow of sf, sf的输入状态转移概率
                 #     if t not in y_in_sf:
@@ -218,23 +251,46 @@ def synthesize_suffix_cycle_in_sync_amec(prod_mdp, sync_mec, MEC_pi, y_in_sf):
                 #
                 # 如果 s in Sf且上一时刻状态属于Sn, 但不在MEC内
                 # 注意这里y_in_sf的keys是不一样的, 不是sync_states
-                s_pi_t = s[0]
                 #
-                # if (s_pi_t in list(y_in_sf.keys())) and (s not in ip):
-                #    suffix_solver.Add(constr3 == constr4 + y_in_sf[s_pi_t])  # 可能到的了的要计算?
-                #
+                sum_constr_3 = suffix_solver.Sum(constr3)
+
+                if (s in list(y_in_sf_sync.keys())) and (s not in ip):
+
+                    #
+                    # for debugging
+                    #if balance_constr_num <= 1:
+                    if y_in_sf_sync[s] == 0. or balance_constr_num < 36:                    # 24或者40
+                        if y_in_sf_sync[s] != 0.:
+                            balance_constr_num += 1                                         # 在调试过程中限制非零变量个数以确定问题所在
+
+                        sum_constr_4 = suffix_solver.Sum(constr4)
+                        suffix_solver.Add(sum_constr_3 == sum_constr_4 + y_in_sf_sync[s])   # 可能到的了的要计算?
+
+                        #constr4.append(y_in_sf_sync[s])
+                        #sum_constr_4 = suffix_solver.Sum(constr4)
+                        #suffix_solver.Add(sum_constr_3 == sum_constr_4 + y_in_sf_sync[s])  # 可能到的了的要计算?
+                        #suffix_solver.Add(sum_constr_3 == sum_constr_4)
+
+                        if y_in_sf_sync[s] != 0.:
+                            print_c("NON-zero balance constraint %d: %s - \n left:  %s \n right: %s \n %f" % (balance_constr_num, str(s), sum_constr_3, sum_constr_4, y_in_sf_sync[s]), color=45)
+
                 # 如果 s in Sf, 且上一时刻状态在Sn，且在MEC内
-                if (s_pi_t in list(y_in_sf.keys())) and (s in ip):
-                    suffix_solver.Add(constr3 == y_in_sf[s_pi_t])  # 在里面的永远到的了?
+                if (s in list(y_in_sf_sync.keys())) and (s in ip):
+                     suffix_solver.Add(sum_constr_3 == y_in_sf_sync[s])  # 在里面的永远到的了?
                 #
                 # 如果s不在Sf内且不在NEC内
-                #if (s_pi_t not in list(y_in_sf.keys())) and (s not in ip):
-                #    suffix_solver.Add(constr3 == constr4)  # 到不了的永远到不了?
+                # if (s not in list(y_in_sf_sync.keys())) and (s not in ip):
+                #     sum_constr_4 = suffix_solver.Sum(constr4)
+                #     suffix_solver.Add(sum_constr_3 == sum_constr_4)  # 到不了的永远到不了?
             print('Balance condition added')
             print('Initial sf condition added')
+            print_c('number of constraints: %d' % (suffix_solver.NumConstraints(),), color=44)
+            print_c('non-zero balance constraints: %d' % (balance_constr_num, ), color=44)
             # --------------------
-            y_to_ip = 0.0
-            y_out = 0.0
+            '''
+            y_to_ip = []
+            y_out = []
+            y_2_ip_y_out = []
             for s in Sn:
                 for t in sync_mec.successors(s):
                     if t not in Sn:
@@ -244,7 +300,10 @@ def synthesize_suffix_cycle_in_sync_amec(prod_mdp, sync_mec, MEC_pi, y_in_sf):
                                 pe = prop[u][0]
                                 #
                                 # Sn里出Sn的
-                                y_out += Y[(s, u)] * pe
+                                y_out_t = Y[(s, u)] * pe
+                                y_out.append(y_out_t)
+                                #
+                                y_2_ip_y_out.append(y_out_t)
                     elif t in ip:
                         prop = sync_mec[s][t]['prop'].copy()
                         for u in prop.keys():
@@ -252,11 +311,20 @@ def synthesize_suffix_cycle_in_sync_amec(prod_mdp, sync_mec, MEC_pi, y_in_sf):
                                 #`
                                 # Sn里进Ip的
                                 pe = prop[u][0]
-                                y_to_ip += Y[(s, u)] * pe
-            # suffix_solver.Add(y_to_ip+y_out >= delta)                                 # 这个是原来就注释的
-            # suffix_solver.Add(y_to_ip >= (1.0 - gamma - delta) * (y_to_ip + y_out))
+                                y_to_ip_t = Y[(s, u)] * pe
+                                y_to_ip.append(y_to_ip_t)
+                                #
+                                y_2_ip_y_out.append(y_to_ip_t)
+            #
+            sum_y_to_ip = suffix_solver.Sum(y_to_ip)
+            sum_y_out   = suffix_solver.Sum(y_out)
+            sum_y_2_ip_y_out = suffix_solver.Sum(y_2_ip_y_out)
+            #
+            suffix_solver.Add(sum_y_to_ip + sum_y_out >= delta)                                 # 这个是原来就注释的
+            suffix_solver.Add(sum_y_to_ip >= (1.0 - gamma - delta) * sum_y_2_ip_y_out)
             print('Risk constraint added')
-
+            print_c('number of constraints: %d' % (suffix_solver.NumConstraints(),), color=32)
+            '''
             # ------------------------------
             # solve
             print('--optimization for suffix starts--')
