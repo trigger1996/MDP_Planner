@@ -233,9 +233,13 @@ def synthesize_suffix_cycle_in_sync_amec(prod_mdp, sync_mec, MEC_pi, y_in_sf):
             # add constraints
             # --------------------
             #
+            # description of each constraints
+            constr_descrip = []
+            #
             # Added
             # constraint 1
             # 由于sync_mec内所有sync_state[0]对应的状态是一个状态, 所以其对应概率之和就应该是1
+            '''            
             for s_pi_t in Sn_pi:
                 constr_s_pi = []
                 for s_sync_t in Sn:
@@ -246,11 +250,45 @@ def synthesize_suffix_cycle_in_sync_amec(prod_mdp, sync_mec, MEC_pi, y_in_sf):
                 if constr_s_pi.__len__():
                     sum_t = suffix_solver.Sum(constr_s_pi)
                     suffix_solver.Add(sum_t == 1.)
+                    constr_descrip.append("merge of " + str(s_pi_t))
             print_c('inter-state constraints added', color=42)
             print_c('number of constraints: %d' % (suffix_solver.NumConstraints(), ), color=42)
-
+            '''
 
             # constraint 2 / 11b
+            constr_11b_lhs = []
+            constr_11b_rhs = 0.
+            for k, s_pi in enumerate(Sn_pi):
+                #
+                for l, sync_s in enumerate(Sn):
+                    if s_pi != sync_s[0]:
+                        continue
+                    for t in list(sync_mec.successors(sync_s)):
+                        if t not in i_in:
+                            continue
+                        prop = sync_mec[sync_s][t]['prop'].copy()
+                        for u in prop.keys():
+                            try:
+                                y_t = Y[(sync_s, u)] * prop[u][0]
+                                constr_11b_lhs.append(y_t)
+                            except KeyError:
+                                pass
+                    if sync_s in list(y_in_sf_sync.keys()):
+                        constr_11b_rhs += y_in_sf_sync[sync_s]
+            sum_11b_lhs = suffix_solver.Sum(constr_11b_lhs)
+            #
+            suffix_solver.Add(sum_11b_lhs == constr_11b_rhs)
+            constr_descrip.append('I_in for (11b)')
+            #
+            print_c("reachibility constraint added ...", color=44)
+            print_c("left:  %s \n right: %f" % (sum_11b_lhs, constr_11b_rhs,), color=44)
+            print_c("number of states in lhs: %d" % (constr_11b_lhs.__len__(),), color=44)
+            print_c('number of constraints: %d' % (suffix_solver.NumConstraints(),), color=44)
+
+            #
+            # it seems that whether treat these states separately will not make a difference
+            # because all states will be summed up together
+            '''
             constr_11b_lhs = []
             constr_11b_rhs = 0.
             for k, s in enumerate(Sn):
@@ -274,8 +312,70 @@ def synthesize_suffix_cycle_in_sync_amec(prod_mdp, sync_mec, MEC_pi, y_in_sf):
             print_c("left:  %s \n right: %f" % (sum_11b_lhs, constr_11b_rhs,), color=44)
             print_c("number of states in lhs: %d" % (constr_11b_lhs.__len__(),), color=44)
             print_c('number of constraints: %d' % (suffix_solver.NumConstraints(),), color=44)
+            '''
 
             # constraint 3 / 11c
+            nonzero_constr_num_11c = 0
+            nonzero_balance_constr_list = []
+            for k, s_pi in enumerate(Sn_pi):
+                #
+                constr_11c_lhs = []
+                constr_11c_rhs = []
+                for l, sync_s in enumerate(Sn):
+                    if s_pi != sync_s[0]:
+                        continue
+                    for u in act[sync_s]:
+                        y_t = Y[(sync_s, u)]
+                        constr_11c_lhs.append(y_t)
+                        #
+                    for f in sync_mec.predecessors(sync_s):  # 求解对象不一样了, product mdp -> sync_mec
+                        if (f in Sn and sync_s not in ip) or (f in Sn and sync_s in ip and f != sync_s):
+                            prop = sync_mec[f][sync_s]['prop'].copy()
+                            for uf in act[f]:
+                                if uf in list(prop.keys()):
+                                    y_t_p_e = Y[(f, uf)] * prop[uf][0]
+                                    constr_11c_rhs.append(y_t_p_e)
+                                else:
+                                    y_t_p_e = Y[(f, uf)] * 0.00
+                                    # constr_11c_rhs.append(y_t_p_e)
+                #
+                sum_11c_lhs = suffix_solver.Sum(constr_11c_lhs)
+                sum_11c_rhs = suffix_solver.Sum(constr_11c_rhs)
+                #
+                if (s_pi in list(y_in_sf.keys())) and (s_pi not in ip_pi):
+                    suffix_solver.Add(sum_11c_lhs == sum_11c_rhs + y_in_sf[s_pi])
+                    #
+                    # for debugging
+                    constr_descrip.append(str(s_pi))
+                #
+                # 如果 s in Sf, 且上一时刻状态在Sn，且在MEC内
+                if (s_pi in list(y_in_sf.keys())) and (s_pi in ip_pi):
+                    suffix_solver.Add(sum_11c_lhs == y_in_sf[s_pi])
+                    #
+                    # for debugging
+                    constr_descrip.append(str(s_pi))
+                #
+                # 如果s不在Sf内且不在NEC内
+                if (s_pi not in list(y_in_sf.keys())) and (s_pi not in ip_pi):
+                    suffix_solver.Add(sum_11c_lhs == sum_11c_rhs)
+                    #
+                    # for debugging
+                    constr_descrip.append(str(s_pi))
+
+                if s_pi in list(y_in_sf.keys()) and y_in_sf[s_pi] != 0.:
+                    nonzero_constr_num_11c += 1
+                    print_c("NON-zero balance constraint %d: %s - \n left:  %s \n right: %s \n %f" % (
+                    nonzero_constr_num_11c, str(s_pi), sum_11c_lhs, sum_11c_rhs, y_in_sf[s_pi]), color=45)
+                    #
+                    # record current constraint index in which y0 != 0.
+                    current_constr_index_t = suffix_solver.NumConstraints() - 1
+                    nonzero_balance_constr_list.append(current_constr_index_t)
+            print_c('number of constraints: %d' % (suffix_solver.NumConstraints(),), color=42)
+
+            #
+            # Plan B is to treat these states in sync mec separately, which may make it infeasible to solve
+            # due to too much constraints
+            '''
             nonzero_constr_num_11c = 0
             for k, s in enumerate(Sn):
                 #
@@ -300,14 +400,12 @@ def synthesize_suffix_cycle_in_sync_amec(prod_mdp, sync_mec, MEC_pi, y_in_sf):
                 sum_11c_rhs = suffix_solver.Sum(constr_11c_rhs)
                 #
                 # TODO To remove comments
-                '''
                 if (s in list(y_in_sf_sync.keys())) and (s not in ip):
                     suffix_solver.Add(sum_11c_lhs == sum_11c_rhs + y_in_sf_sync[s])
                 #
                 # 如果 s in Sf, 且上一时刻状态在Sn，且在MEC内
                 if (s in list(y_in_sf_sync.keys())) and (s in ip):
                     suffix_solver.Add(sum_11c_lhs == y_in_sf_sync[s])
-                '''
                 #
                 # 如果s不在Sf内且不在MEC内
                 if (s not in list(y_in_sf_sync.keys())) and (s not in ip):
@@ -319,6 +417,7 @@ def synthesize_suffix_cycle_in_sync_amec(prod_mdp, sync_mec, MEC_pi, y_in_sf):
                     print_c("NON-zero balance constraint %d: %s - \n left:  %s \n right: %s \n %f" % (
                     nonzero_constr_num_11c, str(s), sum_11c_lhs, sum_11c_rhs, y_in_sf_sync[s]), color=45)
             print_c('number of constraints: %d' % (suffix_solver.NumConstraints(),), color=42)
+            '''
 
             # ------------------------------
             # solve
@@ -337,7 +436,9 @@ def synthesize_suffix_cycle_in_sync_amec(prod_mdp, sync_mec, MEC_pi, y_in_sf):
                 return None, None, None
 
             #
-            # TODO for debugging
+            #
+            #
+            plan_suffix_non_round_robin_list = []
             raw_value = dict()
             for s_u_t in Y.keys():
                 s_t = s_u_t[0]
@@ -385,8 +486,13 @@ def synthesize_suffix_cycle_in_sync_amec(prod_mdp, sync_mec, MEC_pi, y_in_sf):
                     for u_t in norm_sync_state_t.keys():
                         # U.append(u_t)
                         P.append(norm_sync_state_t[u_t] / norm)
+                        #
+                        # for debugging
+                        plan_suffix_non_round_robin_list.append(k)
                 else:
-                    P.append(1.0 / len(act_pi[s_pi_t]))             # round robin
+                    for u_t in norm_sync_state_t.keys():
+                        P.append(1.0 / len(norm_sync_state_t.keys()))          # the length of act_pi[s_pi_t] is equal to that of norm_sync_state_t.keys()
+                    # #P.append(1.0 / len(act_pi[s_pi_t]))             # round robin
                 plan_suffix[s_pi_t] = [U, P]
 
             # TODO
@@ -460,26 +566,32 @@ def synthesize_suffix_cycle_in_sync_amec(prod_mdp, sync_mec, MEC_pi, y_in_sf):
             #
             # TODO for debugging
             # for display
-            for k, s_pi_t in enumerate(Sn_pi):
-                #
-                # for s_sync_t in Sn:
-                #     if s_sync_t[0] == s_pi_t:
-                #         print(str(s_sync_t) + " " + str(plan_suffix[s_sync_t]))
-                print(str(s_pi_t) + " " + str(plan_suffix[s_pi_t]))
-                #
+            for k in range(0, suffix_solver.NumConstraints()):
                 try:
                     constr_t = suffix_solver.constraint(k)
                     sum_ret_t = 0.
                     for s_sync_t in Sn:
                         for u_t in act[s_sync_t]:
-                            if s_sync_t[0] == s_pi_t:
-                                Y_t = Y[(s_sync_t, u_t)]  # 单独拿出来是为了debugging
-                                if type(Y_t) != float:
-                                    ki_t = constr_t.GetCoefficient(Y_t)
-                                    sum_ret_t += ki_t * Y_t.solution_value()
-                    print("\tconstraint_%d: %f <= %f <= %f", (k, constr_t.lb(), sum_ret_t ,constr_t.ub(), ))
+                            Y_t = Y[(s_sync_t, u_t)]  # 单独拿出来是为了debugging
+                            if type(Y_t) != float:
+                                ki_t = constr_t.GetCoefficient(Y_t)
+                                sum_ret_t += ki_t * Y_t.solution_value()
+                    if k in nonzero_balance_constr_list:
+                        print_c("constraint_%d %s: %f <= %f <= %f" % (k, constr_descrip[k], constr_t.lb(), sum_ret_t, constr_t.ub(),), color=45)
+                    else:
+                        print("constraint_%d %s: %f <= %f <= %f"   % (k, constr_descrip[k], constr_t.lb(), sum_ret_t ,constr_t.ub(), ))
                 except IndexError:
                     pass
+            print("optimal policies: ")
+            for k, s_pi_t in enumerate(Sn_pi):
+                #
+                # for s_sync_t in Sn:
+                #     if s_sync_t[0] == s_pi_t:
+                #         print(str(s_sync_t) + " " + str(plan_suffix[s_sync_t]))
+                if k in plan_suffix_non_round_robin_list:
+                    print_c(str(s_pi_t) + " " + str(plan_suffix[s_pi_t]), color=46)
+                else:
+                    print(str(s_pi_t) + " " + str(plan_suffix[s_pi_t]))
 
             return plan_suffix, cost, risk
         '''
