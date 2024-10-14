@@ -637,3 +637,36 @@ def synthesize_full_plan_w_opacity(mdp, task, optimizing_ap, ap_list, risk_pr, d
                             print_c("Best plan suffix obtained, cost: %s, risk %s" % (str(suffix_cost), str(suffix_risk)), color=36)
                             print_c("=-------------------------------------=", color=36)
 
+                            if plan_prefix and plan_suffix:
+                                plan.append([[plan_prefix, prefix_cost, prefix_risk, y_in_sf],
+                                             [plan_suffix, suffix_cost, suffix_risk],
+                                             [MEC_pi[0], MEC_pi[1], Sr, Sd],
+                                             [ap_4_opacity, suffix_opacity_threshold, MEC_gamma[0], MEC_gamma[1]]])
+        if plan:
+            print("=========================")
+            print(" || Final compilation  ||")
+            print("=========================")
+            best_all_plan = min(plan, key=lambda p: p[0][1] + alpha * p[1][1])
+            print('Best plan prefix obtained for %s states in Sr' %
+                  str(len(best_all_plan[0][0])))
+            print('cost: %s; risk: %s ' %
+                  (best_all_plan[0][1], best_all_plan[0][2]))
+            print('Best plan suffix obtained for %s states in Sf' %
+                  str(len(best_all_plan[1][0])))
+            print('cost: %s; risk: %s ' %
+                  (best_all_plan[1][1], best_all_plan[1][2]))
+            print('Total cost:%s' %
+                  (best_all_plan[0][1] + alpha * best_all_plan[1][1]))
+            print_c('Opacity threshold %f <= %f' % (best_all_plan[3][1], differential_exp_cost, ))
+            #
+            # TODO
+            '''
+            plan_bad = syn_plan_bad(prod_mdp, best_all_plan[2])
+            print('Plan for bad states obtained for %s states in Sd' %
+                  str(len(best_all_plan[2][3])))
+            best_all_plan.append(plan_bad)
+            '''
+            return best_all_plan
+        else:
+            print("No valid plan found")
+            return None
