@@ -188,7 +188,7 @@ def plan_and_save_with_opacity(ws_robot_model, task, optimizing_ap, risk_pr, dif
 
     # ----
     d = 100
-    synthesize_full_plan_w_opacity(motion_mdp, task, optimizing_ap, ap_list, risk_pr, differential_exp_cost)
+    synthesize_full_plan_w_opacity(motion_mdp, task, optimizing_ap, ap_list, risk_pr, differential_exp_cost, is_enable_inter_state_constraints=False)
 
 
 

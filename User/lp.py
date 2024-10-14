@@ -11,6 +11,9 @@ from networkx import single_source_shortest_path
 from subprocess import check_output
 from User.vis2  import print_c
 
+from functools import cmp_to_key
+from User.grid_utils import sort_grids, sort_sync_grid_states
+
 import pickle
 import time
 import networkx
@@ -159,11 +162,13 @@ def find_i_in_and_i_out_in_sync_amec(prod_mdp, sync_mec, sync_ip):
 
     return i_in, i_out, transitions_i_in, transitions_i_out
 
-def synthesize_suffix_cycle_in_sync_amec(prod_mdp, sync_mec, MEC_pi, y_in_sf, differential_expected_cost=1.55, is_enable_inter_state_constraints=False):
+def synthesize_suffix_cycle_in_sync_amec(prod_mdp, sync_mec, MEC_pi, y_in_sf, differential_expected_cost=1.55, is_enable_inter_state_constraints=True):
     # ----Synthesize optimal plan suffix to stay within the accepting MEC----
     # ----with minimal expected total cost of accepting cyclic paths----
     print_c("===========[plan suffix synthesis starts]", color=32)
     print_c("[synthesize_w_opacity] differential exp cost: %f" % (differential_expected_cost, ), color=32)
+    if not is_enable_inter_state_constraints:
+        print_c("[synthesize_w_opacity] inter-state constraints DISABLED", color=31)
     # step 1: find states
     # sf:  states in MEC -> states in sync MEC
     # ip:  MEC states intersects with Ip -> Accepting states Ip in sync MEC / state[0] intersects with IP
@@ -191,7 +196,6 @@ def synthesize_suffix_cycle_in_sync_amec(prod_mdp, sync_mec, MEC_pi, y_in_sf, di
         print('Ip_pi size: %s' % len(ip_pi))                                                # Ip: 可被接收的MEC的状态
         print('Ip_pi and sf intersection size: %s' % len(Sn_pi.intersection(ip_pi)))        # 可达的MEC中的状态
         #
-        # TODO
         # back to sync_mec
         Sn = sn_pi_2_sync_sn(Sn_pi, sync_mec)
 
@@ -380,7 +384,6 @@ def synthesize_suffix_cycle_in_sync_amec(prod_mdp, sync_mec, MEC_pi, y_in_sf, di
             print('--optimization for suffix starts--')
             status = suffix_solver.Solve()
             #
-            # TODO
             if status == pywraplp.Solver.OPTIMAL:
                 print('Solution:')
                 print('Objective value =', suffix_solver.Objective().Value())
@@ -423,11 +426,7 @@ def synthesize_suffix_cycle_in_sync_amec(prod_mdp, sync_mec, MEC_pi, y_in_sf, di
                         if s_pi_t == s_sync_t[0]:
                             Y_t = Y[(s_sync_t, u_t)].solution_value()
                             norm += Y_t
-                #
-                # TODO
-                # 整个cost要基于原product_mdp映射回来
-                # 映射回来的概率要乘以gamma系统的状态转移概率
-                # 后面这一步是会有很大问题的
+
                 norm_sync_state_t = dict()
                 for s_sync_t in Sn:
                     if s_pi_t != s_sync_t[0]:
@@ -452,30 +451,10 @@ def synthesize_suffix_cycle_in_sync_amec(prod_mdp, sync_mec, MEC_pi, y_in_sf, di
                         P.append(1.0 / len(norm_sync_state_t.keys()))          # the length of act_pi[s_pi_t] is equal to that of norm_sync_state_t.keys()
                     # #P.append(1.0 / len(act_pi[s_pi_t]))             # round robin
                 plan_suffix[s_pi_t] = [U, P]
-
-            # TODO
-            # compute optimal plan suffix given the LP solution
-            '''
-            plan_suffix = dict()
-            for s in Sn:
-                norm = 0
-                U = []
-                P = []
-                for u in act[s]:
-                    norm += Y[(s, u)].solution_value()
-                for u in act[s]:
-                    U.append(u)
-                    if norm > 0.01:
-                        P.append(Y[(s, u)].solution_value() / norm)
-                    else:
-                        P.append(1.0 / len(act[s]))             # round robin
-                plan_suffix[s] = [U, P]
-            '''
             print("----Suffix plan added")
             cost = suffix_solver.Objective().Value()
             print("----Suffix cost computed")
 
-            # TODO
             # compute risk given the plan suffix
             risk = 0.0
             y_to_ip = 0.0
@@ -483,46 +462,34 @@ def synthesize_suffix_cycle_in_sync_amec(prod_mdp, sync_mec, MEC_pi, y_in_sf, di
             for s_sync_t in Sn:
                 s_pi_t = s_sync_t[0]
                 for t_pi_t in prod_mdp.successors(s_pi_t):
-                    if t_pi_t not in Sn_pi:
-                        prop = prod_mdp[s_pi_t][t_pi_t]['prop'].copy()
-                        for u_t in prop.keys():
-                            if u_t in act[s_sync_t]:
-                                pe = prop[u_t][0]
-                                Y_t = Y[(s_sync_t, u_t)].solution_value()
+                    prop = prod_mdp[s_pi_t][t_pi_t]['prop'].copy()
+                    for u_t in prop.keys():
+                        if u_t in act[s_sync_t]:
+                            pe = prop[u_t][0]
+                            Y_t = Y[(s_sync_t, u_t)].solution_value()
+                            if t_pi_t not in Sn_pi:
                                 y_out += Y_t * pe
-                    elif t_pi_t in ip_pi:
-                        prop = prod_mdp[s_pi_t][t_pi_t]['prop'].copy()
-                        for u_t in prop.keys():
-                            if u_t in act[s_sync_t]:
-                                Y_t = Y[(s_sync_t, u_t)].solution_value()
+                            elif t_pi_t in ip_pi:
                                 y_to_ip += Y_t * pe
+            #
             if (y_to_ip + y_out) > 0:
                 risk = y_out / (y_to_ip + y_out)
-
-            '''
-            for s in Sn:
-                for t in sync_mec.successors(s):
-                    if t not in Sn:
-                        prop = sync_mec[s][t]['prop'].copy()
-                        for u in prop.keys():
-                            if u in act[s]:
-                                pe = prop[u][0]
-                                y_out += Y[(s, u)].solution_value() * pe
-                    elif t in ip:
-                        prop = sync_mec[s][t]['prop'].copy()
-                        for u in prop.keys():
-                            if u in act[s]:
-                                pe = prop[u][0]
-                                y_to_ip += Y[(s, u)].solution_value() * pe
-            if (y_to_ip + y_out) > 0:
-                risk = y_out / (y_to_ip + y_out)
-            '''
+            #
             print_c('y_out: %s; y_to_ip+y_out: %s' % (y_out, y_to_ip + y_out,), color=32)
             print_c("----Suffix risk computed", color=32)
 
+            constr_t = suffix_solver.constraint(constr_opacity_index)
+            opacity_val = 0.
+            for s_sync_t in Sn:
+                for u_t in act[s_sync_t]:
+                    Y_t = Y[(s_sync_t, u_t)]  # 单独拿出来是为了debugging
+                    if type(Y_t) != float:
+                        ki_t = constr_t.GetCoefficient(Y_t)
+                        opacity_val += ki_t * Y_t.solution_value()
+            print_c("opacity_value: %f <= %f" % (opacity_val, differential_expected_cost, ), color=35)
+            print_c("----Suffix opacity threshold computed", color=35)
 
             #
-            # TODO for debugging
             # for display
             for k in range(0, suffix_solver.NumConstraints()):
                 try:
@@ -543,7 +510,10 @@ def synthesize_suffix_cycle_in_sync_amec(prod_mdp, sync_mec, MEC_pi, y_in_sf, di
                 except IndexError:
                     pass
             print("optimal policies: ")
-            for k, s_pi_t in enumerate(Sn_pi):
+
+            Sn_pi_sorted = list(Sn_pi)
+            Sn_pi_sorted.sort(key=cmp_to_key(sort_grids))
+            for k, s_pi_t in enumerate(Sn_pi_sorted):
                 #
                 # for s_sync_t in Sn:
                 #     if s_sync_t[0] == s_pi_t:
@@ -553,7 +523,7 @@ def synthesize_suffix_cycle_in_sync_amec(prod_mdp, sync_mec, MEC_pi, y_in_sf, di
                 else:
                     print(str(s_pi_t) + " " + str(plan_suffix[s_pi_t]))
 
-            return plan_suffix, cost, risk
+            return plan_suffix, cost, risk, opacity_val
         '''
         except:
             print("ORtools Error reported")
@@ -612,7 +582,7 @@ def syn_full_plan(prod_mdp, gamma, alpha=1):
         return None
 
 
-def synthesize_full_plan_w_opacity(mdp, task, optimizing_ap, ap_list, risk_pr, differential_exp_cost, alpha=1):
+def synthesize_full_plan_w_opacity(mdp, task, optimizing_ap, ap_list, risk_pr, differential_exp_cost, alpha=1, is_enable_inter_state_constraints=True):
     t2 = time.time()
 
     task_pi = task + ' & GF ' + optimizing_ap
@@ -662,7 +632,7 @@ def synthesize_full_plan_w_opacity(mdp, task, optimizing_ap, ap_list, risk_pr, d
                             prod_dra_pi.re_synthesize_sync_amec(y_in_sf, MEC_pi, MEC_gamma, prod_dra_gamma)
 
                             # LP
-                            plan_suffix, suffix_cost, suffix_risk = synthesize_suffix_cycle_in_sync_amec(prod_dra_pi, prod_dra_pi.sync_amec_set[prod_dra_pi.current_sync_amec_index], MEC_pi, y_in_sf, differential_exp_cost)
+                            plan_suffix, suffix_cost, suffix_risk, suffix_opacity_threshold = synthesize_suffix_cycle_in_sync_amec(prod_dra_pi, prod_dra_pi.sync_amec_set[prod_dra_pi.current_sync_amec_index], MEC_pi, y_in_sf, differential_exp_cost, is_enable_inter_state_constraints=is_enable_inter_state_constraints)
                             #
                             print_c("Best plan suffix obtained, cost: %s, risk %s" % (str(suffix_cost), str(suffix_risk)), color=36)
                             print_c("=-------------------------------------=", color=36)

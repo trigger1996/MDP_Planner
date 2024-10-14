@@ -6,6 +6,9 @@ from User.lp import syn_full_plan
 from User.vis2 import visualize_run_sequence, visualize_trajectories, visualiza_in_animation, print_c
 from User.vis2 import draw_mdp_principle, draw_action_principle
 
+from functools import cmp_to_key
+from User.grid_utils import sort_grids, sort_sync_grid_states
+
 import pickle
 import time
 import networkx
@@ -214,10 +217,18 @@ def plan_and_save(ws_robot_model, task):
     # for printing policies
     print_c("state action: probabilities")
     print_c("Prefix", color=42)
-    for state_t in best_all_plan[0][0]:
+    #
+    state_in_prefix = [ state_t for state_t in best_all_plan[0][0] ]
+    state_in_prefix.sort(key=cmp_to_key(sort_grids))
+    #for state_t in best_all_plan[0][0]:
+    for state_t in state_in_prefix:
         print_c("%s, %s: %s" % (str(state_t), str(best_all_plan[0][0][state_t][0]), str(best_all_plan[0][0][state_t][1]), ), color=42)
+    #
     print_c("Suffix", color=45)
-    for state_t in best_all_plan[1][0]:
+    state_in_suffix = [ state_t for state_t in best_all_plan[1][0] ]
+    state_in_suffix.sort(key=cmp_to_key(sort_grids))
+    #for state_t in best_all_plan[1][0]:
+    for state_t in state_in_suffix:
         print_c("%s, %s: %s" % (str(state_t), str(best_all_plan[1][0][state_t][0]), str(best_all_plan[1][0][state_t][1]), ), color=45)
 
     # for visualization
