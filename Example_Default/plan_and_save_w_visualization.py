@@ -3,8 +3,9 @@ from MDP_TG.dra import Dra, Product_Dra
 #from MDP_TG.lp import syn_full_plan, syn_full_plan_rex
 #from MDP_TG.vis import visualize_run                        # sudo apt install texlive-latex-extra dvipng -y
 from MDP_TG.lp import syn_full_plan
-from User.vis2 import visualize_run_sequence, visualize_trajectories, visualiza_in_animation, print_c
-from User.vis2 import draw_mdp_principle, draw_action_principle
+from Map.vis_4_plan_and_save import visualize_run_sequence, visualize_trajectories, visualiza_in_animation
+from Map.vis_4_plan_and_save import draw_mdp_principle, draw_action_principle
+from User.vis2 import print_c
 
 from functools import cmp_to_key
 from User.grid_utils import sort_grids, sort_sync_grid_states

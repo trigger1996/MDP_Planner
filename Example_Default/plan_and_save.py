@@ -4,8 +4,9 @@ from MDP_TG.dra import Dra, Product_Dra
 #from MDP_TG.vis import visualize_run                        # sudo apt install texlive-latex-extra dvipng -y
 from User.lp import syn_full_plan, synthesize_full_plan_w_opacity
 from User.dra2 import product_mdp2
-from User.vis2 import visualize_run_sequence, visualize_trajectories, visualiza_in_animation, print_c
-from User.vis2 import draw_mdp_principle, draw_action_principle
+from Map.vis_4_plan_and_save import visualize_run_sequence, visualize_trajectories, visualiza_in_animation
+from Map.vis_4_plan_and_save import draw_mdp_principle, draw_action_principle
+from User.vis2 import print_c
 
 import pickle
 import time
@@ -187,10 +188,7 @@ def plan_and_save_with_opacity(ws_robot_model, task, optimizing_ap, risk_pr, dif
     print('motion_mdp_edges.p saved!')
 
     # ----
-    d = 100
-    synthesize_full_plan_w_opacity(motion_mdp, task, optimizing_ap, ap_list, risk_pr, differential_exp_cost, is_enable_inter_state_constraints=False)
-
-
+    best_all_plan, prod_dra_pi = synthesize_full_plan_w_opacity(motion_mdp, task, optimizing_ap, ap_list, risk_pr, differential_exp_cost, is_enable_inter_state_constraints=False)
 
 
     # ----
@@ -202,24 +200,9 @@ def plan_and_save_with_opacity(ws_robot_model, task, optimizing_ap, risk_pr, dif
     #       第三项是一个字典,
     #       for s in mdp.nodes():
     #           A[s] = mdp.nodes[s]['act'].copy()
-    '''
-    prod_dra_pi.compute_S_f_rex()
-    t42 = time.time()
-    print('Compute ASCC done, time: %s' % str(t42-t41))
-
-    # ------
-    risk_pr = 0.1
-    d = 100
-    #best_all_plan = syn_full_plan_rex(prod_dra, gamma, d)
-    best_all_plan = syn_full_plan(prod_dra_pi, gamma)
-    t5 = time.time()
-    print('Plan synthesis done, time: %s' % str(t5-t42))
-
-    pickle.dump(best_all_plan, open('best_plan.p', "wb"))
-    print('best_plan.p saved!')
 
     # Added
-    total_T = 40
+    total_T = 200
     state_seq = [initial_node, ]
     label_seq = [initial_label, ]
     N = 5
@@ -253,7 +236,6 @@ def plan_and_save_with_opacity(ws_robot_model, task, optimizing_ap, risk_pr, dif
     visualize_trajectories(motion_mdp, initial_node, XX, LL, UU, MM, 'surv_trajectories', is_gradient_color=True)
     visualiza_in_animation(motion_mdp, initial_node, XX, LL, UU, MM, 'surv_animation', is_show_action=True, is_gradient_color=True)
     plt.show()
-    '''
 
 if __name__ == "__main__":
     ws_robot_model = build_model()
@@ -272,7 +254,7 @@ if __name__ == "__main__":
     all_base = 'GF base1 & G !obstacle'
     #
     optimizing_ap = 'base3'
-    risk_threshold = 0.095                                       # default:  0.1
+    risk_threshold = 0.05                                        # default:  0.1
     differential_exp_cost = 1.590106 - 0.075                     #           1.590106
 
     plan_and_save_with_opacity(ws_robot_model, all_base, optimizing_ap, risk_threshold, differential_exp_cost)

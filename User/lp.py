@@ -186,7 +186,7 @@ def synthesize_suffix_cycle_in_sync_amec(prod_mdp, sync_mec, MEC_pi, y_in_sf, di
     i_in, i_out,       transitions_i_in,    transitions_i_out    = find_i_in_and_i_out_in_sync_amec(prod_mdp, sync_mec, ip)
 
     delta = 0.01                    # 松弛变量?
-    gamma = 0.00                    # 根据(11), 整个系统进入MEC内以后就不用概率保证了?
+    gamma = 0.05                    # 根据(11), 整个系统进入MEC内以后就不用概率保证了?
     for init_node in prod_mdp.graph['initial']:
         # find states that reachable from initial state
         paths = single_source_shortest_path(prod_mdp, init_node)
@@ -356,6 +356,28 @@ def synthesize_suffix_cycle_in_sync_amec(prod_mdp, sync_mec, MEC_pi, y_in_sf, di
                     nonzero_balance_constr_list.append(current_constr_index_t)
             print_c("balance and initial distribution constraint added ...", color=44)
             print_c('number of constraints: %d' % (suffix_solver.NumConstraints(),), color=42)
+
+
+            # risk constraints
+            y_to_ip = 0.
+            y_out   = 0.
+            for s_pi in Sn_pi:
+                for s_sync in Sn:
+                    if s_sync[0] != s_pi:
+                        continue
+                    for t_sync in sync_mec.successors(s_sync):
+                        prop = sync_mec[s_sync][t_sync]['prop'].copy()
+                        for u in prop.keys():
+                            if u in act[s_sync]:
+                                pe = prop[u][0]
+                                Y_t = Y[(s_sync, u)]
+                                if t not in Sn:
+                                    y_out += Y_t * pe
+                                elif t in ip:
+                                    y_to_ip += Y_t * pe
+            suffix_solver.Add(y_to_ip >= (1.0 - gamma - delta) * (y_to_ip + y_out))
+            constr_descrip.append('risk constraints')
+            print_c('Risk constraint added', color=47)
 
             # opacity constraints
             #
@@ -641,7 +663,7 @@ def synthesize_full_plan_w_opacity(mdp, task, optimizing_ap, ap_list, risk_pr, d
                                 plan.append([[plan_prefix, prefix_cost, prefix_risk, y_in_sf],
                                              [plan_suffix, suffix_cost, suffix_risk],
                                              [MEC_pi[0], MEC_pi[1], Sr, Sd],
-                                             [ap_4_opacity, suffix_opacity_threshold, MEC_gamma[0], MEC_gamma[1]]])
+                                             [ap_4_opacity, suffix_opacity_threshold, prod_dra_pi.current_sync_amec_index, MEC_gamma[0], MEC_gamma[1]]])
         if plan:
             print("=========================")
             print(" || Final compilation  ||")
@@ -666,7 +688,7 @@ def synthesize_full_plan_w_opacity(mdp, task, optimizing_ap, ap_list, risk_pr, d
                   str(len(best_all_plan[2][3])))
             best_all_plan.append(plan_bad)
             '''
-            return best_all_plan
+            return best_all_plan, prod_dra_pi
         else:
             print("No valid plan found")
             return None
