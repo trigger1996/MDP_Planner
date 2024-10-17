@@ -107,7 +107,7 @@ def build_model(is_enable_single_direction=True):
     # (0, 0) is the origin of the map
     grids = {
         #
-        #(2, 4): {frozenset(['supply']):   0.6,  frozenset(): 0.0, },
+        (2, 4): {frozenset(['supply']):   0.6,  frozenset(): 0.0, },
         #
         (6, 3): {frozenset(['supply']):   0.9,  frozenset(): 0.0, },
         (6, 4): {frozenset(['supply']):   0.9,  frozenset(): 0.0, },
@@ -117,7 +117,7 @@ def build_model(is_enable_single_direction=True):
         (0, 0): {frozenset(['recharge']): 0.85, frozenset(): 0.0, },
         (7, 0): {frozenset(['recharge']): 0.75, frozenset(): 0.0, },
         #
-        #(2, 2): {frozenset(['drop']):     0.75, frozenset(): 0.0, },
+        (2, 2): {frozenset(['drop']):     0.75, frozenset(): 0.0, },
         (4, 2): {frozenset(['drop']):     0.75, frozenset(): 0.0, },
         #
         (3, 1): {frozenset(['obstacle']): 1.0,  frozenset(): 0.0, },
@@ -239,6 +239,7 @@ def build_model(is_enable_single_direction=True):
             if tnode in list(robot_nodes.keys()):
                 robot_edges[(fnode, u, tnode)] = (P_TL[k], c)
         # action ST
+        '''
         u = U[4]
         c = C[4]
         if fd == 'S':
@@ -252,6 +253,7 @@ def build_model(is_enable_single_direction=True):
         for k, tnode in enumerate(t_nodes):
             if tnode in list(robot_nodes.keys()):
                 robot_edges[(fnode, u, tnode)] = (P_ST[k], c)
+        '''
 
     # TODO
     # remove edges from obstacles
@@ -265,12 +267,18 @@ def build_model(is_enable_single_direction=True):
         [ (3, 3), (3, 4) ],
         [ (4, 3), (3, 4) ],
         [ (3, 4), (2, 3) ],
+        #
+        [ (3, 3), (2, 4) ],
+        [ (4, 4), (3, 3) ],
         # single direction 2
         [ (2, 0), (3, 0) ],
         [ (3, 0), (4, 0) ],
         [ (3, 1), (3, 0) ],
         [ (2, 1), (3, 0) ],
         [ (3, 0), (4, 1) ],
+        #
+        [ (3, 1), (4, 0) ],
+        [ (2, 0), (3, 1) ],
     ]
     if is_enable_single_direction:
         edges_to_remove = []
@@ -643,7 +651,7 @@ def visualiza_in_animation(mdp, s0, XX, LL, UU, MM, name=None, is_illustrate_tog
 
             if is_show_action:
                 if current_index_i <= run_sequence_number - 1 - 1:
-                    text_offset_x = 0.125
+                    text_offset_y = 0.125
                     k = 0
                     for state_t in next_action_set[current_agent][current_index_i - 1].keys():
                         x_next_t = state_t[0]
@@ -663,16 +671,15 @@ def visualiza_in_animation(mdp, s0, XX, LL, UU, MM, name=None, is_illustrate_tog
                             x_text_t += 0.25
                         elif x_text_t < x_t_t:
                             x_text_t -= 0.25
-                        x_text_t = x_text_t + text_offset_x * (k - 1)
 
                         if y_text_t > y_t_t:
                             y_text_t += 0.25
                         elif y_text_t < y_t_t:
                             y_text_t -= 0.25
-
+                        y_text_t = y_text_t + text_offset_y * (k - 1)
 
                         #
-                        line_t = ax.plot([x_t_t, y_next_t], [y_t_t, x_next_t], color='gray', lw=2.5, linestyle='--', alpha=0.375)
+                        line_t = ax.plot([x_t_t, x_next_t], [y_t_t, y_next_t], color='gray', lw=2.5, linestyle='--', alpha=0.375)
                         ax, polygon = draw_fuselage(ax, (x_next_t, y_next_t), heading_next_t, edge_color=color_index_traj[current_agent][2], face_color=color_index_traj[current_agent][2], alpha=0.45)
                         text_t = ax.text(x_text_t, y_text_t, "(%s, %f, %f)" % (str(list(action_t)), probability_t, cost_t,), fontsize=8.5)
 
@@ -704,7 +711,7 @@ def visualiza_in_animation(mdp, s0, XX, LL, UU, MM, name=None, is_illustrate_tog
                         , update
                         , init_func=init
                         , frames=frame_num
-                        , interval=2
+                        , interval=10
                         , blit=True
                         )
 

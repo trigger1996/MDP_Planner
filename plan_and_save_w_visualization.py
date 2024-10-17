@@ -71,15 +71,16 @@ def plan_and_save(ws_robot_model, task):
     #       第三项是一个字典,
     #       for s in mdp.nodes():
     #           A[s] = mdp.nodes[s]['act'].copy()
-    prod_dra.compute_S_f_rex()
+    #prod_dra.compute_S_f_rex()
+    prod_dra.compute_S_f()
     t42 = time.time()
     print('Compute ASCC done, time: %s' % str(t42-t41))
 
     # ------
     gamma = 0.1
     d = 100
-    best_all_plan = syn_full_plan_rex(prod_dra, gamma, d)
-    #best_all_plan = syn_full_plan(prod_dra, gamma)
+    #best_all_plan = syn_full_plan_rex(prod_dra, gamma, d)
+    best_all_plan = syn_full_plan(prod_dra, gamma)
     t5 = time.time()
     print('Plan synthesis done, time: %s' % str(t5-t42))
 
@@ -153,7 +154,7 @@ if __name__ == "__main__":
     ws_robot_model = build_model()
 
     # ----
-    ltl_formula =  'GF (supply -> drop -> recharge)'          # '& G F supply & G F drop G ! obstacle'
+    ltl_formula =  'GF (supply -> drop) && G !obstacle'          # '& G F supply & G F drop G ! obstacle'
     ltl_formula_converted = ltl_convert(ltl_formula)
     plan_and_save(ws_robot_model, ltl_formula_converted)
 
