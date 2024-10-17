@@ -663,12 +663,15 @@ def synthesize_full_plan_w_opacity(mdp, task, optimizing_ap, ap_list, risk_pr, d
                                 plan.append([[plan_prefix, prefix_cost, prefix_risk, y_in_sf],
                                              [plan_suffix, suffix_cost, suffix_risk],
                                              [MEC_pi[0], MEC_pi[1], Sr, Sd],
-                                             [ap_4_opacity, suffix_opacity_threshold, prod_dra_pi.current_sync_amec_index, MEC_gamma[0], MEC_gamma[1]]])
+                                             [ap_4_opacity, suffix_opacity_threshold, prod_dra_pi.current_sync_amec_index, MEC_gamma[0], MEC_gamma[1]],
+                                             prod_dra_pi])
         if plan:
             print("=========================")
             print(" || Final compilation  ||")
             print("=========================")
             best_all_plan = min(plan, key=lambda p: p[0][1] + alpha * p[1][1])
+            prod_dra_pi = best_all_plan[4]
+            best_all_plan = best_all_plan[0:4]
             print('Best plan prefix obtained for %s states in Sr' %
                   str(len(best_all_plan[0][0])))
             print('cost: %s; risk: %s ' %

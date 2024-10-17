@@ -1,6 +1,7 @@
 from MDP_TG.mdp import Motion_MDP
 from MDP_TG.dra import Dra, Product_Dra
 from MDP_TG.lp import syn_full_plan, syn_full_plan_rex
+from Map.example_8x5_1014 import build_model
 from Map.example_8x5_1014 import visualize_trajectories, visualiza_in_animation
 from Map.example_8x5_1014 import draw_mdp_principle, draw_action_principle
 from User.vis2 import print_c
@@ -8,8 +9,6 @@ from User.vis2 import print_c
 from subprocess import check_output
 from functools import cmp_to_key
 from User.grid_utils import sort_grids, sort_sync_grid_states
-
-from Map.example_8x5_1014 import build_model
 
 import pickle
 import time

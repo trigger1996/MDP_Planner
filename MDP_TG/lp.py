@@ -783,7 +783,7 @@ def act_by_plan(prod_mdp, best_plan, prod_state):
             pc += p
             if pc > rdn:
                 break
-        # print 'action chosen: %s' %str(U[k])
+        # print('action chosen: %s' %str(U[k]))
         return U[k], 0
     elif (prod_state in plan_suffix):
         # print 'In suffix'
@@ -795,7 +795,7 @@ def act_by_plan(prod_mdp, best_plan, prod_state):
             pc += p
             if pc > rdn:
                 break
-        # print 'action chosen: %s' %str(U[k])
+        # print('action chosen: %s' %str(U[k]))
         if prod_state in best_plan[2][1]:
             return U[k], 10
         else:

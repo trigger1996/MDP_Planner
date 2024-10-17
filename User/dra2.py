@@ -6,6 +6,8 @@ from MDP_TG.mdp import find_MECs, find_SCCs
 from MDP_TG.dra import Product_Dra
 from User.vis2 import print_c
 
+import random
+
 
 def observation_func_1(state, observation='X'):
     if observation == 'X':
@@ -115,6 +117,55 @@ def obtain_differential_expected_cost(current_action, edge_pi, edge_gamma):
 
     return different_expected_cost
 
+def act_by_plan(prod_mdp, best_plan, prod_state):
+    # ----choose the randomized action by the optimal policy----
+    # recall that {best_plan = [plan_prefix, prefix_cost, prefix_risk, y_in_sf],
+    # [plan_suffix, suffix_cost, suffix_risk], [MEC[0], MEC[1], Sr, Sd], plan_bad]}
+    plan_prefix = best_plan[0][0]
+    plan_suffix = best_plan[1][0]
+    plan_bad = best_plan[3]
+    if (prod_state in plan_prefix):
+        # print 'In prefix'
+        U = plan_prefix[prod_state][0]
+        P = plan_prefix[prod_state][1]
+        rdn = random.random()
+        pc = 0
+        for k, p in enumerate(P):
+            pc += p
+            if pc > rdn:
+                break
+        print('action chosen: %s' %str(U[k]))
+        return U[k], 0
+    elif (prod_state in plan_suffix):
+        # print 'In suffix'
+        U = plan_suffix[prod_state][0]
+        P = plan_suffix[prod_state][1]
+        rdn = random.random()
+        pc = 0
+        for k, p in enumerate(P):
+            pc += p
+            if pc > rdn:
+                break
+        print('action chosen: %s' %str(U[k]))
+        if prod_state in best_plan[2][1]:
+            return U[k], 10
+        else:
+            return U[k], 1
+    elif (prod_state in plan_bad):
+        # print 'In bad states'
+        U = plan_bad[prod_state][0]
+        P = plan_bad[prod_state][1]
+        rdn = random.random()
+        pc = 0
+        for k, p in enumerate(P):
+            pc += p
+            if pc > rdn:
+                break
+        # print 'action chosen: %s' %str(U[k])
+        return U[k], 2
+    else:
+        print_c("Warning, current state is outside prefix and suffix !", color=33)
+        return None, 4
 
 class product_mdp2(Product_Dra):
     def __init__(self, mdp, dra):
@@ -261,6 +312,93 @@ class product_mdp2(Product_Dra):
             self.current_sync_amec_index = self.sync_amec_set.__len__() - 1
         #
         print_c("[synthesize_w_opacity] Generated sync_amec, states: %d, edges: %d" % (sync_mec_t.nodes.__len__(), sync_mec_t.edges.__len__(),))
+
+    def execution(self, best_all_plan, total_T, state_seq, label_seq):
+        # ----plan execution with or without given observation----
+        t = 0
+        X = []
+        L = []
+        U = []
+        M = []
+        PX = []
+        m = 0
+        # ----
+        while (t <= total_T):
+            if (t == 0):
+                # print '---initial run----'
+                mdp_state = state_seq[0]
+                label = label_seq[0]
+                initial_set = self.graph['initial'].copy()
+                current_state = initial_set.pop()
+            elif (t >= 1) and (len(state_seq) > t):
+                # print '---observation given---'
+                mdp_state = state_seq[t]
+                label = label_seq[t]
+                prev_state = tuple(current_state)
+                error = True
+                for next_state in self.successors(prev_state):
+                    if((self.nodes[next_state]['mdp'] == mdp_state) and (self.nodes[next_state]['label'] == label) and (u in list(self[prev_state][next_state]['prop'].keys()))):
+                        current_state = tuple(next_state)
+                        error = False
+                        break
+                if error:
+                    print(
+                        'Error: The provided state and label sequences do NOT match the mdp structure!')
+                    break
+            else:
+                # print '---random observation---'
+                prev_state = tuple(current_state)
+                S = []
+                P = []
+                if m != 2:  # in prefix or suffix
+                    for next_state in self.successors(prev_state):
+                        prop = self[prev_state][next_state]['prop']
+                        if (u in list(prop.keys())):
+                            S.append(next_state)
+                            P.append(prop[u][0])
+                if m == 2:  # in bad states
+                    # print 'in bad states'
+                    Sd = best_all_plan[2][3]
+                    Sf = best_all_plan[2][0]
+                    Sr = best_all_plan[2][2]
+                    (xf, lf, qf) = prev_state
+                    postqf = self.graph['dra'].successors(qf)
+                    for xt in self.graph['mdp'].successors(xf):
+                        if xt != xf:
+                            prop = self.graph['mdp'][xf][xt]['prop']
+                            if u in list(prop.keys()):
+                                prob_edge = prop[u][0]
+                                label = self.graph['mdp'].nodes[xt]['label']
+                                for lt in label.keys():
+                                    prob_label = label[lt]
+                                    dist = dict()
+                                    for qt in postqf:
+                                        if (xt, lt, qt) in Sf.union(Sr):
+                                            dist[qt] = self.graph['dra'].check_distance_for_dra_edge(
+                                                lf, qf, qt)
+                                    if list(dist.keys()):
+                                        qt = min(list(dist.keys()),
+                                                 key=lambda q: dist[q])
+                                        S.append((xt, lt, qt))
+                                        P.append(prob_edge*prob_label)
+                rdn = random.random()
+                pc = 0
+                for k, p in enumerate(P):
+                    pc += p
+                    if pc > rdn:
+                        break
+                current_state = tuple(S[k])
+                mdp_state = self.nodes[current_state]['mdp']
+                label = self.nodes[current_state]['label']
+            # ----
+            u, m = act_by_plan(self, best_all_plan, current_state)
+            X.append(mdp_state)
+            PX.append(current_state)
+            L.append(set(label))
+            U.append(u)
+            M.append(m)
+            t += 1
+        return X, L, U, M, PX
 
 class Sync_AMEC(DiGraph):
     def init(self):
