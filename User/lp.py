@@ -2,6 +2,7 @@ from MDP_TG import lp
 from MDP_TG.dra import Dra, Product_Dra
 from MDP_TG.lp import syn_plan_prefix, syn_plan_suffix, syn_plan_bad
 from User.dra2 import product_mdp2
+import User.dra2 as dra2
 
 from collections import defaultdict
 import random
@@ -246,6 +247,7 @@ def synthesize_suffix_cycle_in_sync_amec(prod_mdp, sync_mec, MEC_pi, y_in_sf, di
             # 由于sync_mec内所有sync_state[0]对应的状态是一个状态, 所以其对应概率之和就应该是1
             # it seems that there are some issues on the model, so this constraint cannot be applied,
             # but we use the normalized result as policies such that all values can be constrainted into [0, 1]
+            '''
             if is_enable_inter_state_constraints:
                 for s_pi_t in Sn_pi:
                     constr_s_pi = []
@@ -260,6 +262,10 @@ def synthesize_suffix_cycle_in_sync_amec(prod_mdp, sync_mec, MEC_pi, y_in_sf, di
                         constr_descrip.append("merge of " + str(s_pi_t))
                 print_c('inter-state constraints added', color=42)
                 print_c('number of constraints: %d' % (suffix_solver.NumConstraints(), ), color=42)
+            '''
+            # 这个约束就算错的
+            # 真正的flow是由balance, 即贝尔曼方程保证的
+            # 不是这个东西
 
             # constraint 2 / 11b
             #
@@ -302,6 +308,13 @@ def synthesize_suffix_cycle_in_sync_amec(prod_mdp, sync_mec, MEC_pi, y_in_sf, di
             nonzero_constr_num_11c = 0
             nonzero_balance_constr_list = []
             for k, s_pi in enumerate(Sn_pi):
+                #
+                # for debugging
+                # if s_pi == ((1.25, 2.25, 'W'), frozenset({'supply'}), 7):
+                #     debug_var = 1
+                # if s_pi == ((1.25, 2.25, 'W'), frozenset({'supply'}), 2):
+                #     debug_var = 2
+
                 #
                 constr_11c_lhs = []
                 constr_11c_rhs = []
@@ -416,7 +429,20 @@ def synthesize_suffix_cycle_in_sync_amec(prod_mdp, sync_mec, MEC_pi, y_in_sf, di
                       suffix_solver.iterations())
             else:
                print('The problem does not have an optimal solution.')
-               return None, None, None
+               return None, None, None, None
+
+            #
+            # for debugging
+            # v = dict()
+            # for sync_state_u_t in list(Y.keys()):
+            #     state_pi_t = sync_state_u_t[0][0]
+            #     u_t = sync_state_u_t[0][0]
+            #     if state_pi_t == ((1.25, 2.25, 'W'), frozenset({'supply'}), 7):
+            #         debug_var = 3
+            #         v[sync_state_u_t] = Y[sync_state_u_t].solution_value()
+            #     if state_pi_t == ((1.25, 2.25, 'W'), frozenset({'supply'}), 2):
+            #         debug_var = 4
+            #         v[sync_state_u_t] = Y[sync_state_u_t].solution_value()
 
             #
             #
@@ -604,7 +630,7 @@ def syn_full_plan(prod_mdp, gamma, alpha=1):
         return None
 
 
-def synthesize_full_plan_w_opacity(mdp, task, optimizing_ap, ap_list, risk_pr, differential_exp_cost, alpha=1, is_enable_inter_state_constraints=True):
+def synthesize_full_plan_w_opacity(mdp, task, optimizing_ap, ap_list, risk_pr, differential_exp_cost, alpha=1, observation_func=dra2.observation_func_1, is_enable_inter_state_constraints=True):
     t2 = time.time()
 
     task_pi = task + ' & GF ' + optimizing_ap
@@ -651,7 +677,7 @@ def synthesize_full_plan_w_opacity(mdp, task, optimizing_ap, ap_list, risk_pr, d
                     # y_in_sf will be used as initial distribution
                     for p, S_fi_gamma in enumerate(prod_dra_gamma.Sf):
                         for q, MEC_gamma in enumerate(S_fi_gamma):
-                            prod_dra_pi.re_synthesize_sync_amec(y_in_sf, MEC_pi, MEC_gamma, prod_dra_gamma)
+                            prod_dra_pi.re_synthesize_sync_amec(y_in_sf, MEC_pi, MEC_gamma, prod_dra_gamma, observation_func=observation_func)
 
                             # LP
                             plan_suffix, suffix_cost, suffix_risk, suffix_opacity_threshold = synthesize_suffix_cycle_in_sync_amec(prod_dra_pi, prod_dra_pi.sync_amec_set[prod_dra_pi.current_sync_amec_index], MEC_pi, y_in_sf, differential_exp_cost, is_enable_inter_state_constraints=is_enable_inter_state_constraints)

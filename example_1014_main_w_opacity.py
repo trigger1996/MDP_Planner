@@ -8,6 +8,7 @@ from Map.example_8x5_1014 import build_model
 from Map.example_8x5_1014 import visualize_trajectories, visualiza_in_animation
 from Map.example_8x5_1014 import draw_mdp_principle, draw_action_principle
 from User.vis2 import print_c
+from Map.example_8x5_1014 import observation_func as observation_func_1014
 
 import pickle
 import time
@@ -46,7 +47,7 @@ def plan_and_save_with_opacity(ws_robot_model, task, optimizing_ap, risk_pr, dif
     print('motion_mdp_edges.p saved!')
 
     # ----
-    best_all_plan, prod_dra_pi = synthesize_full_plan_w_opacity(motion_mdp, task, optimizing_ap, ap_list, risk_pr, differential_exp_cost, is_enable_inter_state_constraints=False)
+    best_all_plan, prod_dra_pi = synthesize_full_plan_w_opacity(motion_mdp, task, optimizing_ap, ap_list, risk_pr, differential_exp_cost, is_enable_inter_state_constraints=False, observation_func=observation_func_1014)
 
 
     # ----
@@ -97,12 +98,12 @@ def plan_and_save_with_opacity(ws_robot_model, task, optimizing_ap, risk_pr, dif
     plt.show()
 
 if __name__ == "__main__":
-    ws_robot_model = build_model()
+    ws_robot_model = build_model(is_enable_single_direction=True)
 
     #
     # 改用标准的Ltl
     # https://spot.lre.epita.fr/ltlfilt.html#:~:text=ltlfilt.%20Table%20of%20Contents.%20Changing%20syntaxes.%20Altering%20the%20formula.%20Filtering.
-    ltl_formula =  'GF (supply -> drop) && G !obstacle'          # '& G F supply & G F drop G ! obstacle'
+    ltl_formula =  'GF (supply -> drop)'          # '& G F supply & G F drop G ! obstacle'
     #
     optimizing_ap = 'drop'
     risk_threshold = 0.05                                        # default:  0.1

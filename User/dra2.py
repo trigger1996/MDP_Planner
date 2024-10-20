@@ -117,6 +117,9 @@ def obtain_differential_expected_cost(current_action, edge_pi, edge_gamma):
 
     return different_expected_cost
 
+def sort_scc_list(x):
+    return x.__len__()
+
 def act_by_plan(prod_mdp, best_plan, prod_state):
     # ----choose the randomized action by the optimal policy----
     # recall that {best_plan = [plan_prefix, prefix_cost, prefix_risk, y_in_sf],
@@ -134,7 +137,7 @@ def act_by_plan(prod_mdp, best_plan, prod_state):
             pc += p
             if pc > rdn:
                 break
-        print('action chosen: %s' %str(U[k]))
+        print('%s action chosen: %s' % (str(prod_state), str(U[k], )))
         return U[k], 0
     elif (prod_state in plan_suffix):
         # print 'In suffix'
@@ -146,9 +149,10 @@ def act_by_plan(prod_mdp, best_plan, prod_state):
             pc += p
             if pc > rdn:
                 break
-        print('action chosen: %s' %str(U[k]))
+        print('%s action chosen: %s' % (str(prod_state), str(U[k], )))
         if prod_state in best_plan[2][1]:
-            return U[k], 10
+            return  U[k], 10                    # it is strange for best_plan[2][1] is for state set I_p, i.e., the states that Ap is satisfied
+            #return U[k], 1
         else:
             return U[k], 1
     elif (prod_state in plan_bad):
@@ -164,7 +168,7 @@ def act_by_plan(prod_mdp, best_plan, prod_state):
         # print 'action chosen: %s' %str(U[k])
         return U[k], 2
     else:
-        print_c("Warning, current state is outside prefix and suffix !", color=33)
+        print_c("Warning, current state %s is outside prefix and suffix !"  % (str(prod_state), ), color=33)
         return None, 4
 
 class product_mdp2(Product_Dra):
@@ -231,7 +235,7 @@ class product_mdp2(Product_Dra):
         mec_state_set_pi    = MEC_pi[0]
         mec_state_set_gamma = MEC_gamma[0]
 
-        stack_t = find_initial_state(y_in_sf, list(MEC_gamma[0]))
+        stack_t = find_initial_state(y_in_sf, list(MEC_gamma[0]), observation_func=observation_func)
         stack_t = list(set(stack_t))
         visited = []
 
@@ -290,6 +294,7 @@ class product_mdp2(Product_Dra):
             # TODO
             # 检查连接性
             scc_list = list(nx.strongly_connected_components(sync_mec_t))
+            scc_list.sort(key=sort_scc_list,reverse=True)
             if scc_list.__len__() == 0:
                 print_c("[synthesize_w_opacity] NO SCCs found ..." , color=33)
 
@@ -306,6 +311,17 @@ class product_mdp2(Product_Dra):
                         pass
 
             print_c("[synthesize_w_opacity] number of state to remove: %d" % (num_node_removed,), color=33)
+
+            #
+            # for debugging
+            # state_pi_list_in_amec = []
+            # for sync_state_t in (sync_mec_t.nodes()):
+            #     state_pi_list_in_amec.append(sync_state_t[0])
+            # #
+            # state_pi_list_not_in_amec = []
+            # for state_pi_t in MEC_pi[0]:
+            #     if state_pi_t not in state_pi_list_in_amec:
+            #         state_pi_list_not_in_amec.append(state_pi_t)
 
             #
             self.sync_amec_set.append(sync_mec_t)
@@ -350,7 +366,7 @@ class product_mdp2(Product_Dra):
                 prev_state = tuple(current_state)
                 S = []
                 P = []
-                if m != 2:  # in prefix or suffix
+                if m < 2:  # in prefix or suffix
                     for next_state in self.successors(prev_state):
                         prop = self[prev_state][next_state]['prop']
                         if (u in list(prop.keys())):

@@ -88,8 +88,8 @@ def state_2_grid_center(state):
 
 def observation_func(state):
     global observed_area
-    x = state[0]
-    y = state[1]
+    x = state[0][0]
+    y = state[0][1]
 
     x_grid, y_grid = xy_2_grid(x, y)
     for observed_state_t in observed_area.keys():
