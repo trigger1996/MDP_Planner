@@ -1,11 +1,24 @@
 from MDP_TG.mdp import Motion_MDP
+from v_rep.plan_synthesis import initial_node
 
+robot_nodes_w_aps = dict()
+robot_edges = dict()
+U = []
+initial_node  = None
+initial_label = None
+
+observation_dict = {
+    'u': ['0', '1', '2'],
+    'v': ['3', '7'],
+    'w': ['4', '5', '6'],
+    'x': ['8'],
+}
 
 def build_model():
 
+    global robot_nodes_w_aps, robot_edges, U, initial_node, initial_label
 
     # robot nodes
-    robot_nodes_w_aps = dict()
     robot_nodes_w_aps['0'] = { frozenset(): 1.0 }
     robot_nodes_w_aps['1'] = { frozenset({'gather'}): 0.85}
     robot_nodes_w_aps['2'] = { frozenset(): 1.0 }
@@ -62,3 +75,45 @@ def build_model():
 
 
     return (robot_nodes_w_aps, robot_edges, U, initial_node, initial_label)
+
+
+def observation_func_1018(x, u=None):
+    global observation_dict
+
+    for y in observation_dict.keys():
+        if x in observation_dict[y]:
+            return y
+
+    return None
+
+def observation_inv_func_1018(y):
+    return observation_dict[y]
+
+def run_2_observations_seqs(x_u_seqs):
+    y_seq = []
+    for i in range(0, x_u_seqs.__len__() - 1, 2):
+        x_t = x_u_seqs[i]
+        u_t = x_u_seqs[i + 1]
+        y_t = observation_func_1018(x_t, u_t)
+        y_seq.append(y_t)
+        #y_seq.append(u_t)           # u is for display and NOT in actual sequences
+    return y_seq
+
+def observation_seq_2_inference(y_seq):
+    global robot_nodes_w_aps
+    x_inv_set_seq = []
+    ap_inv_seq = []
+    for i in range(0, y_seq.__len__()):
+        x_inv_t = observation_inv_func_1018(y_seq[i])
+        #
+        ap_inv_t = []
+        for state_t in x_inv_t:
+            # ap_inv_t = ap_inv_t + list(robot_nodes_w_aps[state_t].keys())
+            ap_list_t = list(robot_nodes_w_aps[state_t].keys())
+            for ap_t in ap_list_t:
+                ap_inv_t = ap_inv_t + list(ap_t)
+
+        ap_inv_t = list(set(ap_inv_t))
+        x_inv_set_seq.append(x_inv_t)
+        ap_inv_seq.append(ap_inv_t)
+    return y_seq, ap_inv_seq

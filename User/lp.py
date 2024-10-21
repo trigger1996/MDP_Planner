@@ -569,7 +569,7 @@ def synthesize_suffix_cycle_in_sync_amec(prod_mdp, sync_mec, MEC_pi, y_in_sf, di
             print("optimal policies: ")
 
             Sn_pi_sorted = list(Sn_pi)
-            Sn_pi_sorted.sort(key=cmp_to_key(sort_grids))
+            #Sn_pi_sorted.sort(key=cmp_to_key(sort_grids))
             for k, s_pi_t in enumerate(Sn_pi_sorted):
                 #
                 # for s_sync_t in Sn:
@@ -1030,7 +1030,10 @@ def synthesize_full_plan_w_opacity(mdp, task, optimizing_ap, ap_list, risk_pr, d
                     # y_in_sf will be used as initial distribution
                     for p, S_fi_gamma in enumerate(prod_dra_gamma.Sf):
                         for q, MEC_gamma in enumerate(S_fi_gamma):
-                            prod_dra_pi.re_synthesize_sync_amec(y_in_sf, MEC_pi, MEC_gamma, prod_dra_gamma, observation_func=observation_func)
+                            plan_prefix_p, prefix_cost_p, prefix_risk_p, y_in_sf_gamma, Sr_p, Sd_p = syn_plan_prefix(
+                                prod_dra_gamma, MEC_gamma, risk_pr)
+
+                            prod_dra_pi.re_synthesize_sync_amec(y_in_sf, y_in_sf_gamma, MEC_pi, MEC_gamma, prod_dra_gamma, observation_func=observation_func)
 
                             # LP
                             plan_suffix, suffix_cost, suffix_risk, suffix_opacity_threshold = synthesize_suffix_cycle_in_sync_amec(prod_dra_pi, prod_dra_pi.sync_amec_set[prod_dra_pi.current_sync_amec_index], MEC_pi, y_in_sf, differential_exp_cost, is_enable_inter_state_constraints=is_enable_inter_state_constraints)

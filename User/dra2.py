@@ -83,12 +83,16 @@ def is_ap_identical(state_pi, state_gamma):
         return False
 
 
-def find_initial_state(y_in_sf, state_set_gamma, observation_func=observation_func_1):
+def find_initial_state(y_in_sf_pi, y_in_sf_gamma, state_set_gamma, observation_func=observation_func_1):
     state_list = []
-    for state_pi_t in y_in_sf.keys():
-        if y_in_sf[state_pi_t] == 0:
-            continue
-        for state_gamma_t in state_set_gamma:
+    for state_pi_t in y_in_sf_pi.keys():
+        # TODO
+        # to explain reasons
+        # if y_in_sf_pi[state_pi_t] == 0:
+        #     continue
+        for state_gamma_t in y_in_sf_gamma:
+            # if y_in_sf_gamma[state_gamma_t] == 0:
+            #     continue
             #
             if observation_func(state_pi_t) == observation_func(state_gamma_t):
                 if is_ap_identical(state_pi_t, state_gamma_t):
@@ -137,7 +141,7 @@ def act_by_plan(prod_mdp, best_plan, prod_state):
             pc += p
             if pc > rdn:
                 break
-        print('%s action chosen: %s' % (str(prod_state), str(U[k], )))
+        # print('%s action chosen: %s' % (str(prod_state), str(U[k], )))
         return U[k], 0
     elif (prod_state in plan_suffix):
         # print 'In suffix'
@@ -149,7 +153,7 @@ def act_by_plan(prod_mdp, best_plan, prod_state):
             pc += p
             if pc > rdn:
                 break
-        print('%s action chosen: %s' % (str(prod_state), str(U[k], )))
+        # print('%s action chosen: %s' % (str(prod_state), str(U[k], )))
         if prod_state in best_plan[2][1]:
             return  U[k], 10                    # it is strange for best_plan[2][1] is for state set I_p, i.e., the states that Ap is satisfied
             #return U[k], 1
@@ -226,7 +230,7 @@ class product_mdp2(Product_Dra):
             print("Check your MDP and Task formulation")
             print("Or try the relaxed plan")
 
-    def re_synthesize_sync_amec(self, y_in_sf, MEC_pi, MEC_gamma, product_mdp_gamma:Product_Dra, observation_func=observation_func_2, is_re_compute_Sf=True):
+    def re_synthesize_sync_amec(self, y_in_sf_pi, y_in_sf_gamma, MEC_pi, MEC_gamma, product_mdp_gamma:Product_Dra, observation_func=observation_func_2, is_re_compute_Sf=True):
         # amec:
         #   [0] amec
         #   [1] amec ^ Ip
@@ -235,7 +239,7 @@ class product_mdp2(Product_Dra):
         mec_state_set_pi    = MEC_pi[0]
         mec_state_set_gamma = MEC_gamma[0]
 
-        stack_t = find_initial_state(y_in_sf, list(MEC_gamma[0]), observation_func=observation_func)
+        stack_t = find_initial_state(y_in_sf_pi, y_in_sf_gamma, list(MEC_gamma[0]), observation_func=observation_func)
         stack_t = list(set(stack_t))
         visited = []
 
@@ -366,7 +370,7 @@ class product_mdp2(Product_Dra):
                 prev_state = tuple(current_state)
                 S = []
                 P = []
-                if m < 2:  # in prefix or suffix
+                if m < 2 or m == 10:                                    # in prefix or suffix, added, it is admissible for states to get in Ip again (m == 10)
                     for next_state in self.successors(prev_state):
                         prop = self[prev_state][next_state]['prop']
                         if (u in list(prop.keys())):
