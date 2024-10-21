@@ -31,19 +31,18 @@ def is_state_equal(x, y):
 
 def find_twin_states(x, state_set):
     x_name = str(x[0])
+    x_dra_state = x[2]
     if ('_in' not in x_name and '_out' not in x_name):
         return x, x
     else:
         if '_in' in x_name:
-            x_name = x_name.replace('_in', '')
-            for state_t in state_set:
-                if x_name in str(state_t[0]) and state_t != x:
-                    return x, state_t
+            x_name_p = x_name.replace('_in', '_out')
+            state_t = (x_name_p, x[1], x[2])
+            return x, state_t
         elif '_out' in x_name:
-            x_name = x_name.replace('_out', '')
-            for state_t in state_set:
-                if x_name in str(state_t[0]) and state_t != x:
-                    return state_t, x
+            x_name_p = x_name.replace('_out', '_in')
+            state_t = (x_name_p, x[1], x[2])
+            return x, state_t
 
 def find_corresponding_incoming_states(x, state_set):
     x_name = str(x[0])
@@ -485,7 +484,7 @@ def syn_plan_suffix(prod_mdp, MEC, y_in_sf):
             # --------------------
             #
             # 这个地方和prefix差别很大
-            for s in Sn:
+            for k, s in enumerate(Sn):
                 #
                 # constr3: sum of outflow
                 # constr4: sum of inflow
@@ -532,14 +531,33 @@ def syn_plan_suffix(prod_mdp, MEC, y_in_sf):
                 # 如果 s in Sf且上一时刻状态属于Sn, 但不在MEC内
                 if (s in list(y_in_sf.keys())) and (s not in ip):
                     suffix_solver.Add(constr3 == constr4 + y_in_sf[s])          # 可能到的了的要计算?
+                    #
+                    # Added, for debugging
+                    print_c("constraint: %d" % (k, ), color=37)
+                    print_c(constr3, color=38)
+                    print_c(constr4, color=39)
+                    print_c(y_in_sf[s], color=39)
+                    print_c(" ")
                 #
                 # 如果 s in Sf, 且上一时刻状态在Sn，且在MEC内
                 if (s in list(y_in_sf.keys())) and (s in ip):
                     suffix_solver.Add(constr3 == y_in_sf[s])                    # 在里面的永远到的了?
+                    #
+                    # Added, for debugging
+                    print_c("constraint: %d" % (k, ), color=37)
+                    print_c(constr3, color=38)
+                    print_c(y_in_sf[s], color=39)
+                    print_c(" ")
                 #
                 # 如果s不在Sf内且不在NEC内
                 if (s not in list(y_in_sf.keys())) and (s not in ip):
                     suffix_solver.Add(constr3 == constr4)                       # 到不了的永远到不了?
+                    #
+                    # Added, for debugging
+                    print_c("constraint: %d" % (k, ), color=37)
+                    print_c(constr3, color=38)
+                    print_c(constr4, color=39)
+                    print_c(" ")
             print('Balance condition added')
             print('Initial sf condition added')
             # --------------------
@@ -565,6 +583,10 @@ def syn_plan_suffix(prod_mdp, MEC, y_in_sf):
                                 y_to_ip += Y[(s, u)]*pe
             # suffix_solver.Add(y_to_ip+y_out >= delta)
             suffix_solver.Add(y_to_ip >= (1.0-gamma-delta)*(y_to_ip+y_out))
+            print_c("y_2_ip:", color=35)
+            print_c(y_to_ip, color=35)
+            print_c("y_out:", color=36)
+            print_c(y_out, color=36)
             print('Risk constraint added')
             # ------------------------------
             # solve
@@ -645,7 +667,9 @@ def syn_plan_suffix2(prod_mdp, MEC, y_in_sf):
         Sn = set(paths.keys()).intersection(sf)
         print('Sf size: %s' % len(sf))
         print('reachable sf size: %s' % len(Sn))
+        print_c(Sn, color=42)
         print('Ip size: %s' % len(ip))
+        print_c(ip, color=42)
         print('Ip and sf intersection size: %s' % len(Sn.intersection(ip)))
         #
         # Added
@@ -708,19 +732,19 @@ def syn_plan_suffix2(prod_mdp, MEC, y_in_sf):
         #
         # Objective 3: Swap states in Sn to states o I_in and I_out
         # Se' = (Sc' \ Ic) \cup I_in \cup I_out
-        state_to_remove = []
         for state_t in Sn:
-            state_p_in = find_corresponding_incoming_states(state_t, i_in)
-            state_p_out = find_corresponding_outgoing_states(state_t, i_out)
-            if state_p_in != None:
-                state_to_remove.append(state_t)
+            if state_t in ip:
+                state_p_in = find_corresponding_incoming_states(state_t, i_in)
+                state_p_out = find_corresponding_outgoing_states(state_t, i_out)
                 Sn.append(state_p_in)
                 Sn.append(state_p_out)
-        for state_t in state_to_remove:
+        for state_t in ip:
             Sn.remove(state_t)
         #
         Se_p = list(set(Sn).difference(i_in))
 
+        print('Modified Sn: ')
+        print_c(Sn, color=42)
 
         #
         # ---------solve lp------------
@@ -762,7 +786,7 @@ def syn_plan_suffix2(prod_mdp, MEC, y_in_sf):
             #
             # constraint 11C
             sn_calculated = []
-            for s in Sn:
+            for k, s in enumerate(Sn):
                 #
                 # Added
                 s_in, s_out = find_twin_states(s, Sn)
@@ -819,39 +843,71 @@ def syn_plan_suffix2(prod_mdp, MEC, y_in_sf):
                 if (s_original in list(y_in_sf.keys())) and (s_original not in ip):                       # if (s in list(y_in_sf.keys())) and (s not in ip):
                     #                 outflow == inflow
                     suffix_solver.Add(constr3 == constr4 + y_in_sf[s_original])
+                    #
+                    # Added, for debugging
+                    print_c("constraint: %d" % (k, ), color=37)
+                    print_c(constr3, color=38)
+                    print_c(constr4, color=39)
+                    print_c(y_in_sf[s_original], color=39)
+                    print_c(" ")
                 #
                 # 如果 s in Sf, 且上一时刻状态在Sn，且在MEC内
                 if (s_original in list(y_in_sf.keys())) and (s_original in ip):                           # if (s in list(y_in_sf.keys())) and (s in ip):
                     suffix_solver.Add(constr3 == y_in_sf[s_original])
+                    #
+                    # Added, for debugging
+                    print_c("constraint: %d" % (k, ), color=37)
+                    print_c(constr3, color=38)
+                    print_c(y_in_sf[s_original], color=39)
+                    print_c(" ")
                 #
                 # 如果s不在Sf内且不在MEC内
                 if (s_original not in list(y_in_sf.keys())) and (s_original not in ip):
                     suffix_solver.Add(constr3 == constr4)
+                    #
+                    # Added, for debugging
+                    print_c("constraint: %d" % (k, ), color=37)
+                    print_c(constr3, color=38)
+                    print_c(constr4, color=39)
+                    print_c(" ")
             print('Balance condition added')
             print('Initial sf condition added')
             # --------------------
             y_to_ip = 0.0
             y_out = 0.0
+            sn_calculated = []
             for s in Sn:
-                for t in prod_mdp_p.successors(s):
+                s_in, s_out = find_twin_states(s, Sn)
+                s_original  = find_original_states(s)
+                if s_in in sn_calculated and s_out in sn_calculated:
+                    continue
+                else:
+                    sn_calculated.append(s_in)
+                    sn_calculated.append(s_out)         # to prevent identical constraints
+                for t in prod_mdp_p.successors(s_out):
+                    # risk means the successor state will not in MEC
                     if t not in Sn:
-                        prop = prod_mdp_p[s][t]['prop'].copy()
+                        prop = prod_mdp_p[s_out][t]['prop'].copy()
                         for u in prop.keys():
-                            if u in act[s]:
+                            if u in act[s_out]:
                                 pe = prop[u][0]
                                 #
                                 # Sn里出Sn的
-                                y_out += Y[(s, u)]*pe
-                    elif t in ip:
-                        prop = prod_mdp_p[s][t]['prop'].copy()
+                                y_out += Y[(s_out, u)]*pe
+                    elif t in i_in:                                 # elif t in ip:
+                        prop = prod_mdp_p[s_out][t]['prop'].copy()
                         for u in prop.keys():
-                            if u in act[s]:
+                            if u in act[s_out]:
                                 #
                                 # Sn里进Ip的
                                 pe = prop[u][0]
-                                y_to_ip += Y[(s, u)]*pe
+                                y_to_ip += Y[(s_out, u)]*pe
             # suffix_solver.Add(y_to_ip+y_out >= delta)
             suffix_solver.Add(y_to_ip >= (1.0-gamma-delta)*(y_to_ip+y_out))
+            print_c("y_2_ip:", color=35)
+            print_c(y_to_ip, color=35)
+            print_c("y_out:", color=36)
+            print_c(y_out, color=36)
             print('Risk constraint added')
             # ------------------------------
             # solve

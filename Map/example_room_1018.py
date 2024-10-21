@@ -7,14 +7,14 @@ def build_model():
     # robot nodes
     robot_nodes_w_aps = dict()
     robot_nodes_w_aps['0'] = { frozenset(): 1.0 }
-    robot_nodes_w_aps['1'] = { frozenset(): 0.0, frozenset({'gather'}): 0.85}
+    robot_nodes_w_aps['1'] = { frozenset({'gather'}): 0.85}
     robot_nodes_w_aps['2'] = { frozenset(): 1.0 }
-    robot_nodes_w_aps['3'] = { frozenset(): 0.0, frozenset({'recharge'}): 0.75 }
+    robot_nodes_w_aps['3'] = { frozenset({'recharge'}): 0.75 }
     robot_nodes_w_aps['4'] = { frozenset(): 1.0 }
     robot_nodes_w_aps['5'] = { frozenset(): 1.0 }
     robot_nodes_w_aps['6'] = { frozenset(): 1.0 }
-    robot_nodes_w_aps['7'] = { frozenset(): 0.0, frozenset({'drop'}): 0.65 }
-    robot_nodes_w_aps['8'] = { frozenset(): 0.0, frozenset({'drop'}): 0.95 }
+    robot_nodes_w_aps['7'] = { frozenset({'drop'}): 0.65 }
+    robot_nodes_w_aps['8'] = { frozenset({'drop'}): 0.95 }
 
     #
     robot_edges = {
@@ -22,8 +22,9 @@ def build_model():
         ('0', 'a', '1') : (1,   1),
         ('0', 'b', '7') : (1,   3),
         #
-        ('1', 'a', '2') : (1,   1),
-        ('1', 'b', '3') : (0.6, 2),
+        #('1', 'c', '0') : (1,   3),
+        ('1', 'a', '2') : (1,   3),
+        ('1', 'b', '3') : (0.6, 1),
         ('1', 'b', '5') : (0.4, 2),
         #
         ('2', 'a', '1'):  (1,   3),
