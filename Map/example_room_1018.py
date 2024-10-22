@@ -116,4 +116,4 @@ def observation_seq_2_inference(y_seq):
         ap_inv_t = list(set(ap_inv_t))
         x_inv_set_seq.append(x_inv_t)
         ap_inv_seq.append(ap_inv_t)
-    return y_seq, ap_inv_seq
+    return x_inv_set_seq, ap_inv_seq
