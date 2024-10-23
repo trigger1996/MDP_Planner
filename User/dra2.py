@@ -275,7 +275,17 @@ class product_mdp2(Product_Dra):
                         continue
                     #
                     if observation_func(next_state_pi) == observation_func(next_state_gamma):
-                        if is_ap_identical(next_state_pi, next_state_gamma):
+                        # TODO
+                        # it seems that if the AP are required identical, then the AP-none_AP states will NOT taken into consideration
+                        # in other words, the successive states will be synchronized by AP-AP states
+                        #
+                        # ON THE OTHER HAND
+                        # on the aspect of the intruders, the only information he can receive is the observation sequences
+                        # so the sync-MEC (, or the observer) should focus only on the observation sequences
+                        # NOT the aps
+                        #
+                        #if is_ap_identical(next_state_pi, next_state_gamma):
+                        if True:
 
                             #
                             trans_pr_cost_list = dict()

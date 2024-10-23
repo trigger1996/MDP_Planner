@@ -67,7 +67,7 @@ def room_example_main_w_opacity():
     gamma = 0.1
     d = 100
     risk_threshold = 0.05                                        # default:  0.1
-    differential_exp_cost = 1.590106 - 0.075                     #           1.590106
+    differential_exp_cost = 0.5                                  #           1.590106
     # best_all_plan = syn_full_plan_rex(prod_dra, gamma, d)
     # best_all_plan = syn_full_plan_repeated(prod_dra, gamma, opt_prop)
     best_all_plan, prod_dra_pi = synthesize_full_plan_w_opacity(motion_mdp, ltl_formula, opt_prop, ap_list, risk_threshold,
@@ -76,6 +76,7 @@ def room_example_main_w_opacity():
 
     # Added
     # for printing policies
+    print_c("optimal AP: %s" % (best_all_plan[3][0], ), color=47)
     print_c("state action: probabilities")
     print_c("Prefix", color=42)
     #

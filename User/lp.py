@@ -172,6 +172,26 @@ def find_states_satisfying_opt_prop(opt_prop, Se):
             S_pi.append(s)
     return S_pi
 
+def print_policies_w_opacity(ap_4_opacity, plan_prefix, plan_suffix):
+    # Added
+    # for printing policies
+    print_c("policy for AP: %s" % str(ap_4_opacity))
+    print_c("state action: probabilities")
+    print_c("Prefix", color=42)
+    #
+    state_in_prefix = [ state_t for state_t in plan_prefix ]
+    #state_in_prefix.sort(key=cmp_to_key(sort_grids))
+    #for state_t in plan_prefix:
+    for state_t in state_in_prefix:
+        print_c("%s, %s: %s" % (str(state_t), str(plan_prefix[state_t][0]), str(plan_prefix[state_t][1]), ), color=43)
+    #
+    print_c("Suffix", color=45)
+    state_in_suffix = [ state_t for state_t in plan_suffix ]
+    #state_in_suffix.sort(key=cmp_to_key(sort_grids))
+    #for state_t in plan_suffix:
+    for state_t in state_in_suffix:
+        print_c("%s, %s: %s" % (str(state_t), str(plan_suffix[state_t][0]), str(plan_suffix[state_t][1]), ), color=46)
+
 def synthesize_suffix_cycle_in_sync_amec(prod_mdp, sync_mec, MEC_pi, y_in_sf, S_pi, differential_expected_cost=1.55):
     # ----Synthesize optimal plan suffix to stay within the accepting MEC----
     # ----with minimal expected total cost of accepting cyclic paths----
@@ -345,7 +365,9 @@ def synthesize_suffix_cycle_in_sync_amec(prod_mdp, sync_mec, MEC_pi, y_in_sf, S_
             sum_f_in  = suffix_solver.Sum(constr_f_in)
             sum_f_out = suffix_solver.Sum(constr_f_out)
             suffix_solver.Add(sum_s_in == sum_f_out)
+            constr_descrip.append("f_out -> s_in")
             suffix_solver.Add(sum_f_in == sum_s_out)
+            constr_descrip.append("s_out -> f_in")
             #
             print("Repeated reachability constraint added")
             print_c('f_out -> s_in', color=34)
@@ -1094,6 +1116,8 @@ def synthesize_full_plan_w_opacity(mdp, task, optimizing_ap, ap_list, risk_pr, d
                                              [MEC_pi[0], MEC_pi[1], Sr, Sd],
                                              [ap_4_opacity, suffix_opacity_threshold, prod_dra_pi.current_sync_amec_index, MEC_gamma[0], MEC_gamma[1]],
                                              prod_dra_pi])
+
+                                print_policies_w_opacity(ap_4_opacity, plan_prefix, plan_suffix)
         if plan:
             print("=========================")
             print(" || Final compilation  ||")
