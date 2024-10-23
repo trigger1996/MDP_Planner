@@ -7,8 +7,6 @@ U = []
 initial_node  = None
 initial_label = None
 
-#
-# in simulations, we can let those states with identical APs carry identical observations, which is to simulate the APs are observed satisfied
 observation_dict = {
     'u': ['0', '1', '2'],
     'v': ['3', '7'],
@@ -21,16 +19,15 @@ def build_model():
     global robot_nodes_w_aps, robot_edges, U, initial_node, initial_label
 
     # robot nodes
-    # the lower satisfaction probability may result in conflict/failure in opacity constraint in user/lp.py
     robot_nodes_w_aps['0'] = { frozenset(): 1.0 }
-    robot_nodes_w_aps['1'] = { frozenset({'drop'}): 0.85 }
+    robot_nodes_w_aps['1'] = { frozenset({'gather'}): 0.85}
     robot_nodes_w_aps['2'] = { frozenset(): 1.0 }
-    robot_nodes_w_aps['3'] = { frozenset({'recharge'}): 0.65 }
+    robot_nodes_w_aps['3'] = { frozenset({'recharge'}): 0.75 }
     robot_nodes_w_aps['4'] = { frozenset(): 1.0 }
     robot_nodes_w_aps['5'] = { frozenset(): 1.0 }
     robot_nodes_w_aps['6'] = { frozenset(): 1.0 }
-    robot_nodes_w_aps['7'] = { frozenset({'gather'}): 0.75 }
-    robot_nodes_w_aps['8'] = { frozenset({'gather'}): 0.95 }
+    robot_nodes_w_aps['7'] = { frozenset({'drop'}): 0.65 }
+    robot_nodes_w_aps['8'] = { frozenset({'drop'}): 0.95 }
 
     #
     robot_edges = {

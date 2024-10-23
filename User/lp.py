@@ -376,7 +376,7 @@ def synthesize_suffix_cycle_in_sync_amec(prod_mdp, sync_mec, MEC_pi, y_in_sf, S_
             print_c("number of states in lhs: %d" % (constr_s_in_f_in.__len__(),), color=44)
             print_c('number of constraints: %d' % (suffix_solver.NumConstraints(),), color=44)
             #
-            suffix_solver.Add(sum_s_in == sum_f_out)
+            suffix_solver.Add(sum_s_in == sum_f_out)                # this one may conflict with the opacity constraint
             constr_descrip.append("f_out -> s_in")
             suffix_solver.Add(sum_f_in == sum_s_out)
             constr_descrip.append("s_out -> f_in")
@@ -705,7 +705,9 @@ def syn_plan_suffix_repeated(prod_mdp, MEC, S_pi, y_in_sf):
         print('------')
         print('ORtools for suffix starts now')
         print('------')
-        try:
+        # TODO for debugging
+        #try:
+        if True:
             Y = defaultdict(float)
             suffix_solver = pywraplp.Solver.CreateSolver('GLOP')
             # create variables
@@ -739,11 +741,27 @@ def syn_plan_suffix_repeated(prod_mdp, MEC, S_pi, y_in_sf):
             # --------------------
             #
             # constraint 11b
-            constr_y0_2_f_lhs = 0.
-            constr_y0_2_f_rhs = 0.
+            constr_f_in  = 0.
+            constr_f_out = 0.
+            constr_s_in  = 0.
+            constr_s_out = 0.
+            #
+            constr_s_in_f_in = 0.
+            constr_y0 = 0.
             for k, s in enumerate(Sn):
                 #
-                # for lhs
+                # for modified 11b lhs, i.e., f_in
+                for t in prod_mdp.successors(s):
+                    if t in Sn and (t in ip or t in S_pi):
+                        prop = prod_mdp[s][t]['prop'].copy()
+                        for u in prop.keys():
+                            if u in act[s]:
+                                #
+                                # Sn里进Ip的
+                                pe = prop[u][0]
+                                constr_s_in_f_in += Y[(s, u)] * pe
+
+                # for f_in
                 for t in prod_mdp.successors(s):
                     if t in Sn and t in ip:
                         prop = prod_mdp[s][t]['prop'].copy()
@@ -752,22 +770,12 @@ def syn_plan_suffix_repeated(prod_mdp, MEC, S_pi, y_in_sf):
                                 #
                                 # Sn里进Ip的
                                 pe = prop[u][0]
-                                constr_y0_2_f_lhs += Y[(s, u)] * pe
+                                constr_f_in += Y[(s, u)] * pe
                 #
-                # for rhs
+                # for 11b rhs, i.e., y_0
                 if (s in list(y_in_sf.keys())):
-                    constr_y0_2_f_rhs += y_in_sf[s]
-            #
-            # 这一项对结果其实影响很大, 很容易让很多确定性策略变成随机策略
-            suffix_solver.Add(constr_y0_2_f_lhs == constr_y0_2_f_rhs)
-            print("Reachability constraint added")
-            print_c(constr_y0_2_f_lhs, color=32)
-            print_c(constr_y0_2_f_rhs, color=32)
-            constr_f_in  = constr_y0_2_f_lhs
-            constr_f_out = 0.
-            constr_s_in  = 0.
-            constr_s_out = 0.
-            for k, s in enumerate(Sn):
+                    constr_y0 += y_in_sf[s]
+
                 # for f_out
                 if s in Sn and s in ip:
                     for t in prod_mdp.successors(s):
@@ -798,6 +806,14 @@ def syn_plan_suffix_repeated(prod_mdp, MEC, S_pi, y_in_sf):
                                 # Sn里进Ip的
                                 pe = prop[u][0]
                                 constr_s_out += Y[(s, u)] * pe
+            #
+            #
+            # 这一项对结果其实影响很大, 很容易让很多确定性策略变成随机策略
+            suffix_solver.Add(constr_s_in_f_in == constr_y0)
+            print("Reachability constraint added")
+            print_c(constr_s_in_f_in, color=32)
+            print_c(constr_y0, color=32)
+            #
             suffix_solver.Add(constr_s_in == constr_f_out)
             suffix_solver.Add(constr_f_in == constr_s_out)
             #
@@ -970,9 +986,10 @@ def syn_plan_suffix_repeated(prod_mdp, MEC, S_pi, y_in_sf):
             print('y_out: %s; y_to_ip+y_out: %s' % (y_out, y_to_ip + y_out))
             print("----Suffix risk computed")
             return plan_suffix, cost, risk
-        except:
-            print("ORtools Error reported")
-            return None, None, None
+        # TODO for debugging
+        #except:
+        #    print("ORtools Error reported")
+        #    return None, None, None
 
 def syn_full_plan(prod_mdp, gamma, alpha=1):
     # ----Optimal plan synthesis, total cost over plan prefix and suffix----
