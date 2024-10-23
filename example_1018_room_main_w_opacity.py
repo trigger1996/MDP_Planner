@@ -56,7 +56,8 @@ def print_best_all_plan(best_all_plan):
 
 def room_example_main_w_opacity():
 
-    ltl_formula = 'GF (gather -> drop)'
+    #ltl_formula = 'GF (gather -> drop)'
+    ltl_formula = 'GF (gather -> (!gather U drop))'         # 'GF (gather -> X(!gather U drop))'
     opt_prop = 'gather'
     ltl_formula_converted = ltl_convert(ltl_formula)
 
