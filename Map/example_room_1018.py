@@ -1,5 +1,4 @@
 from MDP_TG.mdp import Motion_MDP
-from v_rep.plan_synthesis import initial_node
 
 robot_nodes_w_aps = dict()
 robot_edges = dict()

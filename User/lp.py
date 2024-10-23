@@ -421,6 +421,13 @@ def synthesize_suffix_cycle_in_sync_amec(prod_mdp, sync_mec, MEC_pi, y_in_sf, S_
                     #
                     # for debugging
                     constr_descrip.append(str(s_pi))
+                    #
+                    # Added, for debugging
+                    print_c("constraint: %d" % (k,), color=37)
+                    print_c(sum_11c_lhs, color=38)
+                    print_c(sum_11c_rhs, color=39)
+                    print_c(y_in_sf[s_pi], color=39)
+                    print_c(" ")
                 #
                 # 如果 s in Sf, 且上一时刻状态在Sn，且在MEC内
                 if (s_pi in list(y_in_sf.keys())) and (s_pi in ip_pi):
@@ -428,13 +435,25 @@ def synthesize_suffix_cycle_in_sync_amec(prod_mdp, sync_mec, MEC_pi, y_in_sf, S_
                     #
                     # for debugging
                     constr_descrip.append(str(s_pi))
+                    #
+                    # Added, for debugging
+                    print_c("constraint: %d" % (k,), color=37)
+                    print_c(sum_11c_lhs, color=38)
+                    print_c(y_in_sf[s_pi], color=39)
+                    print_c(" ")
                 #
-                # 如果s不在Sf内且不在NEC内
+                # 如果s不在Sf内且不在MEC内
                 if (s_pi not in list(y_in_sf.keys())) and (s_pi not in ip_pi):
                     suffix_solver.Add(sum_11c_lhs == sum_11c_rhs)
                     #
                     # for debugging
                     constr_descrip.append(str(s_pi))
+                    #
+                    # Added, for debugging
+                    print_c("constraint: %d" % (k,), color=37)
+                    print_c(sum_11c_lhs, color=38)
+                    print_c(sum_11c_rhs, color=39)
+                    print_c(" ")
 
                 if s_pi in list(y_in_sf.keys()) and y_in_sf[s_pi] != 0.:
                     nonzero_constr_num_11c += 1
@@ -631,8 +650,9 @@ def synthesize_suffix_cycle_in_sync_amec(prod_mdp, sync_mec, MEC_pi, y_in_sf, S_
                         print("constraint_%d %s: %f <= %f <= %f"   % (k, constr_descrip[k], constr_t.lb(), sum_ret_t ,constr_t.ub(), ))
                 except IndexError:
                     pass
-            print("optimal policies: ")
 
+            '''                
+            print("optimal policies: ")
             Sn_pi_sorted = list(Sn_pi)
             #Sn_pi_sorted.sort(key=cmp_to_key(sort_grids))
             for k, s_pi_t in enumerate(Sn_pi_sorted):
@@ -644,6 +664,7 @@ def synthesize_suffix_cycle_in_sync_amec(prod_mdp, sync_mec, MEC_pi, y_in_sf, S_
                     print_c(str(s_pi_t) + " " + str(plan_suffix[s_pi_t]), color=46)
                 else:
                     print(str(s_pi_t) + " " + str(plan_suffix[s_pi_t]))
+            '''
 
             return plan_suffix, cost, risk, opacity_val
         '''

@@ -94,12 +94,12 @@ def room_example_main_w_opacity():
     best_all_plan, prod_dra_pi = synthesize_full_plan_w_opacity(motion_mdp, ltl_formula, opt_prop, ap_list, risk_threshold,
                                                                 differential_exp_cost,
                                                                 observation_func=observation_func_1018)
-
-    best_all_plan_p = syn_full_plan_repeated(prod_dra, gamma, opt_prop)
+    # TODO
+    #best_all_plan_p = syn_full_plan_repeated(prod_dra, gamma, opt_prop)
 
     print_best_all_plan(best_all_plan)
-    print_c("\n\nFOR COMPARASION, NON_OPAQUE SYNTHESIS: \n", color=46)
-    print_best_all_plan(best_all_plan_p)
+    #print_c("\n\nFOR COMPARASION, NON_OPAQUE SYNTHESIS: \n", color=46)
+    #print_best_all_plan(best_all_plan_p)
 
     # for visualization
     total_T = 200

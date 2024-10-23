@@ -211,11 +211,12 @@ class product_mdp2(Product_Dra):
                     if len(T) == 1:  # self-loop
                         common_cp = common.copy()
                         s = common_cp.pop()
-                        loop_act_set = set(self[s][s]['prop'].keys())
-                        loop_act = dict()
-                        loop_act[s] = loop_act_set
-                        S_fi.append([T, common, loop_act])
-                        print('S_fii added to S_fi!!, size: %s' % len(T))
+                        if self.has_edge(s, s):                             # Added
+                            loop_act_set = set(self[s][s]['prop'].keys())
+                            loop_act = dict()
+                            loop_act[s] = loop_act_set
+                            S_fi.append([T, common, loop_act])
+                            print('S_fii added to S_fi!!, size: %s' % len(T))
             if len(S_fi) > 0:
                 S_f.append(S_fi)
                 print("****S_fi added to S_f!!!, size: %s******" % len(S_fi))
@@ -284,8 +285,8 @@ class product_mdp2(Product_Dra):
                         # so the sync-MEC (, or the observer) should focus only on the observation sequences
                         # NOT the aps
                         #
-                        #if is_ap_identical(next_state_pi, next_state_gamma):
-                        if True:
+                        if is_ap_identical(next_state_pi, next_state_gamma):
+                        #if True:
 
                             #
                             trans_pr_cost_list = dict()

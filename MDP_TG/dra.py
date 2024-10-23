@@ -82,7 +82,63 @@ class Product_Dra(DiGraph):
                          accept=[], name='Product_Dra')
         self.graph['U'] = mdp.graph['U']
         print("-------Prod DRA Initialized-------")
-        self.build_full()
+        #self.build_full()
+        self.build_full2()
+        print('Applied new product DRA synthesis method')
+
+    def build_full2(self):
+        # TODO
+        # if there exist mutiple initial states
+        mdp_initial_node      = self.graph['mdp'].graph['init_state']
+        mdp_initial_label     = self.graph['mdp'].graph['init_label']
+        dra_initial_node_list = list(self.graph['dra'].graph['initial'])
+
+        stack = [ ]
+        for dra_initial_node_t in dra_initial_node_list:
+            f_prod_node = self.composition(mdp_initial_node, mdp_initial_label, dra_initial_node_t)
+            stack.append(f_prod_node)
+        visited = []
+        while stack.__len__():
+            #
+            # USE depth-first-search method
+            f_prod_node = stack.pop()
+            if f_prod_node in visited:
+                continue
+            visited.append(f_prod_node)
+            visited = list(set(visited))
+
+            f_mdp_node  = f_prod_node[0]
+            f_mdp_label = f_prod_node[1]
+            f_dra_node  = f_prod_node[2]
+            for t_mdp_node in self.graph['mdp'].successors(f_mdp_node):
+                mdp_edge = self.graph['mdp'][f_mdp_node][t_mdp_node]
+                for t_mdp_label, t_label_prob in self.graph['mdp'].nodes[t_mdp_node]['label'].items():
+                    for t_dra_node in self.graph['dra'].successors(f_dra_node):
+                        #
+                        # establish successor states
+                        t_prod_node = self.composition(t_mdp_node, t_mdp_label, t_dra_node)
+                        #
+                        # check whether successor states satisfies DRA conditions
+                        truth = self.graph['dra'].check_label_for_dra_edge(f_mdp_label, f_dra_node, t_dra_node)
+                        if truth:
+                            #
+                            # Add successor product dra states to to-visit list
+                            stack.append(t_prod_node)
+                            #
+                            prob_cost = dict()
+                            #
+                            # calculate
+                            for u, attri in mdp_edge['prop'].items():
+                                if t_label_prob * attri[0] != 0:
+                                    prob_cost[u] = (t_label_prob * attri[0], attri[1])
+                            if list(prob_cost.keys()):
+                                self.add_edge(f_prod_node, t_prod_node, prop=prob_cost)
+        #
+        # once dfs method completed
+        self.build_acc()
+        print("-------Prod DRA Constructed-------")
+        print("%s states, %s edges and %s accepting pairs" % (
+            str(len(self.nodes())), str(len(self.edges())), str(len(self.graph['accept']))))
 
     def build_full(self):
         # ----construct full product----
@@ -164,11 +220,12 @@ class Product_Dra(DiGraph):
                     if len(T) == 1:  # self-loop
                         common_cp = common.copy()
                         s = common_cp.pop()
-                        loop_act_set = set(self[s][s]['prop'].keys())
-                        loop_act = dict()
-                        loop_act[s] = loop_act_set
-                        S_fi.append([T, common, loop_act])
-                        print('S_fii added to S_fi!!, size: %s' % len(T))
+                        if self.has_edge(s, s):                             # Added
+                            loop_act_set = set(self[s][s]['prop'].keys())
+                            loop_act = dict()
+                            loop_act[s] = loop_act_set
+                            S_fi.append([T, common, loop_act])
+                            print('S_fii added to S_fi!!, size: %s' % len(T))
             if len(S_fi) > 0:
                 S_f.append(S_fi)
                 print("****S_fi added to S_f!!!, size: %s******" % len(S_fi))
