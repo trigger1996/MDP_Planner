@@ -49,3 +49,21 @@ def sort_sync_grid_states(state, state_p):
         return sort_state_0
     else:
         return sort_grids(grid_ref, grid_ref_p)
+
+def sort_numerical_states(state, state_p):
+    if int(state[0]) > int(state_p[0]):
+        return 1
+    elif int(state[0]) < int(state_p[0]):
+        return -1
+    else:
+        # for product states
+        if len(state) == 3:
+            if int(state[2]) > int(state_p[2]):
+                return 1
+            elif int(state[2]) < int(state_p[2]):
+                return -1
+            else:
+                return 0
+        # else return identical
+        else:
+            return 0

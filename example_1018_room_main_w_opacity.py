@@ -8,7 +8,7 @@ from User.lp import syn_full_plan_repeated, synthesize_full_plan_w_opacity
 from User.vis2 import print_c
 
 from functools import cmp_to_key
-from User.grid_utils import sort_grids
+from User.grid_utils import sort_numerical_states
 
 def ltl_convert(task, is_display=True):
     #
@@ -32,6 +32,27 @@ def obtain_all_aps_from_mdp(mdp:Motion_MDP):
             ap_list.append(ap_t)
 
     return list(set(ap_list))
+
+def print_best_all_plan(best_all_plan):
+    # Added
+    # for printing policies
+    if best_all_plan.__len__() >= 4 and best_all_plan[3].__len__():
+        print_c("optimal AP: %s" % (best_all_plan[3][0], ), color=47)
+    print_c("state action: probabilities")
+    print_c("Prefix", color=42)
+    #
+    state_in_prefix = [ state_t for state_t in best_all_plan[0][0] ]
+    state_in_prefix.sort(key=cmp_to_key(sort_numerical_states))
+    #for state_t in best_all_plan[0][0]:
+    for state_t in state_in_prefix:
+        print_c("%s, %s: %s" % (str(state_t), str(best_all_plan[0][0][state_t][0]), str(best_all_plan[0][0][state_t][1]), ), color=42)
+    #
+    print_c("Suffix", color=45)
+    state_in_suffix = [ state_t for state_t in best_all_plan[1][0] ]
+    state_in_suffix.sort(key=cmp_to_key(sort_numerical_states))
+    #for state_t in best_all_plan[1][0]:
+    for state_t in state_in_suffix:
+        print_c("%s, %s: %s" % (str(state_t), str(best_all_plan[1][0][state_t][0]), str(best_all_plan[1][0][state_t][1]), ), color=45)
 
 def room_example_main_w_opacity():
 
@@ -74,24 +95,11 @@ def room_example_main_w_opacity():
                                                                 differential_exp_cost,
                                                                 observation_func=observation_func_1018)
 
-    # Added
-    # for printing policies
-    print_c("optimal AP: %s" % (best_all_plan[3][0], ), color=47)
-    print_c("state action: probabilities")
-    print_c("Prefix", color=42)
-    #
-    state_in_prefix = [ state_t for state_t in best_all_plan[0][0] ]
-    #state_in_prefix.sort(key=cmp_to_key(sort_grids))
-    #for state_t in best_all_plan[0][0]:
-    for state_t in state_in_prefix:
-        print_c("%s, %s: %s" % (str(state_t), str(best_all_plan[0][0][state_t][0]), str(best_all_plan[0][0][state_t][1]), ), color=42)
-    #
-    print_c("Suffix", color=45)
-    state_in_suffix = [ state_t for state_t in best_all_plan[1][0] ]
-    #state_in_suffix.sort(key=cmp_to_key(sort_grids))
-    #for state_t in best_all_plan[1][0]:
-    for state_t in state_in_suffix:
-        print_c("%s, %s: %s" % (str(state_t), str(best_all_plan[1][0][state_t][0]), str(best_all_plan[1][0][state_t][1]), ), color=45)
+    best_all_plan_p = syn_full_plan_repeated(prod_dra, gamma, opt_prop)
+
+    print_best_all_plan(best_all_plan)
+    print_c("\n\nFOR COMPARASION, NON_OPAQUE SYNTHESIS: \n", color=46)
+    print_best_all_plan(best_all_plan_p)
 
     # for visualization
     total_T = 200
@@ -138,6 +146,12 @@ def room_example_main_w_opacity():
     # except:
     #     print_c("No best plan synthesized, try re-run this program", color=33)
 
+
+    # TODO 对比实验
+    # 我的问题是, 入侵者到底拿到的是什么数据
+    # 进而, 如何通过实验现象来描述opacity
+
+    # TODO
     #draw_action_principle()
     #draw_mdp_principle()
 
