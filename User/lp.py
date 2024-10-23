@@ -294,38 +294,39 @@ def synthesize_suffix_cycle_in_sync_amec(prod_mdp, sync_mec, MEC_pi, y_in_sf, S_
             # 不是这个东西
 
             # constraint 2 / 11b
+            constr_f_in = []
+            constr_f_out = []
+            constr_s_in = []
+            constr_s_out = []
             #
-            # it seems that whether treat these states separately will not make a difference
-            # because all states will be summed up together
-            constr_y0_2_f_lhs = []
+            constr_s_in_f_in = []
             constr_y0_2_f_rhs = 0.
             for k, sync_s in enumerate(Sn):
+                # for f_in and s_in
+                # in this way, the constaint will not be repeated
+                for t in list(sync_mec.successors(sync_s)):
+                    if t in Sn and (t in ip or t[0] in S_pi):
+                        prop = sync_mec[sync_s][t]['prop'].copy()
+                        for u in prop.keys():
+                            try:
+                                y_t = Y[(sync_s, u)] * prop[u][0]
+                                constr_s_in_f_in.append(y_t)
+                            except KeyError:
+                                pass
+                # for f_in
                 for t in list(sync_mec.successors(sync_s)):
                     if t in Sn and t in ip:
                         prop = sync_mec[sync_s][t]['prop'].copy()
                         for u in prop.keys():
                             try:
                                 y_t = Y[(sync_s, u)] * prop[u][0]
-                                constr_y0_2_f_lhs.append(y_t)
+                                constr_f_in.append(y_t)
                             except KeyError:
                                 pass
+                # for y_0
                 if sync_s in list(y_in_sf_sync.keys()):
                     constr_y0_2_f_rhs += y_in_sf_sync[sync_s]
-            sum_y0_2_f_lhs = suffix_solver.Sum(constr_y0_2_f_lhs)
-            #
-            suffix_solver.Add(sum_y0_2_f_lhs == constr_y0_2_f_rhs)
-            constr_descrip.append('I_in for (11b)')
-            #
-            print_c("reachibility constraint added ...", color=44)
-            print_c("left:  %s \n right: %f" % (sum_y0_2_f_lhs, constr_y0_2_f_rhs,), color=44)
-            print_c("number of states in lhs: %d" % (constr_y0_2_f_lhs.__len__(),), color=44)
-            print_c('number of constraints: %d' % (suffix_solver.NumConstraints(),), color=44)
 
-            constr_f_in = constr_y0_2_f_lhs
-            constr_f_out = []
-            constr_s_in = []
-            constr_s_out = []
-            for k, sync_s in enumerate(Sn):
                 # for f_out
                 if sync_s in Sn and sync_s in ip:
                     for t in sync_mec.successors(sync_s):
@@ -364,6 +365,17 @@ def synthesize_suffix_cycle_in_sync_amec(prod_mdp, sync_mec, MEC_pi, y_in_sf, S_
             sum_s_out = suffix_solver.Sum(constr_s_out)
             sum_f_in  = suffix_solver.Sum(constr_f_in)
             sum_f_out = suffix_solver.Sum(constr_f_out)
+            #
+            sum_s_in_f_in = suffix_solver.Sum(constr_s_in_f_in)
+            #
+            suffix_solver.Add(sum_s_in_f_in == constr_y0_2_f_rhs)
+            constr_descrip.append('I_in for (11b)')
+            #
+            print_c("Reachability constraint added ...", color=44)
+            print_c("left:  %s \n right: %f" % (sum_s_in_f_in, constr_y0_2_f_rhs,), color=44)
+            print_c("number of states in lhs: %d" % (constr_s_in_f_in.__len__(),), color=44)
+            print_c('number of constraints: %d' % (suffix_solver.NumConstraints(),), color=44)
+            #
             suffix_solver.Add(sum_s_in == sum_f_out)
             constr_descrip.append("f_out -> s_in")
             suffix_solver.Add(sum_f_in == sum_s_out)

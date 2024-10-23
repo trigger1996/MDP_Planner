@@ -1,5 +1,6 @@
 from MDP_TG.mdp import Motion_MDP
 
+
 robot_nodes_w_aps = dict()
 robot_edges = dict()
 U = []
@@ -7,10 +8,10 @@ initial_node  = None
 initial_label = None
 
 observation_dict = {
-    'u': ['0', '1', '2'],
-    'v': ['3', '7'],
+    'u': ['0', '1', '3'],
+    'v': ['2', ],
     'w': ['4', '5', '6'],
-    'x': ['8'],
+    'x': ['7', '8'],                # remark, in simulations, we can let those states with identical APs carry identical observations, which is to simulate the APs are observed satisfied
 }
 
 def build_model():
@@ -19,14 +20,14 @@ def build_model():
 
     # robot nodes
     robot_nodes_w_aps['0'] = { frozenset(): 1.0 }
-    robot_nodes_w_aps['1'] = { frozenset({'gather'}): 0.85}
+    robot_nodes_w_aps['1'] = { frozenset({'drop'}): 0.85 }
     robot_nodes_w_aps['2'] = { frozenset(): 1.0 }
     robot_nodes_w_aps['3'] = { frozenset({'recharge'}): 0.75 }
     robot_nodes_w_aps['4'] = { frozenset(): 1.0 }
     robot_nodes_w_aps['5'] = { frozenset(): 1.0 }
     robot_nodes_w_aps['6'] = { frozenset(): 1.0 }
-    robot_nodes_w_aps['7'] = { frozenset({'drop'}): 0.65 }
-    robot_nodes_w_aps['8'] = { frozenset({'drop'}): 0.95 }
+    robot_nodes_w_aps['7'] = { frozenset({'drop'}): 0.95 }
+    robot_nodes_w_aps['8'] = { frozenset({'gather'}): 0.75 }
 
     #
     robot_edges = {

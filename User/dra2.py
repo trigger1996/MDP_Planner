@@ -285,8 +285,8 @@ class product_mdp2(Product_Dra):
                         # so the sync-MEC (, or the observer) should focus only on the observation sequences
                         # NOT the aps
                         #
-                        if is_ap_identical(next_state_pi, next_state_gamma):
-                        #if True:
+                        #if is_ap_identical(next_state_pi, next_state_gamma):
+                        if True:
 
                             #
                             trans_pr_cost_list = dict()
