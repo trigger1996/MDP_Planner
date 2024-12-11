@@ -1,6 +1,6 @@
 import time
 from subprocess import check_output
-from Map.example_room_1018 import build_model
+from Map.example_room_1018 import build_model, run_2_observations_seqs, observation_seq_2_inference
 from MDP_TG.mdp import Motion_MDP
 from MDP_TG.dra import Dra, Product_Dra
 from MDP_TG.lp import syn_full_plan
@@ -25,7 +25,7 @@ def ltl_convert(task, is_display=True):
 
 def room_example_main():
 
-    ltl_formula = 'GF (gather -> drop)'
+    ltl_formula = 'GF (gather -> (!gather U drop))'
     ltl_formula_converted = ltl_convert(ltl_formula)
 
     robot_nodes, robot_edges, U, initial_node, initial_label = build_model()
@@ -105,6 +105,15 @@ def room_example_main():
                 X_U.append(XX[i][j])
                 X_U.append(UU[i][j])
             print_c(X_U, color=color_init)
+            #
+            # Added for comparison
+            # Y = run_2_observations_seqs(X_U)
+            # X_INV, AP_INV = observation_seq_2_inference(Y)
+            # print_c(X_U, color=color_init)
+            # print_c(Y, color=color_init)
+            # print_c(X_INV, color=color_init)
+            # print_c(AP_INV, color=color_init)
+            #
             color_init += 1
         #fig = visualize_run_sequence(XX, LL, UU, MM, 'surv_result', is_visuaize=False)
 

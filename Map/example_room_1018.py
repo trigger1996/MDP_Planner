@@ -11,9 +11,9 @@ initial_label = None
 # in simulations, we can let those states with identical APs carry identical observations, which is to simulate the APs are observed satisfied
 observation_dict = {
     'u': ['0', '1', '2'],
-    'v': ['3', '7'],
+    'v': ['3', '8'],
     'w': ['4', '5', '6'],
-    'x': ['8'],
+    'x': ['7'],
 }
 
 def build_model():
@@ -45,9 +45,9 @@ def build_model():
         #
         ('2', 'a', '1'):  (1,   3),
         ('2', 'b', '5') : (0.3, 1),
-        ('2', 'b', '6') : (0.7, 1),
+        ('2', 'b', '6') : (0.7, 4),
         #
-        ('3', 'a', '6') : (0.9, 3),
+        ('3', 'a', '5') : (0.9, 3),
         ('3', 'a', '4') : (0.1, 1),
         #
         ('4', 'a', '3') : (1,  4),
