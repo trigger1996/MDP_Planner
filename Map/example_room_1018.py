@@ -120,3 +120,46 @@ def observation_seq_2_inference(y_seq):
         x_inv_set_seq.append(x_inv_t)
         ap_inv_seq.append(ap_inv_t)
     return x_inv_set_seq, ap_inv_seq
+
+def calculate_cost_from_runs(product_mdp, x, l, u, opt_prop, is_remove_zeros=True):
+    #
+    # calculate the transition cost
+    # if current state staifies optimizing AP
+    # then zero the AP
+    cost_list = []                      # [[value, current step], [value, current step], ...]
+    cost_cycle = 0.
+    #
+    x_i_last = x[0]
+    for i in range(1, x.__len__()):
+        x_i = x[i]
+        x_p = None
+        l_i = list(l[i])
+        u_i = u[i]
+        #
+        if l_i.__len__() and opt_prop in l_i:
+            cost_current_step = [cost_cycle, i]
+            cost_list.append(cost_current_step)
+            cost_cycle = 0.
+        #
+        #
+        for edge_t in list(product_mdp.graph['mdp'].edges(x_i_last, data=True)):
+            if x_i == edge_t[1]:
+                #
+                event_t = list(edge_t[2]['prop'])[0]           # event_t = i_i???
+                #
+                cost_t = edge_t[2]['prop'][event_t][1]
+                cost_cycle += cost_t
+
+    if is_remove_zeros:
+        cost_tuple_to_remove = []
+        for cost_tuple_t in cost_list:
+            if cost_tuple_t[0] == 0.:
+                cost_tuple_to_remove.append(cost_tuple_t)
+
+        for cost_tuple_t in cost_tuple_to_remove:
+            try:
+                cost_list.remove(cost_tuple_t)
+            except:
+                pass
+
+    return cost_list

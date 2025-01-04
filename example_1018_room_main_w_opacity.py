@@ -1,6 +1,6 @@
 import time
 from subprocess import check_output
-from Map.example_room_1018 import build_model, observation_func_1018, run_2_observations_seqs, observation_seq_2_inference
+from Map.example_room_1018 import build_model, observation_func_1018, run_2_observations_seqs, observation_seq_2_inference, calculate_cost_from_runs
 from MDP_TG.mdp import Motion_MDP
 from MDP_TG.dra import Dra, Product_Dra
 from MDP_TG.lp import syn_full_plan, syn_full_plan_rex
@@ -136,10 +136,13 @@ def room_example_main_w_opacity():
             #
             Y = run_2_observations_seqs(X_U)
             X_INV, AP_INV = observation_seq_2_inference(Y)
+            cost_cycle = calculate_cost_from_runs(prod_dra, XX[i], LL[i], UU[i], opt_prop)
+            #
             print_c(X_U, color=color_init)
             print_c(Y, color=color_init)
             print_c(X_INV, color=color_init)
             print_c(AP_INV, color=color_init)
+            print_c("[cost / achieved_index] " + str(cost_cycle), color=color_init)
             color_init += 1
         #fig = visualize_run_sequence(XX, LL, UU, MM, 'surv_result', is_visuaize=False)
 
