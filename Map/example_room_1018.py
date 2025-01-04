@@ -126,7 +126,7 @@ def calculate_cost_from_runs(product_mdp, x, l, u, opt_prop, is_remove_zeros=Tru
     # calculate the transition cost
     # if current state staifies optimizing AP
     # then zero the AP
-    cost_list = []                      # [[value, current step], [value, current step], ...]
+    cost_list = []                      # [[value, current step, path_length], [value, current step, path_length], ...]
     cost_cycle = 0.
     #
     x_i_last = x[0]
@@ -137,7 +137,12 @@ def calculate_cost_from_runs(product_mdp, x, l, u, opt_prop, is_remove_zeros=Tru
         u_i = u[i]
         #
         if l_i.__len__() and opt_prop in l_i:
-            cost_current_step = [cost_cycle, i]
+            if cost_list.__len__():
+                path_length = i - cost_list[cost_list.__len__() - 1][1]
+            else:
+                path_length = i
+            #
+            cost_current_step = [cost_cycle, i, path_length]
             cost_list.append(cost_current_step)
             cost_cycle = 0.
         #
