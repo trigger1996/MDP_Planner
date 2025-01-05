@@ -1,9 +1,11 @@
 import time
 from subprocess import check_output
-from Map.example_room_20250105 import build_model, observation_func_0105, run_2_observations_seqs, observation_seq_2_inference, calculate_cost_from_runs, plot_cost_hist
+from Map.example_room_20250105 import (build_model, observation_func_0105, run_2_observations_seqs,
+                                       observation_seq_2_inference, calculate_cost_from_runs, plot_cost_hist)
 from MDP_TG.mdp import Motion_MDP
 from MDP_TG.dra import Dra, Product_Dra
 from MDP_TG.lp import syn_full_plan, syn_full_plan_rex
+from User.team_mdp_dra import Team_MDP
 from User.lp import syn_full_plan_repeated, synthesize_full_plan_w_opacity
 from User.vis2 import print_c
 
@@ -102,6 +104,36 @@ def execute_example(N, total_T, prod_dra, best_all_plan, state_seq, label_seq, o
 
     return cost_list_pi, cost_list_gamma
 
+def room_example_team_robotic_w_opacity():
+
+    #ltl_formula = 'GF (gather -> drop)'
+    ltl_formula = 'GF (gather -> (!gather U drop))'         # 'GF (gather -> X(!gather U drop))'
+    opt_prop = 'gather'
+    ltl_formula_converted = ltl_convert(ltl_formula)
+
+    robot_nodes, robot_edges, U, initial_node, initial_label = build_model()
+
+    initial_node  = '0'                                 # '0' and '11' available
+    initial_label = frozenset()
+    motion_mdp_1 = Motion_MDP(robot_nodes, robot_edges, U,
+                            initial_node, initial_label)
+
+    initial_node  = '11'
+    initial_label = frozenset()
+    motion_mdp_2 = Motion_MDP(robot_nodes, robot_edges, U,
+                            initial_node, initial_label)
+
+    team_mdp = Team_MDP([motion_mdp_1, motion_mdp_2])
+
+    ap_list = obtain_all_aps_from_mdp(team_mdp)
+
+    dra = Dra(ltl_formula_converted)
+
+    # ----
+    prod_dra = Product_Dra(team_mdp, dra)
+
+
+
 def room_example_main_w_opacity():
 
     #ltl_formula = 'GF (gather -> drop)'
@@ -192,4 +224,6 @@ def room_example_main_w_opacity():
     plt.show()
 
 if __name__ == "__main__":
-    room_example_main_w_opacity()
+    #room_example_main_w_opacity()
+
+    room_example_team_robotic_w_opacity()
