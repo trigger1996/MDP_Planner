@@ -57,7 +57,7 @@ def print_best_all_plan(best_all_plan):
     for state_t in state_in_suffix:
         print_c("%s, %s: %s" % (str(state_t), str(best_all_plan[1][0][state_t][0]), str(best_all_plan[1][0][state_t][1]), ), color=45)
 
-def execute_example(N, prod_dra, best_all_plan, total_T, state_seq, label_seq, opt_prop, ap_gamma):
+def execute_example(N, total_T, prod_dra, best_all_plan, state_seq, label_seq, opt_prop, ap_gamma):
     XX = []
     LL = []
     UU = []
@@ -160,15 +160,24 @@ def room_example_main_w_opacity():
     #try:
     # TODO
     if True:
-        cost_list_pi, cost_list_gamma = execute_example(N, prod_dra_pi, best_all_plan, total_T, state_seq, label_seq, opt_prop, ap_gamma)
+        cost_list_pi, cost_list_gamma = execute_example(N, total_T, prod_dra_pi, best_all_plan, state_seq, label_seq, opt_prop, ap_gamma)
 
     # TODO
     # except:
     #     print_c("No best plan synthesized, try re-run this program", color=33)
 
-    is_average = False
+    is_average = True
     plot_cost_hist(cost_list_pi, bins=25, is_average=is_average)
-    plot_cost_hist(cost_list_gamma, bins=15, color='r', is_average=is_average)
+    plot_cost_hist(cost_list_gamma, bins=25, color='r', is_average=is_average)
+
+    #try:
+    if True:
+        cost_list_pi_p, cost_list_gamma_p = execute_example(N, total_T, prod_dra, best_all_plan_p, state_seq, label_seq, opt_prop, ap_gamma)
+    # except:
+    #     print_c("No best plan synthesized, try re-run this program", color=33)
+    #is_average = True
+    plot_cost_hist(cost_list_pi_p, bins=25, color='b', is_average=is_average)
+    plot_cost_hist(cost_list_gamma_p, bins=25, color='cyan', is_average=is_average)
 
     # TODO 对比实验
     # 我的问题是, 入侵者到底拿到的是什么数据
