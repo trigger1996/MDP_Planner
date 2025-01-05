@@ -1,6 +1,6 @@
 import time
 from subprocess import check_output
-from Map.example_room_1018 import build_model, observation_func_1018, run_2_observations_seqs, observation_seq_2_inference, calculate_cost_from_runs
+from Map.example_room_1018 import build_model, observation_func_1018, run_2_observations_seqs, observation_seq_2_inference, calculate_cost_from_runs, plot_cost_hist
 from MDP_TG.mdp import Motion_MDP
 from MDP_TG.dra import Dra, Product_Dra
 from MDP_TG.lp import syn_full_plan, syn_full_plan_rex
@@ -9,6 +9,9 @@ from User.vis2 import print_c
 
 from functools import cmp_to_key
 from User.grid_utils import sort_numerical_states
+
+import matplotlib.pyplot as plt
+
 
 def ltl_convert(task, is_display=True):
     #
@@ -93,6 +96,7 @@ def room_example_main_w_opacity():
     best_all_plan, prod_dra_pi = synthesize_full_plan_w_opacity(motion_mdp, ltl_formula, opt_prop, ap_list, risk_threshold,
                                                                 differential_exp_cost,
                                                                 observation_func=observation_func_1018)
+    ap_gamma = best_all_plan[3][0]
 
     # TODO
     best_all_plan_p = syn_full_plan_rex(prod_dra, gamma, d)
@@ -103,7 +107,7 @@ def room_example_main_w_opacity():
     print_best_all_plan(best_all_plan_p)
 
     # for visualization
-    total_T = 200
+    total_T = 20000
     state_seq = [ initial_node, ]
     label_seq = [ initial_label, ]
     N = 5
@@ -116,6 +120,8 @@ def room_example_main_w_opacity():
         UU = []
         MM = []
         PP = []
+        cost_list_pi = []
+        cost_list_gamma = []
         for n in range(0, N):
             X, L, U, M, PX = prod_dra_pi.execution(best_all_plan, total_T, state_seq, label_seq)
 
@@ -136,7 +142,12 @@ def room_example_main_w_opacity():
             #
             Y = run_2_observations_seqs(X_U)
             X_INV, AP_INV = observation_seq_2_inference(Y)
+            #
             cost_cycle = calculate_cost_from_runs(prod_dra, XX[i], LL[i], UU[i], opt_prop)
+            cost_list_pi = cost_list_pi + cost_cycle
+            #
+            cost_cycle_p = calculate_cost_from_runs(prod_dra, XX[i], LL[i], UU[i], ap_gamma)
+            cost_list_gamma = cost_list_gamma + cost_cycle_p
             #
             print_c(X_U, color=color_init)
             print_c(Y, color=color_init)
@@ -150,6 +161,8 @@ def room_example_main_w_opacity():
     # except:
     #     print_c("No best plan synthesized, try re-run this program", color=33)
 
+    plot_cost_hist(cost_list_pi, bins=25)
+    plot_cost_hist(cost_list_gamma, bins=15, color='r')
 
     # TODO 对比实验
     # 我的问题是, 入侵者到底拿到的是什么数据
@@ -159,7 +172,9 @@ def room_example_main_w_opacity():
     #draw_action_principle()
     #draw_mdp_principle()
 
-
+    #
+    #
+    plt.show()
 
 if __name__ == "__main__":
     room_example_main_w_opacity()

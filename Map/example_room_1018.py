@@ -1,5 +1,7 @@
 from MDP_TG.mdp import Motion_MDP
-
+import matplotlib.pyplot as plt
+import numpy as np
+import seaborn as sns
 
 robot_nodes_w_aps = dict()
 robot_edges = dict()
@@ -168,3 +170,12 @@ def calculate_cost_from_runs(product_mdp, x, l, u, opt_prop, is_remove_zeros=Tru
                 pass
 
     return cost_list
+
+def plot_cost_hist(cost_list, bins=25, color='g'):
+    plt.figure()
+    cost_list.sort(key=lambda x: x[0])
+    data_list = []
+    for i in range(0, cost_list.__len__()):
+        data_list.append(cost_list[i][0])
+
+    sns.histplot(data_list, bins=bins, kde=True, color=color, stat="probability")    # stat="density" "probability"
