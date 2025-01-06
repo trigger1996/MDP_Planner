@@ -13,6 +13,18 @@ def find_individual_label_for_team_state(state, mdp_list):
         label.append(label_t)
     return label
 
+def generate_team_label(state, mdp_list):
+    label_list = find_individual_label_for_team_state(state, mdp_list)
+    label_tuple = []
+    prob_list = []
+    for label_i in label_list:
+        label_i_t = list(label_i.keys())[0]         # assume there is only one key for each key
+        prob_val  = label_i[label_i_t]              #       i.e., only one label for each state
+        label_tuple.append(label_i_t)
+        prob_list.append(prob_val)
+    label_tuple = tuple(label_tuple)
+    return label_tuple, prob_list
+
 
 class Team_MDP(Motion_MDP):
     def __init__(self, mdp_list):
@@ -47,8 +59,8 @@ class Team_MDP(Motion_MDP):
                 continue
             visited.append(current_state)
             #
-            prob_label = find_individual_label_for_team_state(current_state, mdp_list)
-            self.add_node(current_state,label=prob_label, act=set())
+            label_p, prob_t = generate_team_label(current_state, mdp_list)
+            self.add_node(current_state,label={label_p : prob_t}, act=set())
 
             current_state_i_list = []
             for state_i in current_state:
