@@ -5,8 +5,8 @@ from Map.example_room_20250105 import (build_model, observation_func_0105, run_2
 from MDP_TG.mdp import Motion_MDP
 from MDP_TG.dra import Dra, Product_Dra
 from MDP_TG.lp import syn_full_plan, syn_full_plan_rex
-from User.team_mdp_dra import Team_MDP
-from User.lp import syn_full_plan_repeated, synthesize_full_plan_w_opacity
+from User.team_mdp_dra import Team_MDP, Team_Product_Dra
+from User.lp import syn_full_plan_repeated, synthesize_full_plan_w_opacity, synthesize_full_plan_w_opacity_4_Team_MDP
 from User.vis2 import print_c
 
 from functools import cmp_to_key
@@ -28,12 +28,23 @@ def ltl_convert(task, is_display=True):
 
     return ltl_converted
 
-def obtain_all_aps_from_mdp(mdp:Motion_MDP):
+def obtain_all_aps_from_mdp(mdp:Motion_MDP, is_convert_to_str=True, is_remove_empty_ap=True):
     ap_list = []
     for state_t in mdp.nodes():
         state_attr_t = mdp.nodes()[state_t]
         label_t = state_attr_t['label']
         for ap_t in list(state_attr_t['label'])[0]:
+            #
+            # Added
+            if is_convert_to_str and type(ap_t) == frozenset:
+                ap_t = list(ap_t)
+                if not ap_t.__len__():
+                    ap_t = ''
+                    if is_remove_empty_ap:
+                        continue                # remove empty aps
+                else:
+                    ap_t = ap_t[0]
+            #
             ap_list.append(ap_t)
 
     return list(set(ap_list))
@@ -109,7 +120,6 @@ def room_example_team_robotic_w_opacity():
     #ltl_formula = 'GF (gather -> drop)'
     ltl_formula = 'GF (gather -> (!gather U drop))'         # 'GF (gather -> X(!gather U drop))'
     opt_prop = 'gather'
-    ltl_formula_converted = ltl_convert(ltl_formula)
 
     robot_nodes, robot_edges, U, initial_node, initial_label = build_model()
 
@@ -124,15 +134,20 @@ def room_example_team_robotic_w_opacity():
                             initial_node, initial_label)
 
     team_mdp = Team_MDP([motion_mdp_1, motion_mdp_2])
-
     ap_list = obtain_all_aps_from_mdp(team_mdp)
 
-    dra = Dra(ltl_formula_converted)
-
     # ----
-    prod_dra = Product_Dra(team_mdp, dra)
 
 
+    # ------
+    gamma = 0.1
+    d = 100
+    risk_threshold = 0.05                                        # default:  0.1
+    differential_exp_cost = 3.5                                  #           1.590106
+    best_all_plan, prod_dra_pi = synthesize_full_plan_w_opacity_4_Team_MDP(team_mdp, ltl_formula, opt_prop, ap_list, risk_threshold,
+                                                                differential_exp_cost,
+                                                                observation_func=observation_func_0105)
+    ap_gamma = best_all_plan[3][0]
 
 def room_example_main_w_opacity():
 

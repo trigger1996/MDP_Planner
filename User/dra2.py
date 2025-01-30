@@ -344,6 +344,131 @@ class product_mdp2(Product_Dra):
         #
         print_c("[synthesize_w_opacity] Generated sync_amec, states: %d, edges: %d" % (sync_mec_t.nodes.__len__(), sync_mec_t.edges.__len__(),))
 
+    def re_synthesize_sync_amec_rex(self, y_in_sf_pi, y_in_sf_gamma, MEC_pi, MEC_gamma, product_mdp_gamma:Product_Dra, observation_func=observation_func_2, is_re_compute_Sf=True):
+        # amec:
+        #   [0] amec
+        #   [1] amec ^ Ip
+        #   [2] action set
+        #
+        mec_state_set_pi    = MEC_pi[0]
+        mec_state_set_gamma = MEC_gamma[0]
+
+        stack_t = find_initial_state(y_in_sf_pi, y_in_sf_gamma, list(MEC_gamma[0]), observation_func=observation_func)
+        stack_t = list(set(stack_t))
+        visited = []
+
+        sync_mec_t = DiGraph()
+        # for state_t in stack_t:
+        #     sync_mec_t.add_node(state_t)
+        while stack_t.__len__():
+            current_state = stack_t.pop()
+            if current_state in visited:
+                continue
+            visited.append(current_state)
+
+            #
+            next_state_list_pi    = list(self.out_edges(current_state[0], data=True))
+            next_state_list_gamma = list(product_mdp_gamma.out_edges(current_state[1], data=True))
+            #
+            for edge_t_pi in next_state_list_pi:
+                for edge_t_gamma in next_state_list_gamma:
+                    #
+                    next_state_pi    = edge_t_pi[1]
+                    next_state_gamma = edge_t_gamma[1]
+                    next_sync_state = (next_state_pi, next_state_gamma)
+                    #
+                    u_pi    = list(edge_t_pi[2]['prop'].keys())[0]
+                    u_gamma = list(edge_t_gamma[2]['prop'].keys())[0]
+                    #
+                    if u_pi != u_gamma:
+                        continue
+                    #
+                    is_next_state_pi_in_amec    = next_state_pi    in mec_state_set_pi
+                    is_next_state_gamma_in_amec = next_state_gamma in mec_state_set_gamma
+                    if not is_next_state_pi_in_amec or not is_next_state_gamma_in_amec:
+                        continue
+                    #
+                    # if observation_func(next_state_pi) == observation_func(next_state_gamma):
+                    if True:
+                        # TODO
+                        # it seems that if the AP are required identical, then the AP-none_AP states will NOT taken into consideration
+                        # in other words, the successive states will be synchronized by AP-AP states
+                        #
+                        # ON THE OTHER HAND
+                        # on the aspect of the intruders, the only information he can receive is the observation sequences
+                        # so the sync-MEC (, or the observer) should focus only on the observation sequences
+                        # NOT the aps
+                        #
+                        # 2025.1.29
+                        # Trick:
+                        # Use small probability to maintain connectivity
+                        #
+                        #if is_ap_identical(next_state_pi, next_state_gamma):
+                        if True:
+
+                            #
+                            trans_pr_cost_list = dict()
+                            diff_expected_cost_list = dict()
+                            for current_action_t in edge_t_pi[2]['prop'].keys():
+                                #
+                                transition_prop = edge_t_pi[2]['prop'][current_action_t][0]
+                                transition_cost = edge_t_pi[2]['prop'][current_action_t][1]
+                                if observation_func(next_state_pi) == observation_func(next_state_gamma):
+                                    diff_expected_cost = obtain_differential_expected_cost(current_action_t, edge_t_pi, edge_t_gamma)
+                                else:
+                                    #
+                                    # maintain connectivity
+                                    diff_expected_cost = 1.e6
+                                    #
+                                trans_pr_cost_list[current_action_t] = (transition_prop, transition_cost, )
+                                diff_expected_cost_list[current_action_t] = diff_expected_cost
+
+                            #
+                            sync_mec_t.add_edge(current_state, next_sync_state, prop=trans_pr_cost_list, diff_exp=diff_expected_cost_list)
+                            stack_t.append(next_sync_state)
+        #
+        print_c("[synthesize_w_opacity] DFS completed, states: %d, edges: %d" % (sync_mec_t.nodes.__len__(), sync_mec_t.edges.__len__(),), color=33)
+        if sync_mec_t.edges().__len__():
+            #
+            # TODO
+            # 检查连接性
+            scc_list = list(nx.strongly_connected_components(sync_mec_t))
+            scc_list.sort(key=sort_scc_list,reverse=True)
+            if scc_list.__len__() == 0:
+                print_c("[synthesize_w_opacity] NO SCCs found ..." , color=33)
+
+            num_node_removed = 0
+            for i, state_list_t in enumerate(scc_list):
+                if i == 0:
+                    continue
+                for state_t in state_list_t:
+                    try:
+                        sync_mec_t.remove_node(state_t)
+                        num_node_removed += 1
+                        print_c("[synthesize_w_opacity] removing node: " + str(state_t), color=35)
+                    except:
+                        pass
+
+            print_c("[synthesize_w_opacity] number of state to remove: %d" % (num_node_removed,), color=33)
+
+            #
+            # for debugging
+            # state_pi_list_in_amec = []
+            # for sync_state_t in (sync_mec_t.nodes()):
+            #     state_pi_list_in_amec.append(sync_state_t[0])
+            # #
+            # state_pi_list_not_in_amec = []
+            # for state_pi_t in MEC_pi[0]:
+            #     if state_pi_t not in state_pi_list_in_amec:
+            #         state_pi_list_not_in_amec.append(state_pi_t)
+
+            #
+            self.sync_amec_set.append(sync_mec_t)
+            self.current_sync_amec_index = self.sync_amec_set.__len__() - 1
+        #
+        print_c("[synthesize_w_opacity] Generated sync_amec, states: %d, edges: %d" % (sync_mec_t.nodes.__len__(), sync_mec_t.edges.__len__(),))
+
+
     def execution(self, best_all_plan, total_T, state_seq, label_seq):
         # ----plan execution with or without given observation----
         t = 0

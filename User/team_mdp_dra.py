@@ -1,3 +1,5 @@
+from MDP_TG.dra import Product_Dra
+from User.dra2 import product_mdp2
 from MDP_TG.mdp import Motion_MDP
 from networkx import DiGraph
 import itertools
@@ -102,7 +104,7 @@ class Team_MDP(Motion_MDP):
                 #
                 cost_p_final = max(cost_p_list)
 
-                self.add_edge(current_state, state_p, prop={event_p_list : [prop_p_final, cost_p_final]})
+                self.add_edge(current_state, state_p, prop={event_p_list : [prop_p_final, cost_p_final, prop_p_list]})      # joint probability, cost, separated probability
                 stack.append(state_p)
 
         U = []
@@ -119,3 +121,101 @@ class Team_MDP(Motion_MDP):
                 print('Isolated state')
         #
         self.graph['U'] = set(U)
+
+class Team_Product_Dra(product_mdp2):               # modified, Team_Product_Dra(Product_Dra)
+    def __init__(self, mdp, dra):
+        Product_Dra.__init__(self, mdp=mdp, dra=dra)
+
+        self.name = 'Team_Product_Dra'
+
+    def build_full(self):
+        # TODO
+        # if there exist mutiple initial states
+        mdp_initial_node      = self.graph['mdp'].graph['init_state']
+        mdp_initial_label     = self.graph['mdp'].graph['init_label']
+        dra_initial_node_list = list(self.graph['dra'].graph['initial'])
+
+        stack = [ ]
+        for dra_initial_node_t in dra_initial_node_list:
+            f_prod_node = self.composition(mdp_initial_node, mdp_initial_label, dra_initial_node_t)
+            stack.append(f_prod_node)
+        visited = []
+        while stack.__len__():
+            #
+            # USE depth-first-search method
+            f_prod_node = stack.pop()
+            if f_prod_node in visited:
+                continue
+            visited.append(f_prod_node)
+            visited = list(set(visited))
+
+            f_mdp_node  = f_prod_node[0]
+            f_mdp_label = f_prod_node[1]
+            f_dra_node  = f_prod_node[2]
+            for t_mdp_node in self.graph['mdp'].successors(f_mdp_node):
+                mdp_edge = self.graph['mdp'][f_mdp_node][t_mdp_node]
+                for t_mdp_label, t_label_prob in self.graph['mdp'].nodes[t_mdp_node]['label'].items():
+                    for t_dra_node in self.graph['dra'].successors(f_dra_node):
+                        #
+                        # establish successor states
+                        t_prod_node = self.composition(t_mdp_node, t_mdp_label, t_dra_node)
+                        #
+                        # check whether successor states satisfies DRA conditions
+                        truth = self.check_label_for_dra_edge(f_mdp_label, f_dra_node, t_dra_node)
+                        if truth:                                                                                       # DRA condition, not accepting condition, so if DRA condition is satisfied, then the system can step forward
+                            #
+                            # Add successor product dra states to to-visit list
+                            stack.append(t_prod_node)
+                            #
+                            prob_cost = dict()
+                            #
+                            # calculate
+                            for u, attri in mdp_edge['prop'].items():
+                                #neg_joint_expectation = 1.
+                                joint_expectation = 1.
+                                for i in range(0, t_label_prob.__len__()):                                              # t_label_prob is a list for transition probability for each agent
+                                    if True:                                                                            # dra condition not accepting condition
+                                        # neg_joint_expectation *= (1. - t_label_prob[i]) * (1. - attri[2][i])          # none of these aps are satisfied
+                                        joint_expectation *= t_label_prob[i] * attri[2][i]
+                                #joint_expectation = 1. - neg_joint_expectation
+                                joint_expectation = joint_expectation                                                   # to distinguish
+                                if joint_expectation != 0:                                                              # TODO, here, we pick the possibility that ALL APs are satisfied
+                                    # prob_cost[u] = (t_label_prob * attri[0], attri[1])                                # for single-agent system
+                                    prob_cost[u] = (joint_expectation, attri[1])                                        # attr[0] labeling probability / attr[1] cost / attr[2] final
+                            if list(prob_cost.keys()):
+                                self.add_edge(f_prod_node, t_prod_node, prop=prob_cost)
+        #
+        # once dfs method completed
+        self.build_acc()
+        print("-------Prod DRA Constructed-------")
+        print("%s states, %s edges and %s accepting pairs" % (
+            str(len(self.nodes())), str(len(self.edges())), str(len(self.graph['accept']))))
+
+    def check_label_for_dra_edge(self, label, f_dra_node, t_dra_node):
+        # ----check if a label satisfies the guards on one dra edge----
+        guard_string_list = self.graph['dra'][f_dra_node][t_dra_node]['guard_string']
+        guard_int_list = []
+        for st in guard_string_list:
+            int_st = []
+            for l in st:
+                int_st.append(int(l))
+            guard_int_list.append(int_st)
+        for guard_list in guard_int_list:
+            valid = True
+            for k, ap in enumerate(self.graph['dra'].graph['symbols']):
+                if (guard_list[k] == 1) and (not self.ap_in_label_list(ap, label)):     # (ap not in label):
+                    valid = False
+                if (guard_list[k] == 0) and self.ap_in_label_list(ap, label):           # (ap in label):
+                    valid = False
+            if valid:
+                # That is,
+                # ap in label list and guard_list[k] == 1, or
+                # ap NOT in label list and guard_list[k] == 0
+                return True
+        return False
+
+    def ap_in_label_list(self, ap, label):
+        for label_i in label:
+            if ap in label_i:
+                return True
+        return False

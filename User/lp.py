@@ -3,6 +3,7 @@ from MDP_TG.dra import Dra, Product_Dra
 from MDP_TG.lp import find_twin_states, find_original_states, find_corresponding_outgoing_states, find_corresponding_incoming_states, is_state_equal
 from MDP_TG.lp import syn_plan_prefix, syn_plan_suffix, syn_plan_suffix2, syn_plan_bad
 from User.dra2 import product_mdp2
+from User.team_mdp_dra import Team_MDP, Team_Product_Dra
 import User.dra2 as dra2
 
 from copy import deepcopy
@@ -22,7 +23,7 @@ import time
 import networkx
 
 import sys
-sys.setrecursionlimit(3000)         # change stack size to guarantee runtime stability
+sys.setrecursionlimit(5000)         # change stack size to guarantee runtime stability
 
 def ltl_convert(task, is_display=True):
     #
@@ -1152,7 +1153,110 @@ def synthesize_full_plan_w_opacity(mdp, task, optimizing_ap, ap_list, risk_pr, d
                             plan_prefix_p, prefix_cost_p, prefix_risk_p, y_in_sf_gamma, Sr_p, Sd_p = syn_plan_prefix(
                                 prod_dra_gamma, MEC_gamma, risk_pr)
 
-                            prod_dra_pi.re_synthesize_sync_amec(y_in_sf, y_in_sf_gamma, MEC_pi, MEC_gamma, prod_dra_gamma, observation_func=observation_func)
+                            #prod_dra_pi.re_synthesize_sync_amec(y_in_sf, y_in_sf_gamma, MEC_pi, MEC_gamma, prod_dra_gamma, observation_func=observation_func)
+                            prod_dra_pi.re_synthesize_sync_amec_rex(y_in_sf, y_in_sf_gamma, MEC_pi, MEC_gamma, prod_dra_gamma, observation_func=observation_func)
+
+                            # LP
+                            plan_suffix, suffix_cost, suffix_risk, suffix_opacity_threshold = synthesize_suffix_cycle_in_sync_amec(prod_dra_pi, prod_dra_pi.sync_amec_set[prod_dra_pi.current_sync_amec_index], MEC_pi, y_in_sf, S_pi, differential_exp_cost)
+                            #
+                            print_c("Best plan suffix obtained, cost: %s, risk %s" % (str(suffix_cost), str(suffix_risk)), color=36)
+                            print_c("=-------------------------------------=", color=36)
+
+                            if plan_prefix and plan_suffix:
+                                plan.append([[plan_prefix, prefix_cost, prefix_risk, y_in_sf],
+                                             [plan_suffix, suffix_cost, suffix_risk],
+                                             [MEC_pi[0], MEC_pi[1], Sr, Sd],
+                                             [ap_4_opacity, suffix_opacity_threshold, prod_dra_pi.current_sync_amec_index, MEC_gamma[0], MEC_gamma[1]],
+                                             prod_dra_pi])
+
+                                print_policies_w_opacity(ap_4_opacity, plan_prefix, plan_suffix)
+        if plan:
+            print("=========================")
+            print(" || Final compilation  ||")
+            print("=========================")
+            best_all_plan = min(plan, key=lambda p: p[0][1] + alpha * p[1][1])
+            prod_dra_pi = best_all_plan[4]
+            best_all_plan = best_all_plan[0:4]
+            print('Best plan prefix obtained for %s states in Sr' %
+                  str(len(best_all_plan[0][0])))
+            print('cost: %s; risk: %s ' %
+                  (best_all_plan[0][1], best_all_plan[0][2]))
+            print('Best plan suffix obtained for %s states in Sf' %
+                  str(len(best_all_plan[1][0])))
+            print('cost: %s; risk: %s ' %
+                  (best_all_plan[1][1], best_all_plan[1][2]))
+            print('Total cost:%s' %
+                  (best_all_plan[0][1] + alpha * best_all_plan[1][1]))
+            print_c('Opacity threshold %f <= %f' % (best_all_plan[3][1], differential_exp_cost, ))
+            #
+            # TODO
+            '''
+            plan_bad = syn_plan_bad(prod_mdp, best_all_plan[2])
+            print('Plan for bad states obtained for %s states in Sd' %
+                  str(len(best_all_plan[2][3])))
+            best_all_plan.append(plan_bad)
+            '''
+            return best_all_plan, prod_dra_pi
+        else:
+            print("No valid plan found")
+            return None
+
+def synthesize_full_plan_w_opacity_4_Team_MDP(team_mdp, task, optimizing_ap, ap_list, risk_pr, differential_exp_cost, alpha=1, observation_func=dra2.observation_func_1, is_enable_inter_state_constraints=True):
+    t2 = time.time()
+
+    task_pi = task + ' & GF ' + optimizing_ap
+    ltl_converted_pi = ltl_convert(task_pi)
+
+    dra = Dra(ltl_converted_pi)
+    t3 = time.time()
+    print('DRA done, time: %s' % str(t3-t2))
+
+    # ----
+    prod_dra_pi = Team_Product_Dra(team_mdp, dra)
+    prod_dra_pi.compute_S_f()                          # for AMECs
+    # prod_dra.dotify()
+    t41 = time.time()
+    print('Product DRA done, time: %s' % str(t41-t3))
+
+    pickle.dump((networkx.get_edge_attributes(prod_dra_pi, 'prop'),
+                prod_dra_pi.graph['initial']), open('prod_dra_edges.p', "wb"))
+    print('prod_dra_edges.p saved')
+
+
+    # new main loop
+    for l, S_fi_pi in enumerate(prod_dra_pi.Sf):                                                  # prod_mdp.Sf 对应所有的AMEC
+        print("---for one S_fi---")
+        plan = []
+        for k, MEC_pi in enumerate(S_fi_pi):
+            #
+            # finding states that satisfying optimizing prop
+            S_pi = find_states_satisfying_opt_prop(optimizing_ap, MEC_pi[0])
+            #
+            plan_prefix, prefix_cost, prefix_risk, y_in_sf, Sr, Sd = syn_plan_prefix(
+                prod_dra_pi, MEC_pi, risk_pr)
+            print("Best plan prefix obtained, cost: %s, risk %s" %
+                  (str(prefix_cost), str(prefix_risk)))
+            if y_in_sf:
+
+                for ap_4_opacity in ap_list:
+                    if ap_4_opacity == optimizing_ap:
+                        continue
+                    # synthesize product mdp for opacity
+                    task_gamma = task + ' & GF ' + ap_4_opacity
+                    ltl_converted_gamma = ltl_convert(task_gamma)
+                    dra = Dra(ltl_converted_gamma)
+                    prod_dra_gamma = Team_Product_Dra(team_mdp, dra)
+                    prod_dra_gamma.compute_S_f()  # for AMECs
+
+                    #
+                    # y_in_sf will be used as initial distribution
+                    for p, S_fi_gamma in enumerate(prod_dra_gamma.Sf):
+                        for q, MEC_gamma in enumerate(S_fi_gamma):
+                            plan_prefix_p, prefix_cost_p, prefix_risk_p, y_in_sf_gamma, Sr_p, Sd_p = syn_plan_prefix(
+                                prod_dra_gamma, MEC_gamma, risk_pr)
+
+                            #prod_dra_pi.re_synthesize_sync_amec(y_in_sf, y_in_sf_gamma, MEC_pi, MEC_gamma, prod_dra_gamma, observation_func=observation_func)
+                            prod_dra_pi.re_synthesize_sync_amec_rex(y_in_sf, y_in_sf_gamma, MEC_pi, MEC_gamma, prod_dra_gamma, observation_func=observation_func)
 
                             # LP
                             plan_suffix, suffix_cost, suffix_risk, suffix_opacity_threshold = synthesize_suffix_cycle_in_sync_amec(prod_dra_pi, prod_dra_pi.sync_amec_set[prod_dra_pi.current_sync_amec_index], MEC_pi, y_in_sf, S_pi, differential_exp_cost)
