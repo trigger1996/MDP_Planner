@@ -14,7 +14,9 @@ import pickle
 import time
 import networkx
 
+import matplotlib
 import matplotlib.pyplot as plt
+matplotlib.use("TkAgg")
 
 def build_model(N_x=8, N_y=10):
     t0 = time.time()

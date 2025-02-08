@@ -15,6 +15,7 @@ import time
 import networkx
 
 import matplotlib.pyplot as plt
+plt.use("TkAgg")
 
 def ltl_convert(task, is_display=True):
     #

@@ -122,9 +122,9 @@ class Team_MDP(Motion_MDP):
         #
         self.graph['U'] = set(U)
 
-class Team_Product_Dra(product_mdp2):               # modified, Team_Product_Dra(Product_Dra)
+class Team_Product_Dra(product_mdp2):                       # modified, Team_Product_Dra(Product_Dra)
     def __init__(self, mdp, dra):
-        Product_Dra.__init__(self, mdp=mdp, dra=dra)
+        product_mdp2.__init__(self, mdp=mdp, dra=dra)       # Product_Dra.__init__(......)
 
         self.name = 'Team_Product_Dra'
 

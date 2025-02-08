@@ -14,7 +14,10 @@ import pickle
 import time
 import networkx
 
+import matplotlib
 import matplotlib.pyplot as plt
+matplotlib.use("TkAgg")
+
 
 def obtain_all_aps_from_mdp(mdp:Motion_MDP):
     ap_list = []

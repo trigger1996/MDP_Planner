@@ -10,8 +10,9 @@ from User.vis2 import print_c
 from functools import cmp_to_key
 from User.grid_utils import sort_numerical_states
 
+import matplotlib
 import matplotlib.pyplot as plt
-
+matplotlib.use("TkAgg")
 
 def ltl_convert(task, is_display=True):
     #

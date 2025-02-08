@@ -242,7 +242,7 @@ class product_mdp2(Product_Dra):
 
         stack_t = find_initial_state(y_in_sf_pi, y_in_sf_gamma, list(MEC_gamma[0]), observation_func=observation_func)
         stack_t = list(set(stack_t))
-        visited = []
+        visited = set()
 
         sync_mec_t = DiGraph()
         # for state_t in stack_t:
@@ -251,7 +251,7 @@ class product_mdp2(Product_Dra):
             current_state = stack_t.pop()
             if current_state in visited:
                 continue
-            visited.append(current_state)
+            visited.add(current_state)
 
             #
             next_state_list_pi    = list(self.out_edges(current_state[0], data=True))
@@ -355,7 +355,7 @@ class product_mdp2(Product_Dra):
 
         stack_t = find_initial_state(y_in_sf_pi, y_in_sf_gamma, list(MEC_gamma[0]), observation_func=observation_func)
         stack_t = list(set(stack_t))
-        visited = []
+        visited = set()
 
         sync_mec_t = DiGraph()
         # for state_t in stack_t:
@@ -364,7 +364,7 @@ class product_mdp2(Product_Dra):
             current_state = stack_t.pop()
             if current_state in visited:
                 continue
-            visited.append(current_state)
+            visited.add(current_state)
 
             #
             next_state_list_pi    = list(self.out_edges(current_state[0], data=True))
