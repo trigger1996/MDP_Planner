@@ -316,7 +316,7 @@ def synthesize_suffix_cycle_in_sync_amec(prod_mdp, sync_mec, MEC_pi, y_in_sf, S_
 
                 for k, sync_s in enumerate(Sn):
                     # 更新进度条的描述
-                    progress.update(task_id, advance=1, description=f"Processing ... {k + 1}/{len(Sn)}")
+                    progress.update(task_id, advance=1, description=f"Processing constraint 2 / 11b ... {k + 1}/{len(Sn)}")
                     # for f_in and s_in
                     # in this way, the constaint will not be repeated
                     successors_to_visit = set(sync_mec.successors(sync_s))
@@ -432,7 +432,7 @@ def synthesize_suffix_cycle_in_sync_amec(prod_mdp, sync_mec, MEC_pi, y_in_sf, S_
                     #     debug_var = 1
                     # if s_pi == ((1.25, 2.25, 'W'), frozenset({'supply'}), 2):
                     #     debug_var = 2
-                    progress.update(task_id, advance=1, description=f"Processing ... {k + 1}/{len(Sn_pi)}")
+                    progress.update(task_id, advance=1, description=f"Processing constraint 3 / 11c ... {k + 1}/{len(Sn_pi)}")
 
                     #
                     constr_11c_lhs = []
@@ -520,7 +520,7 @@ def synthesize_suffix_cycle_in_sync_amec(prod_mdp, sync_mec, MEC_pi, y_in_sf, S_
 
                 for k, s_sync in enumerate(Sn):
                     # 更新进度条的描述
-                    progress.update(task_id, advance=1, description=f"Processing ... {k + 1}/{len(Sn)}")
+                    progress.update(task_id, advance=1, description=f"Processing risk constraints ... {k + 1}/{len(Sn)}")
 
                     for t_sync in sync_mec.successors(s_sync):
                         if sync_mec.has_edge(s_sync, t_sync):
