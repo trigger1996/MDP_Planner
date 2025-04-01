@@ -13,8 +13,8 @@ initial_label = None
 # in simulations, we can let those states with identical APs carry identical observations, which is to simulate the APs are observed satisfied
 observation_dict = {
     'u': ['0', '1', '2', '11', '14', '15'],
-    'v': ['3', '8', '12'],
-    'w': ['4', '5', '6'],
+    'v': ['8', '12'],
+    'w': ['3', '4', '5', '6'],
     'x': ['7', '13'],
     'y': ['9', '10'],
 }
@@ -204,7 +204,7 @@ def calculate_cost_from_runs(product_mdp, x, l, u, opt_prop, is_remove_zeros=Tru
 
     return cost_list
 
-def plot_cost_hist(cost_list, bins=25, color='g', is_average=True):
+def plot_cost_hist(cost_list, bins=25, color='g', is_average=True, title="Cost Distribution", xlabel="Cost", ylabel="Probability"):
     plt.figure()
     cost_list.sort(key=lambda x: x[0])
     data_list = []
@@ -215,3 +215,7 @@ def plot_cost_hist(cost_list, bins=25, color='g', is_average=True):
             data_list.append(cost_list[i][0])
 
     sns.histplot(data_list, bins=bins, kde=True, color=color, stat="probability")    # stat="density" "probability"
+
+    plt.title(title)
+    plt.xlabel(xlabel)
+    plt.ylabel(ylabel)

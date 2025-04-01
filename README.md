@@ -16,6 +16,21 @@ Planner for Markov Decision Processes with Temporal Goals
 ```
 
 -----
+Installation
+-----
+
+```
+pip3 install rich ortools seaborn matplotlib networkx
+
+sudo apt install python3-tk
+
+pip3 install --upgrade --force-reinstall pillow
+
+```
+install ltl2ba-1.3.tar.gz ltl2dstar-0.5.4.tar.gz and spot in MDP_TG/
+
+
+-----
 Description
 -----
 This package contains the implementation for policy synthesis algorithms given a probabilistically-labeled Markov Decision Process (MDP) (as the robot motion model) and a Linear Temporal Logic (LTL) formula (as the robot task). It outputs a stationary  and finite-memory policy consists of plan prefix and plan suffix, such that the controlled robot behavior fulfills the task with a given lower-bounded risk and minimizes the expected total cost. 

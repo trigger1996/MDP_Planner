@@ -1,0 +1,29 @@
+{
+  "configurations": [
+    {
+      "browse": {
+        "databaseFilename": "${default}",
+        "limitSymbolsToIncludedHeaders": false
+      },
+      "includePath": [
+        "/opt/ros/foxy/include/**",
+        "/home/ywzheng/px4_ros_ws/src/comp29_gazebo_bridge/include/**",
+        "/home/ywzheng/px4_ros_ws/src/comp29msg/include/**",
+        "/home/ywzheng/px4_ros_ws/src/drone_ros2_centeralized_control/include/**",
+        "/home/ywzheng/px4_ros_ws/src/px4_ros_com/include/**",
+        "/home/ywzheng/src/Micro-XRCE-DDS-Agent/include/**",
+        "/home/ywzheng/turtlebot3_ws/src/turtlebot3_simulations/turtlebot3_fake_node/include/**",
+        "/home/ywzheng/turtlebot3_ws/src/turtlebot3_simulations/turtlebot3_gazebo/include/**",
+        "/home/ywzheng/turtlebot3_ws/src/turtlebot_stl_ros2/include/**",
+        "/home/ywzheng/ws_px4_ros1_ref/src/drone_ros_centeralized_control/include/**",
+        "/usr/include/**"
+      ],
+      "name": "ROS",
+      "intelliSenseMode": "gcc-x64",
+      "compilerPath": "/usr/bin/gcc",
+      "cStandard": "gnu11",
+      "cppStandard": "c++14"
+    }
+  ],
+  "version": 4
+}
