@@ -23,25 +23,33 @@ def build_model():
 
     # robot nodes
     # the lower satisfaction probability may result in conflict/failure in opacity constraint in user/lp.py
-    robot_nodes_w_aps['0'] = { frozenset({'upload'}): 1.0 }
-    robot_nodes_w_aps['1'] = { frozenset({'gather'}): 1. }
-    robot_nodes_w_aps['2'] = { frozenset({'gather'}): 1. }
-    robot_nodes_w_aps['3'] = {frozenset({'recharge'}): 1.}
+    robot_nodes_w_aps['0']  = { frozenset({'upload'}): 1.0 }
+    robot_nodes_w_aps['1']  = { frozenset({'gather'}): 0.85 }
+    robot_nodes_w_aps['2']  = { frozenset({'gather'}): 1.0 }
+    robot_nodes_w_aps['3']  = { frozenset({'recharge'}): 0.65 }
     #
     robot_edges = {
         # x, a, x' :    prob, cost
-        ('0', 'a', '1') : (1, 1),            # gather
-        ('1', 'a', '0') : (1, 1),            #
+        ('0', 'b', '1') : (0.95, 1),            # gather
+        ('0', 'b', '0') : (0.05, 1),
+        ('0', 'a', '2') : (0.95, 3),            # gather
+        ('0', 'a', '0') : (0.05, 3),
+        ('0', 'c', '3') : (0.95, 3),            # recharge
+        ('0', 'c', '0') : (0.05, 3),
+        #
+        ('1', 'a', '0') : (0.95, 2),
+        ('1', 'a', '1') : (0.05, 2),
+        #
+        ('2', 'b', '0') : (0.95, 2),
+        ('2', 'b', '2') : (0.05, 2),
+        #
+        ('3', 'c', '0') : (0.95, 2),
+        ('3', 'c', '3') : (0.05, 2),
 
-        ('0', 'b', '2') : (1, 2),
-        ('2', 'b', '0') : (1, 2),
-
-        ('0', 'c', '3') : (1, 2),
-        ('3', 'c', '0') : (1, 2),
     }
 
     #
-    U = [ 'b' ]
+    U = [ 'a', 'b', 'c' ]
 
     #
     initial_node  = '0'
