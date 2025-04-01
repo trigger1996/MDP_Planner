@@ -1158,7 +1158,7 @@ def synthesize_full_plan_w_opacity(mdp, task, optimizing_ap, ap_list, risk_pr, d
 
     # ----
     prod_dra_pi = product_mdp2(mdp, dra)
-    prod_dra_pi.compute_S_f()                       # for AMECs
+    prod_dra_pi.compute_S_f()                       # for AMECs, finished in building
     # prod_dra.dotify()
     t41 = time.time()
     print('Product DRA done, time: %s' % str(t41-t3))
