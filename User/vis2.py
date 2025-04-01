@@ -17,10 +17,10 @@ LOG_FILE = os.path.join(LOG_DIR, datetime.datetime.now().strftime("%Y-%m-%d_%H-%
 # 配置日志（仅初始化一次）
 logging.basicConfig(
     level=logging.INFO,  # 设置日志级别
-    format='%(asctime)s - %(message)s',  # 日志格式
+    format='%(asctime)s - %(message)s',     # 日志格式
     handlers=[
-        logging.FileHandler(LOG_FILE),  # 输出到文件
-        logging.StreamHandler()  # 输出到控制台
+        logging.FileHandler(LOG_FILE),      # 输出到文件
+        #logging.StreamHandler()            # 输出到控制台
     ]
 )
 
