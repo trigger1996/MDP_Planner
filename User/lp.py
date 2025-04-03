@@ -200,7 +200,15 @@ def print_policies_w_opacity(ap_4_opacity, plan_prefix, plan_suffix):
     for state_t in state_in_suffix:
         print_c("%s, %s: %s" % (str(state_t), str(plan_suffix[state_t][0]), str(plan_suffix[state_t][1]), ), color=46)
 
-def syn_plan_prefix_in_sync_amec(prod_mdp, MEC, gamma):
+def find_initial_states_for_sync_amec(prod_mdp, sync_amec):
+    initial_sync_state = []
+    for init_node in prod_mdp.graph['initial']:
+        for sync_state_t in sync_amec:
+            if sync_state_t[0] == init_node:
+                initial_sync_state.append(sync_state_t)
+    return initial_sync_state
+
+def syn_plan_prefix_in_sync_amec(prod_mdp, sync_amec, MEC, gamma):
     # ----Synthesize optimal plan prefix to reach accepting MEC or SCC----
     # ----with bounded risk and minimal expected total cost----
     print("===========[plan prefix synthesis starts]===========")
@@ -210,7 +218,10 @@ def syn_plan_prefix_in_sync_amec(prod_mdp, MEC, gamma):
     sf = MEC[0]
     ip = MEC[1]  # force convergence to ip
     delta = 0.01
-    for init_node in prod_mdp.graph['initial']:
+
+    initial_sync_state = find_initial_states_for_sync_amec(prod_mdp, sync_amec)
+
+    for init_node in initial_sync_state:        # prod_mdp.graph['initial']
         #
         # Compute the shortest path between source and all other nodes reachable from source.
         path_init = single_source_shortest_path(prod_mdp, init_node)
@@ -1503,9 +1514,9 @@ def synthesize_full_plan_w_opacity2(mdp, task, optimizing_ap, ap_list, risk_pr, 
                     for q, MEC_gamma in enumerate(S_fi_gamma):
                         prod_dra_pi.re_synthesize_sync_amec2(optimizing_ap, ap_4_opacity, MEC_pi, MEC_gamma, prod_dra_gamma, observation_func=observation_func,ctrl_obs_dict=ctrl_obs_dict)
 
-                        mec_subset_pi = prod_dra_pi.project_sync_amec_back_to_mec_pi(prod_dra_pi.sync_amec_set[prod_dra_pi.current_sync_amec_index], MEC_pi)
+                        sync_mec_t = prod_dra_pi.project_sync_amec_back_to_mec_pi(prod_dra_pi.sync_amec_set[prod_dra_pi.current_sync_amec_index], MEC_pi)
 
-                        plan_prefix_p, prefix_cost_p, prefix_risk_p, y_in_sf_gamma, Sr_p, Sd_p = syn_plan_prefix_in_sync_amec(prod_dra_pi.sync_amec_set[prod_dra_pi.current_sync_amec_index], mec_subset_pi, risk_pr)
+                        plan_prefix_p, prefix_cost_p, prefix_risk_p, y_in_sf_gamma, Sr_p, Sd_p = syn_plan_prefix_in_sync_amec(prod_dra_pi, prod_dra_pi.sync_amec_set[prod_dra_pi.current_sync_amec_index], sync_mec_t, risk_pr)
 
                         print(233)
 

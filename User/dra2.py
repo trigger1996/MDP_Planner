@@ -831,14 +831,21 @@ class product_mdp2(Product_Dra):
         mec_pi_subset_2 = {}
         for u_sync, v_sync, data_sync in sync_amec.edges(data=True):
             u_pi = u_sync[0]
+            v_pi = v_sync[0]
             if u_pi in original_mec_pi[0]:
-                mec_pi_subset_0.append(u_pi)
+                mec_pi_subset_0.append(u_sync)
+            if v_pi in original_mec_pi[0]:
+                mec_pi_subset_0.append(v_sync)
 
             if u_pi in original_mec_pi[1]:
-                mec_pi_subset_1.append(u_pi)
+                mec_pi_subset_1.append(u_sync)
+            if v_pi in original_mec_pi[1]:
+                mec_pi_subset_1.append(v_sync)
 
             if u_pi in original_mec_pi[2].keys():
-                mec_pi_subset_2[u_pi] = original_mec_pi[2][u_pi]
+                mec_pi_subset_2[u_sync] = original_mec_pi[2][u_pi]
+            if v_pi in original_mec_pi[2].keys():
+                mec_pi_subset_2[v_sync] = original_mec_pi[2][v_pi]      # TODO to check, 似乎空集全没了
 
         mec_pi_subset_0 = list(set(mec_pi_subset_0))
         mec_pi_subset_1 = set(mec_pi_subset_1)
