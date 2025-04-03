@@ -74,9 +74,6 @@ def is_with_identical_observation_4(state, state_prime, dist_threshold=1.):
     else:
         return False
 
-def get_ap_from_product_mdp(state):
-    return list(state[1])
-
 def is_ap_identical(state_pi, state_gamma):
     if list(state_pi[1]).__len__() == 0 and list(state_gamma[1]).__len__() == 0:
         return True
@@ -97,7 +94,7 @@ def find_initial_state(y_in_sf_pi, y_in_sf_gamma, state_set_gamma, observation_f
             # if y_in_sf_gamma[state_gamma_t] == 0:
             #     continue
             #
-            if observation_func(state_pi_t[0]) == observation_func(state_gamma_t[0]):
+            if observation_func(state_pi_t) == observation_func(state_gamma_t):
                 if is_ap_identical(state_pi_t, state_gamma_t):
                     state_list.append((state_pi_t, state_gamma_t, ))
     return state_list
@@ -178,23 +175,13 @@ def act_by_plan(prod_mdp, best_plan, prod_state):
         print_c("Warning, current state %s is outside prefix and suffix !"  % (str(prod_state), ), color=33)
         return None, 4
 
-def get_edge_props(g, u, v):
-    prop_list = []
-    for edge_t in list(g.out_edges(u, data=True)):
-        if v == edge_t[1]:
-            prop_list.append(edge_t[2]['prop'])
-    return prop_list
-
 class product_mdp2(Product_Dra):
-    def __init__(self, mdp=None, dra=None):
-        if mdp == None and dra == None:
-            print_c("[product mdp 2] Initializing subgraph for product mdp ...", color='yellow')
-        else:
-            Product_Dra.__init__(self, mdp, dra)
-            self.compute_S_f()
-            #
-            self.sync_amec_set = list()
-            self.current_sync_amec_index = 0
+    def __init__(self, mdp, dra):
+        Product_Dra.__init__(self, mdp, dra)
+        self.compute_S_f()
+        #
+        self.sync_amec_set = list()
+        self.current_sync_amec_index = 0
 
     def compute_S_f(self):
         # ----find all accepting End components----
@@ -370,105 +357,6 @@ class product_mdp2(Product_Dra):
         stack_t = list(set(stack_t))
         visited = set()
 
-
-
-        #
-        # TODO
-        # to check
-        scc_list_pi = list(nx.strongly_connected_components(self))
-        matching_sccs = [scc for scc in scc_list_pi if scc & set(mec_state_set_pi)]
-
-        scc_list_gamma = list(nx.strongly_connected_components(product_mdp_gamma))
-        matching_sccs = [scc for scc in scc_list_gamma if scc & set(mec_state_set_gamma)]
-
-        # TODO
-        # scc转图
-        # 然后图求笛卡尔积
-
-        #
-        # TODO
-        # rex用subgraph计算, non-rex用scc计算
-        # An end component (EC) of M is a sub-MDP (S, A) such that the digraph G (S,A) induced by (S, A) is strongly connected.
-        # a strongly connected component (SCC) of the digraph G M induced by M is a set of states S ⊆ X, so that there exists a path in each direction between any pair of states in S.
-        # the main difference between an MEC (S, A) and an SCC S is that the SCC does not restrict the set of actions U(s) that can be taken at each state s ∈ S.
-        subgraph_mec_pi = self.subgraph(mec_state_set_pi)
-        subgraph_mec_gamma = self.subgraph(mec_state_set_gamma)
-
-        sync_subgraph = nx.cartesian_product(subgraph_mec_pi, subgraph_mec_gamma)
-
-
-        # to remove nodes
-        node_to_remove = []
-        edge_to_remove = []
-        for sync_edge_t in sync_subgraph.edges():
-            #
-            current_state_pi    = sync_edge_t[0][0]
-            current_state_gamma = sync_edge_t[0][1]
-            next_state_pi       = sync_edge_t[1][0]
-            next_state_gamma    = sync_edge_t[1][1]
-            #
-            u_pi = get_edge_props(self, current_state_pi, next_state_pi)
-            u_gamma = get_edge_props(product_mdp_gamma, current_state_gamma, next_state_gamma)
-
-            # 作笛卡尔积的时候会有一边不走的情况, 这种是不被允许的, 因为只有控制相同才能连通
-            if u_pi.__len__() == 0 or u_gamma.__len__() == 0:
-                edge_to_remove.append(sync_edge_t)
-
-            # 要求控制相同
-            # TODO
-            # 如果控制序列分为可观和不可观, 则要求可观相同即可
-            if (u_pi.__len__() and u_gamma.__len__()):
-                intersection_t = set(u_pi[0].keys()) & set(u_gamma[0].keys())
-                if not intersection_t:
-                    edge_to_remove.append(sync_edge_t)
-
-            # 要求观测相同
-            # TODO
-            # 其实点边观测可以一起做
-            o_curr_state_pi = observation_func(current_state_pi[0])
-            o_curr_state_gamma = observation_func(current_state_gamma[0])
-            o_next_state_pi = observation_func(next_state_pi[0])
-            o_next_state_gamma = observation_func(next_state_gamma[0])
-            if o_curr_state_pi == None or o_curr_state_gamma == None or o_next_state_pi == None or o_next_state_gamma == None:
-                raise TypeError
-
-            if o_curr_state_pi != o_curr_state_gamma:
-                node_to_remove.append(sync_edge_t[0])
-            if o_next_state_pi != o_next_state_gamma:
-                node_to_remove.append(sync_edge_t[1])
-
-            # AP
-            ap_state = get_ap_from_product_mdp(current_state_pi)
-            ap_obs_state = get_ap_from_product_mdp(current_state_gamma)
-            ap_state_p = get_ap_from_product_mdp(current_state_pi)
-            ap_obs_state_p = get_ap_from_product_mdp(current_state_gamma)
-            if ap_pi in ap_state:
-                if not ap_gamma in ap_obs_state:
-                    node_to_remove.append(ap_pi)
-
-            if ap_pi in ap_state_p:
-                if not ap_gamma in ap_obs_state_p:
-                    node_to_remove.append(ap_gamma)
-
-
-
-        node_to_remove = list(set(node_to_remove))
-        edge_to_remove = list(set(edge_to_remove))
-
-        for node_t in node_to_remove:
-            try:
-                sync_subgraph.remove_node(node_t)
-            except:
-                pass
-        for edge_t in edge_to_remove:
-            try:
-                sync_subgraph.remove_edge(edge_t)
-            except:
-                pass
-
-
-        #
-        #
         sync_mec_t = DiGraph()
         # for state_t in stack_t:
         #     sync_mec_t.add_node(state_t)
@@ -544,7 +432,7 @@ class product_mdp2(Product_Dra):
                                 #
                                 transition_prop = edge_t_pi[2]['prop'][current_action_t][0]
                                 transition_cost = edge_t_pi[2]['prop'][current_action_t][1]
-                                if observation_func(next_state_pi[0]) == observation_func(next_state_gamma[0]):
+                                if observation_func(next_state_pi) == observation_func(next_state_gamma):
                                     diff_expected_cost = obtain_differential_expected_cost(current_action_t, edge_t_pi, edge_t_gamma)
                                 else:
                                     #

@@ -1146,7 +1146,7 @@ def syn_full_plan_repeated(prod_mdp, gamma, opt_prop, alpha=1):
         print("No valid plan found")
         return None
 
-def synthesize_full_plan_w_opacity(mdp, task, optimizing_ap, ap_list, risk_pr, differential_exp_cost, observation_func, alpha=1, is_enable_inter_state_constraints=True):
+def synthesize_full_plan_w_opacity(mdp, task, optimizing_ap, ap_list, risk_pr, differential_exp_cost, alpha=1, observation_func=dra2.observation_func_1, is_enable_inter_state_constraints=True):
     t2 = time.time()
 
     task_pi = task + ' & GF ' + optimizing_ap

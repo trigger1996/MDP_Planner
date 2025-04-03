@@ -122,6 +122,9 @@ def observation_func_0105(x, u=None):
         if x in observation_dict[y]:
             return y
 
+    print("[observation_func_0105] Please check input x !")
+    raise TypeError
+
     return None
 
 def observation_inv_func_0105(y):

@@ -23,22 +23,20 @@ def build_model():
 
     # robot nodes
     # the lower satisfaction probability may result in conflict/failure in opacity constraint in user/lp.py
-    robot_nodes_w_aps['0'] = { frozenset({'upload'}) : 1.0 }
-    robot_nodes_w_aps['1'] = { frozenset({'gather'}) : 1.  }
-    robot_nodes_w_aps['2'] = { frozenset({'gather'}) : 1.  }
-    robot_nodes_w_aps['3'] = {frozenset({'recharge'}): 1.  }
+    robot_nodes_w_aps['0'] = { frozenset({'upload'}): 1.0 }
+    robot_nodes_w_aps['1'] = { frozenset({'gather'}): 1. }
+    robot_nodes_w_aps['2'] = { frozenset({'gather'}): 1. }
+    robot_nodes_w_aps['3'] = {frozenset({'recharge'}): 1.}
     #
     robot_edges = {
-        # x,   a,   x'  : prob, cost
+        # x, a, x' :    prob, cost
         ('0', 'a', '1') : (1, 1),            # gather
         ('1', 'a', '0') : (1, 1),            #
 
-        ('0', 'b', '2') : (0.95, 3),
-        ('0', 'b', '0') : (0.05, 2),
+        ('0', 'b', '2') : (1, 2),
         ('2', 'b', '0') : (1, 2),
 
-        ('0', 'c', '3') : (0.95, 3),
-        ('0', 'c', '0') : (0.05, 2),
+        ('0', 'c', '3') : (1, 2),
         ('3', 'c', '0') : (1, 2),
     }
 
@@ -53,19 +51,16 @@ def build_model():
     return (robot_nodes_w_aps, robot_edges, U, initial_node, initial_label)
 
 
-def observation_func_0401(x, u=None):
+def observation_func_0105(x, u=None):
     global observation_dict
 
     for y in observation_dict.keys():
         if x in observation_dict[y]:
             return y
 
-    print("[observation_func_0401] Please check input x !")
-    raise TypeError
-
     return None
 
-def observation_inv_func_0401(y):
+def observation_inv_func_0105(y):
     return observation_dict[y]
 
 def run_2_observations_seqs(x_u_seqs):
