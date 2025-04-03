@@ -200,43 +200,33 @@ def print_policies_w_opacity(ap_4_opacity, plan_prefix, plan_suffix):
     for state_t in state_in_suffix:
         print_c("%s, %s: %s" % (str(state_t), str(plan_suffix[state_t][0]), str(plan_suffix[state_t][1]), ), color=46)
 
-def find_initial_states_for_sync_amec(prod_mdp, sync_amec):
-    initial_sync_state = []
-    for init_node in prod_mdp.graph['initial']:
-        for sync_state_t in sync_amec:
-            if sync_state_t[0] == init_node:
-                initial_sync_state.append(sync_state_t)
-    return initial_sync_state
-
-def syn_plan_prefix_in_sync_amec(prod_mdp, sync_amec, MEC, gamma):
+def syn_plan_prefix_in_sync_amec(prod_mdp, initial_subgraph, initial_sync_state, sync_amec_graph, sync_amec_3, gamma):
     # ----Synthesize optimal plan prefix to reach accepting MEC or SCC----
     # ----with bounded risk and minimal expected total cost----
     print("===========[plan prefix synthesis starts]===========")
     #
     # sf对应MEC全集
     # ip对应MEC和DRA中接收集和MEC的交集
-    sf = MEC[0]
-    ip = MEC[1]  # force convergence to ip
+    sf = sync_amec_3[0]
+    ip = sync_amec_3[1]  # force convergence to ip
     delta = 0.01
-
-    initial_sync_state = find_initial_states_for_sync_amec(prod_mdp, sync_amec)
 
     for init_node in initial_sync_state:        # prod_mdp.graph['initial']
         #
         # Compute the shortest path between source and all other nodes reachable from source.
-        path_init = single_source_shortest_path(prod_mdp, init_node)
-        print('Reachable from init size: %s' % len(list(path_init.keys())))
+        path_init = single_source_shortest_path(initial_subgraph, init_node)
+        print_c("[Prefix Synthesis] Reachable from init size: %s" % len(list(path_init.keys())), color='blue')
         #
         # 能否到达当前MEC
         if not set(path_init.keys()).intersection(sf):
-            print("Initial node can not reach sf")
+            print_c("[Prefix Synthesis] Initial node can not reach sf", color='red')
             return None, None, None, None, None, None
         #
         # path_init.keys(): 路径的初态, 和sf的差集, 求解可以到达MEC, 但是初态不在MEC内的状态
         Sn = set(path_init.keys()).difference(sf)
         # ----find bad states that can not reach MEC
-        simple_digraph = DiGraph()
-        simple_digraph.add_edges_from(((v, u) for u, v in prod_mdp.edges()))                # 原product_mdp所有的边组成的图
+        simple_digraph = networkx.DiGraph()
+        simple_digraph.add_edges_from(((v, u) for u, v in sync_amec_graph.edges()))                # 原product_mdp所有的边组成的图
         #
         # ip <- MEC[1] 这个东西应该是MEC本身的状态
         # 之所以可以用随机状态，是因为MEC内的状态是可以互相到达的，所以只要一个能到剩下都能到
@@ -1516,7 +1506,11 @@ def synthesize_full_plan_w_opacity2(mdp, task, optimizing_ap, ap_list, risk_pr, 
 
                         sync_mec_t = prod_dra_pi.project_sync_amec_back_to_mec_pi(prod_dra_pi.sync_amec_set[prod_dra_pi.current_sync_amec_index], MEC_pi)
 
-                        plan_prefix_p, prefix_cost_p, prefix_risk_p, y_in_sf_gamma, Sr_p, Sd_p = syn_plan_prefix_in_sync_amec(prod_dra_pi, prod_dra_pi.sync_amec_set[prod_dra_pi.current_sync_amec_index], sync_mec_t, risk_pr)
+                        initial_subgraph, initial_sync_state = prod_dra_pi.construct_opaque_subgraph_2_amec(prod_dra_gamma,
+                                                                                        prod_dra_pi.sync_amec_set[prod_dra_pi.current_sync_amec_index],
+                                                                                        optimizing_ap, ap_4_opacity, observation_func, ctrl_obs_dict)
+
+                        plan_prefix_p, prefix_cost_p, prefix_risk_p, y_in_sf_gamma, Sr_p, Sd_p = syn_plan_prefix_in_sync_amec(prod_dra_pi, initial_subgraph, initial_sync_state, prod_dra_pi.sync_amec_set[prod_dra_pi.current_sync_amec_index], sync_mec_t, risk_pr)
 
                         print(233)
 

@@ -85,6 +85,15 @@ def is_ap_identical(state_pi, state_gamma):
     else:
         return False
 
+def is_ap_satisfy_opacity(state_pi, state_gamma, ap_pi, ap_gamma):
+    if list(state_pi[1]).__len__() == 0 and list(state_gamma[1]).__len__() == 0:
+        return True
+    elif ap_pi in set(state_pi[1]):
+        if ap_gamma in set(state_gamma[1]):
+            return True
+        else:
+            return False
+    return True                 # 如果原状态的AP不是Pi
 
 def find_initial_state(y_in_sf_pi, y_in_sf_gamma, state_set_gamma, observation_func=observation_func_1):
     state_list = []
@@ -243,6 +252,77 @@ class product_mdp2(Product_Dra):
             print("No accepting ECs found!")
             print("Check your MDP and Task formulation")
             print("Or try the relaxed plan")
+
+    def construct_opaque_subgraph_2_amec(self, product_mdp_gamma:Product_Dra, sync_amec, ap_pi, ap_gamma, observation_func, ctrl_obs_dict):
+        #
+        # 目标是生成从初始状态到达sync_amec的通路
+        initial_sync_state = list({(a, b) for a in self.graph['initial'] for b in product_mdp_gamma.graph['initial']})
+        stack_t = [state_t for state_t in initial_sync_state]       # make a copy
+        visited = set()
+        subgraph_2_amec_t = DiGraph()
+
+        while stack_t:
+            current_state = stack_t.pop()
+            if current_state in visited:
+                continue
+            visited.add(current_state)
+
+            # 获取当前状态的出边
+            current_state_pi, current_state_gamma = current_state
+            next_state_list_pi = list(self.out_edges(current_state_pi, data=True))
+            next_state_list_gamma = list(product_mdp_gamma.out_edges(current_state_gamma, data=True))
+
+            for edge_t_pi in next_state_list_pi:
+                for edge_t_gamma in next_state_list_gamma:
+                    # 获取下一状态
+                    next_state_pi = edge_t_pi[1]
+                    next_state_gamma = edge_t_gamma[1]
+                    next_sync_state = (next_state_pi, next_state_gamma)
+
+                    # 1. 检查控制动作同步
+                    try:
+                        u_pi = next(iter(edge_t_pi[2]['prop'].keys()))
+                        u_gamma = next(iter(edge_t_gamma[2]['prop'].keys()))
+                        if isinstance(u_pi, tuple):
+                            u_pi = u_pi[0]
+                        if isinstance(u_gamma, tuple):
+                            u_gamma = u_gamma[0]
+
+                        # 如果不考虑可观性
+                        if ctrl_obs_dict == None and u_pi != u_gamma:
+                            continue
+                        # 如果考虑可观性
+                        elif u_pi != u_gamma and ctrl_obs_dict[str(u_pi)] == False and ctrl_obs_dict[u_gamma] == False:
+                            continue
+                    except (StopIteration, KeyError):
+                        continue  # 如果没有动作则跳过
+
+                    # 2. 检查观测同步
+                    if observation_func(next_state_pi[0]) != observation_func(next_state_gamma[0]):
+                        continue
+
+                    # 3. opacity requirement
+                    if not is_ap_satisfy_opacity(next_state_pi, next_state_gamma, ap_pi, ap_gamma):
+                        continue
+
+                    # 4. 构建转移属性
+                    # if is_ap_identical(next_state_pi, next_state_gamma):
+                    if True:
+                        trans_pr_cost_list = {}
+                        diff_expected_cost_list = {}
+                        for action, (prob, cost) in edge_t_pi[2]['prop'].items():
+                            diff_cost = obtain_differential_expected_cost(action, edge_t_pi, edge_t_gamma)
+                            trans_pr_cost_list[action] = (prob, cost)
+                            diff_expected_cost_list[action] = diff_cost
+
+                        # 添加转移
+                        subgraph_2_amec_t.add_edge(current_state, next_sync_state,
+                                            prop=trans_pr_cost_list,
+                                            diff_exp=diff_expected_cost_list)
+                        if next_sync_state not in sync_amec.nodes():            # append
+                            stack_t.append(next_sync_state)
+
+        return subgraph_2_amec_t, initial_sync_state
 
     def re_synthesize_sync_amec(self, y_in_sf_pi, y_in_sf_gamma, ap_pi, ap_gamma, MEC_pi, MEC_gamma, product_mdp_gamma:Product_Dra, observation_func, ctrl_obs_dict, is_re_compute_Sf=True):
         # amec:
@@ -420,7 +500,11 @@ class product_mdp2(Product_Dra):
                     if observation_func(next_state_pi[0]) != observation_func(next_state_gamma[0]):
                         continue
 
-                    # 4. 构建转移属性
+                    # 4. opacity requirement
+                    if not is_ap_satisfy_opacity(next_state_pi, next_state_gamma, ap_pi, ap_gamma):
+                        continue
+
+                    # 5. 构建转移属性
                     # if is_ap_identical(next_state_pi, next_state_gamma):
                     if True:
                         trans_pr_cost_list = {}
@@ -829,23 +913,18 @@ class product_mdp2(Product_Dra):
         mec_pi_subset_0 = []
         mec_pi_subset_1 = []
         mec_pi_subset_2 = {}
-        for u_sync, v_sync, data_sync in sync_amec.edges(data=True):
-            u_pi = u_sync[0]
-            v_pi = v_sync[0]
-            if u_pi in original_mec_pi[0]:
-                mec_pi_subset_0.append(u_sync)
-            if v_pi in original_mec_pi[0]:
-                mec_pi_subset_0.append(v_sync)
 
-            if u_pi in original_mec_pi[1]:
-                mec_pi_subset_1.append(u_sync)
-            if v_pi in original_mec_pi[1]:
-                mec_pi_subset_1.append(v_sync)
+        for sync_state_t in sync_amec.nodes():
+            state_pi = sync_state_t[0]
 
-            if u_pi in original_mec_pi[2].keys():
-                mec_pi_subset_2[u_sync] = original_mec_pi[2][u_pi]
-            if v_pi in original_mec_pi[2].keys():
-                mec_pi_subset_2[v_sync] = original_mec_pi[2][v_pi]      # TODO to check, 似乎空集全没了
+            if state_pi in original_mec_pi[0]:
+                mec_pi_subset_0.append(sync_state_t)
+
+            if state_pi in original_mec_pi[1]:
+                mec_pi_subset_1.append(sync_state_t)
+
+            if state_pi in original_mec_pi[2].keys():
+                mec_pi_subset_2[sync_state_t] = original_mec_pi[2][state_pi]        # TODO to check, 似乎空集全没了
 
         mec_pi_subset_0 = list(set(mec_pi_subset_0))
         mec_pi_subset_1 = set(mec_pi_subset_1)
