@@ -357,6 +357,117 @@ class product_mdp2(Product_Dra):
         #
         print_c("[synthesize_w_opacity] Generated sync_amec, states: %d, edges: %d" % (sync_mec_t.nodes.__len__(), sync_mec_t.edges.__len__(),))
 
+    def re_synthesize_sync_amec2(self, ap_pi, ap_gamma, MEC_pi, MEC_gamma, product_mdp_gamma:Product_Dra, observation_func, ctrl_obs_dict, is_re_compute_Sf=True):
+        mec_state_set_pi = MEC_pi[0]
+        mec_state_set_gamma = MEC_gamma[0]
+
+        stack_t = []
+        for state_pi_t in mec_state_set_pi:
+            for state_gamma_t in mec_state_set_gamma:
+                ap_state_pi    = set(state_pi_t[1])
+                ap_state_gamma = set(state_gamma_t[1])
+                if ap_pi in ap_state_pi:
+                    if ap_gamma in ap_state_gamma:
+                        stack_t.append((state_pi_t, state_gamma_t, ))
+
+        #
+        stack_t = list(set(stack_t))
+        visited = set()
+        sync_mec_t = DiGraph()
+
+        while stack_t:
+            current_state = stack_t.pop()
+            if current_state in visited:
+                continue
+            visited.add(current_state)
+
+            # 获取当前状态的出边
+            current_state_pi, current_state_gamma = current_state
+            next_state_list_pi = list(self.out_edges(current_state_pi, data=True))
+            next_state_list_gamma = list(product_mdp_gamma.out_edges(current_state_gamma, data=True))
+
+            for edge_t_pi in next_state_list_pi:
+                for edge_t_gamma in next_state_list_gamma:
+                    # 获取下一状态
+                    next_state_pi = edge_t_pi[1]
+                    next_state_gamma = edge_t_gamma[1]
+                    next_sync_state = (next_state_pi, next_state_gamma)
+
+                    # 1. 检查控制动作同步
+                    try:
+                        u_pi = next(iter(edge_t_pi[2]['prop'].keys()))
+                        u_gamma = next(iter(edge_t_gamma[2]['prop'].keys()))
+                        if isinstance(u_pi, tuple):
+                            u_pi = u_pi[0]
+                        if isinstance(u_gamma, tuple):
+                            u_gamma = u_gamma[0]
+
+                        # 如果不考虑可观性
+                        if ctrl_obs_dict == None and u_pi != u_gamma:
+                            continue
+                        # 如果考虑可观性
+                        elif u_pi != u_gamma and ctrl_obs_dict[str(u_pi)] == False and ctrl_obs_dict[u_gamma] == False:
+                            continue
+                    except (StopIteration, KeyError):
+                        continue  # 如果没有动作则跳过
+
+                    # 2. 检查状态是否在AMEC中
+                    if (next_state_pi not in mec_state_set_pi or
+                            next_state_gamma not in mec_state_set_gamma):
+                        continue
+
+                    # 3. 检查观测同步
+                    if observation_func(next_state_pi[0]) != observation_func(next_state_gamma[0]):
+                        continue
+
+                    # 4. 构建转移属性
+                    # if is_ap_identical(next_state_pi, next_state_gamma):
+                    if True:
+                        trans_pr_cost_list = {}
+                        diff_expected_cost_list = {}
+                        for action, (prob, cost) in edge_t_pi[2]['prop'].items():
+                            diff_cost = obtain_differential_expected_cost(action, edge_t_pi, edge_t_gamma)
+                            trans_pr_cost_list[action] = (prob, cost)
+                            diff_expected_cost_list[action] = diff_cost
+
+                        # 添加转移
+                        sync_mec_t.add_edge(current_state, next_sync_state,
+                                            prop=trans_pr_cost_list,
+                                            diff_exp=diff_expected_cost_list)
+                        stack_t.append(next_sync_state)
+
+        # 完成后处理
+        print_c(f"[synthesize_w_opacity] DFS completed, states: {len(sync_mec_t.nodes)}, edges: {len(sync_mec_t.edges)}",
+                color=33)
+
+        if sync_mec_t.edges:
+            # 检查强连通分量并保留最大的SCC
+            scc_list = list(nx.strongly_connected_components(sync_mec_t))
+            scc_list.sort(key=lambda x: len(x), reverse=True)
+
+            if not scc_list:
+                print_c("[synthesize_w_opacity] NO SCCs found...", color=33)
+            else:
+                # 移除非最大SCC的节点
+                largest_scc = scc_list[0]
+                nodes_to_remove = [node for scc in scc_list[1:] for node in scc]
+                num_removed = 0
+
+                for node in nodes_to_remove:
+                    if node in sync_mec_t:
+                        sync_mec_t.remove_node(node)
+                        num_removed += 1
+                        print_c(f"[synthesize_w_opacity] removing node: {node}", color=35)
+
+                print_c(f"[synthesize_w_opacity] number of states removed: {num_removed}", color=33)
+
+            # 保存结果
+            self.sync_amec_set.append(sync_mec_t)
+            self.current_sync_amec_index = len(self.sync_amec_set) - 1
+
+        print_c(f"[synthesize_w_opacity] Generated sync_amec, states: {len(sync_mec_t.nodes)}, edges: {len(sync_mec_t.edges)}")
+
+
     def re_synthesize_sync_amec_rex(self, y_in_sf_pi, y_in_sf_gamma, ap_pi, ap_gamma, MEC_pi, MEC_gamma, product_mdp_gamma:Product_Dra, observation_func, ctrl_obs_dict, is_re_compute_Sf=True):
         # amec:
         #   [0] amec
@@ -373,98 +484,106 @@ class product_mdp2(Product_Dra):
 
 
         #
-        # TODO
-        # to check
-        scc_list_pi = list(nx.strongly_connected_components(self))
-        matching_sccs = [scc for scc in scc_list_pi if scc & set(mec_state_set_pi)]
-
-        scc_list_gamma = list(nx.strongly_connected_components(product_mdp_gamma))
-        matching_sccs = [scc for scc in scc_list_gamma if scc & set(mec_state_set_gamma)]
-
-        # TODO
+        # scc_list_pi = list(nx.strongly_connected_components(self))
+        # matching_sccs = [scc for scc in scc_list_pi if scc & set(mec_state_set_pi)]
+        #
+        # scc_list_gamma = list(nx.strongly_connected_components(product_mdp_gamma))
+        # matching_sccs = [scc for scc in scc_list_gamma if scc & set(mec_state_set_gamma)]
+        #
+        #
+        # 20240403后面发现这个事情不能用笛卡尔积算,  因为笛卡尔积必须保证有一个点不动, 所以最后只能用我们自己的办法来计算
+        #
         # scc转图
         # 然后图求笛卡尔积
-
         #
-        # TODO
+        #
         # rex用subgraph计算, non-rex用scc计算
         # An end component (EC) of M is a sub-MDP (S, A) such that the digraph G (S,A) induced by (S, A) is strongly connected.
         # a strongly connected component (SCC) of the digraph G M induced by M is a set of states S ⊆ X, so that there exists a path in each direction between any pair of states in S.
         # the main difference between an MEC (S, A) and an SCC S is that the SCC does not restrict the set of actions U(s) that can be taken at each state s ∈ S.
-        subgraph_mec_pi = self.subgraph(mec_state_set_pi)
-        subgraph_mec_gamma = self.subgraph(mec_state_set_gamma)
-
-        sync_subgraph = nx.cartesian_product(subgraph_mec_pi, subgraph_mec_gamma)
-
-
-        # to remove nodes
-        node_to_remove = []
-        edge_to_remove = []
-        for sync_edge_t in sync_subgraph.edges():
-            #
-            current_state_pi    = sync_edge_t[0][0]
-            current_state_gamma = sync_edge_t[0][1]
-            next_state_pi       = sync_edge_t[1][0]
-            next_state_gamma    = sync_edge_t[1][1]
-            #
-            u_pi = get_edge_props(self, current_state_pi, next_state_pi)
-            u_gamma = get_edge_props(product_mdp_gamma, current_state_gamma, next_state_gamma)
-
-            # 作笛卡尔积的时候会有一边不走的情况, 这种是不被允许的, 因为只有控制相同才能连通
-            if u_pi.__len__() == 0 or u_gamma.__len__() == 0:
-                edge_to_remove.append(sync_edge_t)
-
-            # 要求控制相同
-            # TODO
-            # 如果控制序列分为可观和不可观, 则要求可观相同即可
-            if (u_pi.__len__() and u_gamma.__len__()):
-                intersection_t = set(u_pi[0].keys()) & set(u_gamma[0].keys())
-                if not intersection_t:
-                    edge_to_remove.append(sync_edge_t)
-
-            # 要求观测相同
-            # TODO
-            # 其实点边观测可以一起做
-            o_curr_state_pi = observation_func(current_state_pi[0])
-            o_curr_state_gamma = observation_func(current_state_gamma[0])
-            o_next_state_pi = observation_func(next_state_pi[0])
-            o_next_state_gamma = observation_func(next_state_gamma[0])
-            if o_curr_state_pi == None or o_curr_state_gamma == None or o_next_state_pi == None or o_next_state_gamma == None:
-                raise TypeError
-
-            if o_curr_state_pi != o_curr_state_gamma:
-                node_to_remove.append(sync_edge_t[0])
-            if o_next_state_pi != o_next_state_gamma:
-                node_to_remove.append(sync_edge_t[1])
-
-            # AP
-            ap_state = get_ap_from_product_mdp(current_state_pi)
-            ap_obs_state = get_ap_from_product_mdp(current_state_gamma)
-            ap_state_p = get_ap_from_product_mdp(current_state_pi)
-            ap_obs_state_p = get_ap_from_product_mdp(current_state_gamma)
-            if ap_pi in ap_state:
-                if not ap_gamma in ap_obs_state:
-                    node_to_remove.append(ap_pi)
-
-            if ap_pi in ap_state_p:
-                if not ap_gamma in ap_obs_state_p:
-                    node_to_remove.append(ap_gamma)
-
-
-
-        node_to_remove = list(set(node_to_remove))
-        edge_to_remove = list(set(edge_to_remove))
-
-        for node_t in node_to_remove:
-            try:
-                sync_subgraph.remove_node(node_t)
-            except:
-                pass
-        for edge_t in edge_to_remove:
-            try:
-                sync_subgraph.remove_edge(edge_t)
-            except:
-                pass
+        # subgraph_mec_pi = self.subgraph(mec_state_set_pi)
+        # subgraph_mec_gamma = self.subgraph(mec_state_set_gamma)
+        #
+        # sync_subgraph = nx.cartesian_product(subgraph_mec_pi, subgraph_mec_gamma)
+        #
+        # for u, v, data in sync_subgraph.edges(data=True):
+        #     node_u = u[0]
+        #     node_v = v[0]
+        #
+        #     # 获取原子图中的边属性
+        #     data_pi = subgraph_mec_pi[node_u][node_v] if subgraph_mec_pi.has_edge(node_u, node_v) else {}
+        #     data_gamma = subgraph_mec_gamma[u[1]][v[1]] if subgraph_mec_gamma.has_edge(u[1], v[1]) else {}
+        #
+        #
+        #
+        # # to remove nodes
+        # node_to_remove = []
+        # edge_to_remove = []
+        # for sync_edge_t in sync_subgraph.edges(data=True):
+        #     #
+        #     current_state_pi    = sync_edge_t[0][0]
+        #     current_state_gamma = sync_edge_t[0][1]
+        #     next_state_pi       = sync_edge_t[1][0]
+        #     next_state_gamma    = sync_edge_t[1][1]
+        #     #
+        #     u_pi = get_edge_props(self, current_state_pi, next_state_pi)
+        #     u_gamma = get_edge_props(product_mdp_gamma, current_state_gamma, next_state_gamma)
+        #
+        #     # 作笛卡尔积的时候会有一边不走的情况, 这种是不被允许的, 因为只有控制相同才能连通
+        #     if u_pi.__len__() == 0 or u_gamma.__len__() == 0:
+        #         edge_to_remove.append(sync_edge_t)
+        #
+        #     # 要求控制相同
+        #     # TODO
+        #     # 如果控制序列分为可观和不可观, 则要求可观相同即可
+        #     if (u_pi.__len__() and u_gamma.__len__()):
+        #         intersection_t = set(u_pi[0].keys()) & set(u_gamma[0].keys())
+        #         if not intersection_t:
+        #             edge_to_remove.append(sync_edge_t)
+        #
+        #     # 要求观测相同
+        #     # TODO
+        #     # 其实点边观测可以一起做
+        #     o_curr_state_pi = observation_func(current_state_pi[0])
+        #     o_curr_state_gamma = observation_func(current_state_gamma[0])
+        #     o_next_state_pi = observation_func(next_state_pi[0])
+        #     o_next_state_gamma = observation_func(next_state_gamma[0])
+        #     if o_curr_state_pi == None or o_curr_state_gamma == None or o_next_state_pi == None or o_next_state_gamma == None:
+        #         raise TypeError
+        #
+        #     if o_curr_state_pi != o_curr_state_gamma:
+        #         node_to_remove.append(sync_edge_t[0])
+        #     if o_next_state_pi != o_next_state_gamma:
+        #         node_to_remove.append(sync_edge_t[1])
+        #
+        #     # AP
+        #     ap_state = get_ap_from_product_mdp(current_state_pi)
+        #     ap_obs_state = get_ap_from_product_mdp(current_state_gamma)
+        #     ap_state_p = get_ap_from_product_mdp(current_state_pi)
+        #     ap_obs_state_p = get_ap_from_product_mdp(current_state_gamma)
+        #     if ap_pi in ap_state:
+        #         if not ap_gamma in ap_obs_state:
+        #             node_to_remove.append(ap_pi)
+        #
+        #     if ap_pi in ap_state_p:
+        #         if not ap_gamma in ap_obs_state_p:
+        #             node_to_remove.append(ap_gamma)
+        #
+        #
+        #
+        # node_to_remove = list(set(node_to_remove))
+        # edge_to_remove = list(set(edge_to_remove))
+        #
+        # for node_t in node_to_remove:
+        #     try:
+        #         sync_subgraph.remove_node(node_t)
+        #     except:
+        #         pass
+        # for edge_t in edge_to_remove:
+        #     try:
+        #         sync_subgraph.remove_edge(edge_t)
+        #     except:
+        #         pass
 
 
         #
@@ -479,7 +598,7 @@ class product_mdp2(Product_Dra):
             visited.add(current_state)
 
             if current_state[0][0] == '0' and current_state[1][0] == '0':           # for debugging: current_state[0][0] == '2' and current_state[1][0] == '3'
-                print_c("233333333333333")
+                print_c("var 1")
 
             #
             next_state_list_pi    = list(self.out_edges(current_state[0], data=True))
@@ -493,7 +612,7 @@ class product_mdp2(Product_Dra):
                     next_sync_state = (next_state_pi, next_state_gamma)
 
                     if next_state_pi[0] == '2' and next_state_gamma[0] == '3':      # for debugging
-                        print_c("233333333333333")
+                        print_c("var 2")
 
                     #
                     u_pi    = list(edge_t_pi[2]['prop'].keys())[0]
@@ -635,6 +754,96 @@ class product_mdp2(Product_Dra):
         #
         print_c("[synthesize_w_opacity] Generated sync_amec, states: %d, edges: %d" % (sync_mec_t.nodes.__len__(), sync_mec_t.edges.__len__(),))
 
+    def re_synthesize_sync_amec_rex2(self, y_in_sf_pi, y_in_sf_gamma, ap_pi, ap_gamma, MEC_pi, MEC_gamma, product_mdp_gamma:Product_Dra, observation_func, ctrl_obs_dict, is_re_compute_Sf=True):
+        # amec:
+        #   [0] amec
+        #   [1] amec ^ Ip
+        #   [2] action set
+        #
+        mec_state_set_pi = MEC_pi[0]
+        mec_state_set_gamma = MEC_gamma[0]
+
+        stack_t = find_initial_state(y_in_sf_pi, y_in_sf_gamma, list(MEC_gamma[0]), observation_func=observation_func)
+        stack_t = list(set(stack_t))
+        visited = set()
+
+        sync_mec_t = DiGraph()
+        while stack_t:
+            current_state = stack_t.pop()
+            if current_state in visited:
+                continue
+            visited.add(current_state)
+
+            next_state_list_pi = list(self.out_edges(current_state[0], data=True))
+            next_state_list_gamma = list(product_mdp_gamma.out_edges(current_state[1], data=True))
+
+            for edge_t_pi in next_state_list_pi:
+                for edge_t_gamma in next_state_list_gamma:
+                    next_state_pi = edge_t_pi[1]
+                    next_state_gamma = edge_t_gamma[1]
+                    next_sync_state = (next_state_pi, next_state_gamma)
+
+                    # 1. 检查控制观测同步
+                    u_pi = edge_t_pi[2]['prop'].keys()[0] if edge_t_pi[2]['prop'] else None
+                    u_gamma = edge_t_gamma[2]['prop'].keys()[0] if edge_t_gamma[2]['prop'] else None
+                    if isinstance(u_pi, tuple):
+                        u_pi = u_pi[0]
+                    if isinstance(u_gamma, tuple):
+                        u_gamma = u_gamma[0]
+
+                    if u_pi != u_gamma:
+                        if ctrl_obs_dict is None:
+                            continue
+                        if (str(u_pi) not in ctrl_obs_dict or str(u_gamma) not in ctrl_obs_dict or
+                                (not ctrl_obs_dict[str(u_pi)] and not ctrl_obs_dict[str(u_gamma)])):
+                            continue
+
+                    # 2. 检查状态是否在 AMEC 中
+                    if next_state_pi not in mec_state_set_pi or next_state_gamma not in mec_state_set_gamma:
+                        continue
+
+                    # 3. 观测同步检查
+                    obs_pi = observation_func(next_state_pi[0])
+                    obs_gamma = observation_func(next_state_gamma[0])
+                    if obs_pi != obs_gamma:
+                        continue  # 或赋予高代价：diff_expected_cost = 1.e6
+
+                    # 4. AP 同步检查（如需）
+                    # if not is_ap_identical(next_state_pi, next_state_gamma):
+                    #     continue
+
+                    # 添加转移
+                    trans_pr_cost_list = {
+                        action: (prob, cost)
+                        for action, (prob, cost) in edge_t_pi[2]['prop'].items()
+                    }
+                    diff_expected_cost = obtain_differential_expected_cost(...)
+                    sync_mec_t.add_edge(current_state, next_sync_state,
+                                        prop=trans_pr_cost_list,
+                                        diff_exp=diff_expected_cost)
+                    stack_t.append(next_sync_state)
+
+
+    def project_sync_amec_back_to_mec_pi(self, sync_amec, original_mec_pi):
+
+        mec_pi_subset_0 = []
+        mec_pi_subset_1 = []
+        mec_pi_subset_2 = {}
+        for u_sync, v_sync, data_sync in sync_amec.edges(data=True):
+            u_pi = u_sync[0]
+            if u_pi in original_mec_pi[0]:
+                mec_pi_subset_0.append(u_pi)
+
+            if u_pi in original_mec_pi[1]:
+                mec_pi_subset_1.append(u_pi)
+
+            if u_pi in original_mec_pi[2].keys():
+                mec_pi_subset_2[u_pi] = original_mec_pi[2][u_pi]
+
+        mec_pi_subset_0 = list(set(mec_pi_subset_0))
+        mec_pi_subset_1 = set(mec_pi_subset_1)
+
+        return [mec_pi_subset_0, mec_pi_subset_1, mec_pi_subset_2]
 
     def execution(self, best_all_plan, total_T, state_seq, label_seq):
         # ----plan execution with or without given observation----
