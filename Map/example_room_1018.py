@@ -18,6 +18,8 @@ observation_dict = {
     'x': ['7'],
 }
 
+control_observable_dict = None
+
 def build_model():
 
     global robot_nodes_w_aps, robot_edges, U, initial_node, initial_label

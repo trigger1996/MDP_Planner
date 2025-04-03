@@ -17,6 +17,14 @@ observation_dict = {
     'w': ['2', '3'],
 }
 
+# control_observable_dict = {
+#     'a' : False,
+#     'b' : False,
+#     'c' : False
+#
+# }
+control_observable_dict = None
+
 def build_model():
 
     global robot_nodes_w_aps, robot_edges, U, initial_node, initial_label
@@ -33,13 +41,13 @@ def build_model():
         ('0', 'a', '1') : (1, 1),            # gather
         ('1', 'a', '0') : (1, 1),            #
 
-        ('0', 'b', '2') : (0.95, 3),
+        ('0', 'b', '2') : (0.5, 3),
         ('0', 'b', '0') : (0.05, 2),
         ('2', 'b', '0') : (1, 2),
 
-        ('0', 'c', '3') : (0.95, 3),
-        ('0', 'c', '0') : (0.05, 2),
-        ('3', 'c', '0') : (1, 2),
+        ('0', 'b', '3') : (0.4, 3),
+        ('0', 'b', '0') : (0.05, 2),
+        ('3', 'b', '0') : (1, 2),
     }
 
     #

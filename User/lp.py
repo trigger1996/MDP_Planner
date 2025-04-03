@@ -1146,7 +1146,7 @@ def syn_full_plan_repeated(prod_mdp, gamma, opt_prop, alpha=1):
         print("No valid plan found")
         return None
 
-def synthesize_full_plan_w_opacity(mdp, task, optimizing_ap, ap_list, risk_pr, differential_exp_cost, observation_func, alpha=1, is_enable_inter_state_constraints=True):
+def synthesize_full_plan_w_opacity(mdp, task, optimizing_ap, ap_list, risk_pr, differential_exp_cost, observation_func, ctrl_obs_dict, alpha=1, is_enable_inter_state_constraints=True):
     t2 = time.time()
 
     task_pi = task + ' & GF ' + optimizing_ap
@@ -1201,7 +1201,7 @@ def synthesize_full_plan_w_opacity(mdp, task, optimizing_ap, ap_list, risk_pr, d
                                 prod_dra_gamma, MEC_gamma, risk_pr)
 
                             #prod_dra_pi.re_synthesize_sync_amec(y_in_sf, y_in_sf_gamma, optimizing_ap, ap_4_opacity MEC_pi, MEC_gamma, prod_dra_gamma, observation_func=observation_func)
-                            prod_dra_pi.re_synthesize_sync_amec_rex(y_in_sf, y_in_sf_gamma, optimizing_ap, ap_4_opacity, MEC_pi, MEC_gamma, prod_dra_gamma, observation_func=observation_func)
+                            prod_dra_pi.re_synthesize_sync_amec_rex(y_in_sf, y_in_sf_gamma, optimizing_ap, ap_4_opacity, MEC_pi, MEC_gamma, prod_dra_gamma, observation_func=observation_func, ctrl_obs_dict=ctrl_obs_dict)
 
                             # LP
                             plan_suffix, suffix_cost, suffix_risk, suffix_opacity_threshold = synthesize_suffix_cycle_in_sync_amec(prod_dra_pi, prod_dra_pi.sync_amec_set[prod_dra_pi.current_sync_amec_index], MEC_pi, y_in_sf, S_pi, differential_exp_cost)

@@ -19,6 +19,15 @@ observation_dict = {
     'y': ['9', '10'],
 }
 
+# True = Observable
+control_observable_dict = {
+    'a' : False,
+    'b' : False,
+    'c' : True,
+    'd' : True
+
+}
+
 def build_model():
 
     global robot_nodes_w_aps, robot_edges, U, initial_node, initial_label

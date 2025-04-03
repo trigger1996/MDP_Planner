@@ -244,7 +244,7 @@ class product_mdp2(Product_Dra):
             print("Check your MDP and Task formulation")
             print("Or try the relaxed plan")
 
-    def re_synthesize_sync_amec(self, y_in_sf_pi, y_in_sf_gamma, ap_pi, ap_gamma, MEC_pi, MEC_gamma, product_mdp_gamma:Product_Dra, observation_func=observation_func_2, is_re_compute_Sf=True):
+    def re_synthesize_sync_amec(self, y_in_sf_pi, y_in_sf_gamma, ap_pi, ap_gamma, MEC_pi, MEC_gamma, product_mdp_gamma:Product_Dra, observation_func, ctrl_obs_dict, is_re_compute_Sf=True):
         # amec:
         #   [0] amec
         #   [1] amec ^ Ip
@@ -357,7 +357,7 @@ class product_mdp2(Product_Dra):
         #
         print_c("[synthesize_w_opacity] Generated sync_amec, states: %d, edges: %d" % (sync_mec_t.nodes.__len__(), sync_mec_t.edges.__len__(),))
 
-    def re_synthesize_sync_amec_rex(self, y_in_sf_pi, y_in_sf_gamma, ap_pi, ap_gamma, MEC_pi, MEC_gamma, product_mdp_gamma:Product_Dra, observation_func=observation_func_2, is_re_compute_Sf=True):
+    def re_synthesize_sync_amec_rex(self, y_in_sf_pi, y_in_sf_gamma, ap_pi, ap_gamma, MEC_pi, MEC_gamma, product_mdp_gamma:Product_Dra, observation_func, ctrl_obs_dict, is_re_compute_Sf=True):
         # amec:
         #   [0] amec
         #   [1] amec ^ Ip
@@ -478,6 +478,9 @@ class product_mdp2(Product_Dra):
                 continue
             visited.add(current_state)
 
+            if current_state[0][0] == '0' and current_state[1][0] == '0':           # for debugging: current_state[0][0] == '2' and current_state[1][0] == '3'
+                print_c("233333333333333")
+
             #
             next_state_list_pi    = list(self.out_edges(current_state[0], data=True))
             next_state_list_gamma = list(product_mdp_gamma.out_edges(current_state[1], data=True))
@@ -488,11 +491,22 @@ class product_mdp2(Product_Dra):
                     next_state_pi    = edge_t_pi[1]
                     next_state_gamma = edge_t_gamma[1]
                     next_sync_state = (next_state_pi, next_state_gamma)
+
+                    if next_state_pi[0] == '2' and next_state_gamma[0] == '3':      # for debugging
+                        print_c("233333333333333")
+
                     #
                     u_pi    = list(edge_t_pi[2]['prop'].keys())[0]
                     u_gamma = list(edge_t_gamma[2]['prop'].keys())[0]
+                    if type(u_pi) == tuple:
+                        u_pi = u_pi[0]
+                    if type(u_gamma) == tuple:
+                        u_gamma = u_gamma[0]
                     #
-                    if u_pi != u_gamma:
+
+                    if ctrl_obs_dict == None and u_pi != u_gamma:
+                        continue
+                    elif u_pi != u_gamma and ctrl_obs_dict[str(u_pi)] == False and ctrl_obs_dict[u_gamma] == False:
                         continue
                     #
                     is_next_state_pi_in_amec    = next_state_pi    in mec_state_set_pi
