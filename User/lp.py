@@ -493,41 +493,48 @@ def syn_plan_prefix_in_sync_amec(prod_mdp, initial_subgraph, initial_sync_state,
                         norm += 0.                              # now, Y[(s, u)] is not considered as a feasible solution for opacity
                     else:
                         norm += Y[(s, u)].solution_value()
-                for u in U_total:
-                    U.append(u)
-                    if type(Y[(s, u)]) != float:
-                        if norm > 0.01:
+                #
+                # TODO
+                if norm > 0.01:
+                    for u in U_total:
+                        U.append(u)
+                        if type(Y[(s, u)]) != float:
                             P.append(Y[(s, u)].solution_value()/norm)
-                        else:
-                            # TODO
-                            # 不再使用round robin
-                            path_t = networkx.single_source_shortest_path(initial_subgraph, s)
-                            reachable_set_t = set(path_t).intersection(set(sf))
-                            dist_val_dict = {}
-                            min_dist = 1e6
-                            min_dist_tgt = None
-                            for tgt_t in reachable_set_t:
-                                val_t = networkx.shortest_path_length(initial_subgraph, s, tgt_t, weight=exp_weight)
-                                dist_val_dict[tgt_t] = val_t
-                                if val_t < min_dist and len(path_t[tgt_t]) > 1:
-                                    successor_state = path_t[tgt_t][1]
-                                    edge_data = initial_subgraph.edges[s, successor_state]['prop']
-                                    #
-                                    if u in edge_data.keys():
-                                        min_dist = val_t
-                                        min_dist_tgt = tgt_t
-                            #
-                            min_dist_target = min(dist_val_dict, key=dist_val_dict.get)
-                            #
-                            if len(path_t[min_dist_target]) > 1:
-                                successor_state = path_t[min_dist_target][1]
-                                edge_data = initial_subgraph.edges[s, successor_state]
-                                P.append(1.0/len(edge_data['prop'].keys()))
-                            else:
-                                # the old round_robin
-                                P.append(1.0/len(U_total))
+                else:
+                    path_t = networkx.single_source_shortest_path(initial_subgraph, s)
+                    reachable_set_t = set(path_t).intersection(set(sf))
+                    dist_val_dict = {}
+                    for tgt_t in reachable_set_t:
+                        dist_val_dict[tgt_t] = networkx.shortest_path_length(initial_subgraph, s, tgt_t,
+                                                                             weight=exp_weight)
+                    #
+                    min_dist_target = min(dist_val_dict, key=dist_val_dict.get)
+                    #
+                    if len(path_t[min_dist_target]) > 1:
+                        successor_state = path_t[min_dist_target][1]
+                        edge_data = initial_subgraph.edges[s, successor_state]
+                        for u_p in edge_data['prop'].keys():
+                            U.append(u_p)
+                            P.append(1.0 / len(edge_data['prop'].keys()))
+                        for u_p in U_total:
+                            if u_p in edge_data['prop'].keys():
+                                continue
+                            U.append(u_p)
+                            P.append(0.)
                     else:
-                        P.append(0.)
+                        # the old round_robin
+                        U.append(U_total)
+                        P.append(1.0 / len(U_total))
+                #
+                # for u in U_total:
+                #     U.append(u)
+                #     if type(Y[(s, u)]) != float:
+                #         if norm > 0.01:
+                #             P.append(Y[(s, u)].solution_value()/norm)
+                #         else:
+                #             P.append(1.0/len(U_total))
+                #     else:
+                #         P.append(0.)
                 plan_prefix[s] = [U, P]
             print("----Prefix plan generated")
             cost = prefix_solver.Objective().Value()
