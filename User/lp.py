@@ -1,3 +1,5 @@
+import networkx as nx
+
 from MDP_TG import lp
 from MDP_TG.dra import Dra, Product_Dra
 from MDP_TG.lp import find_twin_states, find_original_states, find_corresponding_outgoing_states, find_corresponding_incoming_states, is_state_equal
@@ -10,7 +12,7 @@ from copy import deepcopy
 from collections import defaultdict
 import random
 from ortools.linear_solver import pywraplp
-from networkx import single_source_shortest_path
+from networkx import single_source_shortest_path, single_target_shortest_path
 
 from subprocess import check_output
 from User.vis2  import print_c
@@ -200,6 +202,13 @@ def print_policies_w_opacity(ap_4_opacity, plan_prefix, plan_suffix):
     for state_t in state_in_suffix:
         print_c("%s, %s: %s" % (str(state_t), str(plan_suffix[state_t][0]), str(plan_suffix[state_t][1]), ), color=46)
 
+def exp_weight(u, v, d):
+    val_list = []
+    for u_t in d['prop'].keys():
+        val_t = d['prop'][u_t][0] * d['prop'][u_t][1]
+        val_list.append(val_t)
+    return min(val_list)
+
 def syn_plan_prefix_in_sync_amec(prod_mdp, initial_subgraph, initial_sync_state, sync_amec_graph, sync_amec_3, gamma):
     # ----Synthesize optimal plan prefix to reach accepting MEC or SCC----
     # ----with bounded risk and minimal expected total cost----
@@ -225,29 +234,48 @@ def syn_plan_prefix_in_sync_amec(prod_mdp, initial_subgraph, initial_sync_state,
         # path_init.keys(): 路径的初态, 和sf的差集, 求解可以到达MEC, 但是初态不在MEC内的状态
         Sn = set(path_init.keys()).difference(sf)
         # ----find bad states that can not reach MEC
-        simple_digraph = networkx.DiGraph()
-        simple_digraph.add_edges_from(((v, u) for u, v in sync_amec_graph.edges()))                # 原product_mdp所有的边组成的图
+        #simple_digraph = networkx.DiGraph()
+        #simple_digraph.add_edges_from(((v, u) for u, v in sync_amec_graph.edges()))                # 原product_mdp所有的边组成的图
+        #simple_digraph.add_edges_from(((v, u) for u, v in initial_subgraph.edges()))               # TODO
         #
         # ip <- MEC[1] 这个东西应该是MEC本身的状态
         # 之所以可以用随机状态，是因为MEC内的状态是可以互相到达的，所以只要一个能到剩下都能到
         Sd = set()
         Sr = set()
+        Sr_good = set()
+        Sr_bad  = set()
         for state_ip_t in ip:
 
-            path = single_source_shortest_path(simple_digraph, state_ip_t)                      # path = single_source_shortest_path(simple_digraph, random.sample(ip, 1)[0])                                     # 为什么这边要随机初始状态?
+            #path_inv = single_source_shortest_path(simple_digraph, state_ip_t)                      # path = single_source_shortest_path(simple_digraph, random.sample(ip, 1)[0])                                     # 为什么这边要随机初始状态?
+            path = networkx.single_target_shortest_path(initial_subgraph, target=state_ip_t)         # 哦其实原来的代码是对的, 上面建立的是一个反向图
+            #
+            # Added
+            path_p = networkx.single_target_shortest_path(sync_amec_graph, target=state_ip_t)
+            #
+            # for debugging
+            #diff_1 = set(path_inv.keys()) - set(path.keys())
+            #diff_2 = set(path.keys()) - set(path_inv.keys())
+            #
             reachable_set = set(path.keys())
             print('States that can reach sf, size: %s' % str(len(reachable_set)))
             Sd = Sn.difference(reachable_set)                                                   # Sn \ { 可达状态 } -> 不可以到达MEC的状态,  可以由初态s0到达, 但不可到达MEC的状态
             Sr = Sn.intersection(reachable_set)                                                 # Sn ^ { 可达状态 } -> 可以到达MEC的所有状态, 论文里是所有可以由s0到达的状态
 
+            reachable_set_p = set(path_p.keys())
+            Sr_good = Sn.intersection(reachable_set_p)
+
             # Added
-            if not Sr.__len__():
-                continue
-            else:
+            if Sr_good.__len__() and Sr.__len__():
                 break
+            else:
+                continue
 
         if not Sr.__len__():
             print_c("[Warning] initial states are not compatible with Ip ...", color='yellow')
+            Sr.add(init_node)
+
+        if not Sr_good.__len__():
+            print_c("[Warning] initial GOOD states are not compatible with Ip ...", color='yellow')
             #return None, None, None, None, None, None
             # TODO
             # 问题： 初始状态在AMEC内
@@ -255,7 +283,9 @@ def syn_plan_prefix_in_sync_amec(prod_mdp, initial_subgraph, initial_sync_state,
             # PLAN B 直接不要Prefix, 在suffix内处理这个状态, 但但是会怕其他问题
             #
             # PLAN A
-            Sr.add(init_node)
+            Sr_good.add(init_node)
+
+        Sr_bad = Sr.difference(Sr_good)
 
         # #--------------
         print('Sn size: %s; Sd inside size: %s; Sr inside size: %s' %
@@ -272,8 +302,8 @@ def syn_plan_prefix_in_sync_amec(prod_mdp, initial_subgraph, initial_sync_state,
             # create variables
             for s in Sr:
                 for sync_u, sync_v, attr in initial_subgraph.edges(s, data=True):
-                    if not attr['is_opacity']:
-                        continue
+                    # if not attr['is_opacity']:
+                    #     continue
                     act_pi_list = list(attr['prop'].keys())
                     for u in act_pi_list:
                         Y[(s, u)] = prefix_solver.NumVar(
@@ -288,8 +318,8 @@ def syn_plan_prefix_in_sync_amec(prod_mdp, initial_subgraph, initial_sync_state,
             for s in Sr:
                 for t in initial_subgraph.successors(s):
                     is_opacity = initial_subgraph[s][t]['is_opacity']
-                    if not is_opacity:
-                        continue
+                    # if not is_opacity:
+                    #     continue
                     #
                     # s -> t, \forall s \in Sr 相当于这里直接把图给进去了?
                     prop = initial_subgraph[s][t]['prop'].copy()
@@ -314,9 +344,9 @@ def syn_plan_prefix_in_sync_amec(prod_mdp, initial_subgraph, initial_sync_state,
             y_to_sf = 0.0
             for s in Sr:
                 for t in initial_subgraph.successors(s):
-                    is_opacity = initial_subgraph[s][t]['is_opacity']
-                    if not is_opacity:
-                        continue
+                    # is_opacity = initial_subgraph[s][t]['is_opacity']
+                    # if not is_opacity:
+                    #     continue
                     if t in Sd:
                         prop = initial_subgraph[s][t]['prop'].copy()
                         for u in prop.keys():
@@ -327,6 +357,10 @@ def syn_plan_prefix_in_sync_amec(prod_mdp, initial_subgraph, initial_sync_state,
                         for u in prop.keys():
                             pe = prop[u][0]
                             y_to_sf += Y[(s, u)]*pe                                 # Sf <- MEC[0]
+                    else:
+                        # TODO, critical
+                        # 如果这些状态被搞成round robin那就
+                        print(233)
             # prefix_solver.Add(y_to_sf+y_to_sd >= delta)                           # old result
             #
             # delta = 0.01, 松弛变量?
@@ -338,15 +372,63 @@ def syn_plan_prefix_in_sync_amec(prod_mdp, initial_subgraph, initial_sync_state,
             # 这么干是make sense的
             # 但是为什么不能 y_to_sf >= 1 - gamma - delta?
             prefix_solver.Add(y_to_sf >= (1.0-gamma-delta)*(y_to_sf+y_to_sd))
-            print('Risk constraint added')
+            print_c('Risk constraint added')
+            #
+            # TODO 这整段不能用可能和观测概率有关系, 必须先保证观测器性质, 才能用来做优化, 比如概率和为1
+            # for s in Sr:
+            #     if s in Sr_good:
+            #         pass
+            #     elif s in Sr_bad:
+            #         node_y_in = list()
+            #         node_y_out = list()
+            #
+            #         for sync_u, sync_v, attr in initial_subgraph.edges(s, data=True):
+            #             if not (sync_v in sf or sync_v in Sr_good):
+            #                 continue
+            #             act_pi_list = list(attr['prop'].keys())
+            #             for u in act_pi_list:
+            #                 #node_y_out += Y[(s, u)]
+            #                 node_y_out.append(Y[(s, u)])
+            #         #
+            #         # for u in initial_subgraph.nodes[s]['act']:
+            #         #     node_y_out += Y[(s, u)]
+            #         #
+            #         for f in initial_subgraph.predecessors(s):
+            #             if f in Sr:
+            #                 prop = initial_subgraph[f][s]['prop'].copy()
+            #                 # is_opacity = initial_subgraph[f][s]['is_opacity']
+            #                 # if not is_opacity:
+            #                 #     continue
+            #                 for uf in prop.keys():
+            #                     #node_y_in += Y[(f, uf)] * prop[uf][0]
+            #                     node_y_in.append((Y[(f, uf)], prop[uf][0],))
+            #
+            #         #if (type(node_y_in) == float and node_y_in != 0.0) and (type(node_y_out) == float and node_y_out != 0.0):
+            #         # if (type(node_y_in) != float and type(node_y_out) != float) or (type(node_y_in) != float and node_y_out != 0.0) or (type(node_y_out) != float and node_y_in != 0.0):
+            #         #     print_c("constraint added: " + str(node_y_in) + " == " + str(node_y_out))
+            #         #     prefix_solver.Add(node_y_in == node_y_out)
+            #         node_y_in = list(set(node_y_in))
+            #         node_y_out = list(set(node_y_out))          # 核心目的在这里, 主要是为了避免重复项
+            #         lhs = 0.
+            #         rhs = 0.
+            #         for y_in_t in node_y_in:
+            #             if type(y_in_t) != float:
+            #                 lhs += y_in_t[0] * y_in_t[1]
+            #         for y_out_t in node_y_out:
+            #             if type(y_out_t) != float:
+            #                 rhs += y_out_t
+            #         if (type(lhs) != float and type(rhs) != float) or (type(lhs) != float and rhs != 0.0) or (type(rhs) != float and lhs != 0.0):
+            #             print_c("constraint added: " + str(lhs) + " == " + str(rhs))
+            #             prefix_solver.Add(lhs == rhs)
+            # print_c('Recovery constraint added')
             # --------------------
             for t in Sr:
                 node_y_in = 0.0
                 node_y_out = 0.0
 
                 for sync_u, sync_v, attr in initial_subgraph.edges(t, data=True):
-                    if not attr['is_opacity']:
-                        continue
+                    # if not attr['is_opacity']:
+                    #     continue
                     act_pi_list = list(attr['prop'].keys())
                     for u in act_pi_list:
                         node_y_out += Y[(t, u)]
@@ -357,9 +439,9 @@ def syn_plan_prefix_in_sync_amec(prod_mdp, initial_subgraph, initial_sync_state,
                 for f in initial_subgraph.predecessors(t):
                     if f in Sr:
                         prop = initial_subgraph[f][t]['prop'].copy()
-                        is_opacity = initial_subgraph[f][t]['is_opacity']
-                        if not is_opacity:
-                            continue
+                        # is_opacity = initial_subgraph[f][t]['is_opacity']
+                        # if not is_opacity:
+                        #     continue
                         for uf in prop.keys():
                             node_y_in += Y[(f, uf)]*prop[uf][0]
                 #
@@ -417,7 +499,33 @@ def syn_plan_prefix_in_sync_amec(prod_mdp, initial_subgraph, initial_sync_state,
                         if norm > 0.01:
                             P.append(Y[(s, u)].solution_value()/norm)
                         else:
-                            P.append(1.0/len(U_total))
+                            # TODO
+                            # 不再使用round robin
+                            path_t = networkx.single_source_shortest_path(initial_subgraph, s)
+                            reachable_set_t = set(path_t).intersection(set(sf))
+                            dist_val_dict = {}
+                            min_dist = 1e6
+                            min_dist_tgt = None
+                            for tgt_t in reachable_set_t:
+                                val_t = networkx.shortest_path_length(initial_subgraph, s, tgt_t, weight=exp_weight)
+                                dist_val_dict[tgt_t] = val_t
+                                if val_t < min_dist and len(path_t[tgt_t]) > 1:
+                                    successor_state = path_t[tgt_t][1]
+                                    edge_data = initial_subgraph.edges[s, successor_state]['prop']
+                                    #
+                                    if u in edge_data.keys():
+                                        min_dist = val_t
+                                        min_dist_tgt = tgt_t
+                            #
+                            min_dist_target = min(dist_val_dict, key=dist_val_dict.get)
+                            #
+                            if len(path_t[min_dist_target]) > 1:
+                                successor_state = path_t[min_dist_target][1]
+                                edge_data = initial_subgraph.edges[s, successor_state]
+                                P.append(1.0/len(edge_data['prop'].keys()))
+                            else:
+                                # the old round_robin
+                                P.append(1.0/len(U_total))
                     else:
                         P.append(0.)
                 plan_prefix[s] = [U, P]
