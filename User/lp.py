@@ -301,13 +301,16 @@ def syn_plan_prefix_in_sync_amec(prod_mdp, initial_subgraph, initial_sync_state,
             prefix_solver = pywraplp.Solver.CreateSolver('GLOP')
             # create variables
             for s in Sr:
+
+                act_pi_list = []
                 for sync_u, sync_v, attr in initial_subgraph.edges(s, data=True):
                     # if not attr['is_opacity']:
                     #     continue
-                    act_pi_list = list(attr['prop'].keys())
-                    for u in act_pi_list:
-                        Y[(s, u)] = prefix_solver.NumVar(
-                            0, 1000, 'y[(%s, %s)]' % (s, u))  # 下界，上界，名称
+                    act_pi_list += list(attr['prop'].keys())
+                act_pi_list = list(set(act_pi_list))
+                for u in act_pi_list:
+                    Y[(s, u)] = prefix_solver.NumVar(
+                        0, 1000, 'y[(%s, %s)]' % (s, u))  # 下界，上界，名称
                 #
                 # for u in initial_subgraph.nodes[s]['act'].copy():
                 #     Y[(s, u)] = prefix_solver.NumVar(
@@ -360,7 +363,8 @@ def syn_plan_prefix_in_sync_amec(prod_mdp, initial_subgraph, initial_sync_state,
                     else:
                         # TODO, critical
                         # 如果这些状态被搞成round robin那就
-                        print(233)
+                        #print(233)
+                        pass
             # prefix_solver.Add(y_to_sf+y_to_sd >= delta)                           # old result
             #
             # delta = 0.01, 松弛变量?
@@ -373,84 +377,71 @@ def syn_plan_prefix_in_sync_amec(prod_mdp, initial_subgraph, initial_sync_state,
             # 但是为什么不能 y_to_sf >= 1 - gamma - delta?
             prefix_solver.Add(y_to_sf >= (1.0-gamma-delta)*(y_to_sf+y_to_sd))
             print_c('Risk constraint added')
-            #
-            # TODO 这整段不能用可能和观测概率有关系, 必须先保证观测器性质, 才能用来做优化, 比如概率和为1
-            # for s in Sr:
-            #     if s in Sr_good:
-            #         pass
-            #     elif s in Sr_bad:
-            #         node_y_in = list()
-            #         node_y_out = list()
-            #
-            #         for sync_u, sync_v, attr in initial_subgraph.edges(s, data=True):
-            #             if not (sync_v in sf or sync_v in Sr_good):
-            #                 continue
-            #             act_pi_list = list(attr['prop'].keys())
-            #             for u in act_pi_list:
-            #                 #node_y_out += Y[(s, u)]
-            #                 node_y_out.append(Y[(s, u)])
-            #         #
-            #         # for u in initial_subgraph.nodes[s]['act']:
-            #         #     node_y_out += Y[(s, u)]
-            #         #
-            #         for f in initial_subgraph.predecessors(s):
-            #             if f in Sr:
-            #                 prop = initial_subgraph[f][s]['prop'].copy()
-            #                 # is_opacity = initial_subgraph[f][s]['is_opacity']
-            #                 # if not is_opacity:
-            #                 #     continue
-            #                 for uf in prop.keys():
-            #                     #node_y_in += Y[(f, uf)] * prop[uf][0]
-            #                     node_y_in.append((Y[(f, uf)], prop[uf][0],))
-            #
-            #         #if (type(node_y_in) == float and node_y_in != 0.0) and (type(node_y_out) == float and node_y_out != 0.0):
-            #         # if (type(node_y_in) != float and type(node_y_out) != float) or (type(node_y_in) != float and node_y_out != 0.0) or (type(node_y_out) != float and node_y_in != 0.0):
-            #         #     print_c("constraint added: " + str(node_y_in) + " == " + str(node_y_out))
-            #         #     prefix_solver.Add(node_y_in == node_y_out)
-            #         node_y_in = list(set(node_y_in))
-            #         node_y_out = list(set(node_y_out))          # 核心目的在这里, 主要是为了避免重复项
-            #         lhs = 0.
-            #         rhs = 0.
-            #         for y_in_t in node_y_in:
-            #             if type(y_in_t) != float:
-            #                 lhs += y_in_t[0] * y_in_t[1]
-            #         for y_out_t in node_y_out:
-            #             if type(y_out_t) != float:
-            #                 rhs += y_out_t
-            #         if (type(lhs) != float and type(rhs) != float) or (type(lhs) != float and rhs != 0.0) or (type(rhs) != float and lhs != 0.0):
-            #             print_c("constraint added: " + str(lhs) + " == " + str(rhs))
-            #             prefix_solver.Add(lhs == rhs)
-            # print_c('Recovery constraint added')
             # --------------------
-            for t in Sr:
-                node_y_in = 0.0
-                node_y_out = 0.0
-
-                for sync_u, sync_v, attr in initial_subgraph.edges(t, data=True):
-                    # if not attr['is_opacity']:
-                    #     continue
-                    act_pi_list = list(attr['prop'].keys())
-                    for u in act_pi_list:
-                        node_y_out += Y[(t, u)]
-                #
-                # for u in initial_subgraph.nodes[t]['act']:
-                #     node_y_out += Y[(t, u)]
-                #
-                for f in initial_subgraph.predecessors(t):
-                    if f in Sr:
-                        prop = initial_subgraph[f][t]['prop'].copy()
-                        # is_opacity = initial_subgraph[f][t]['is_opacity']
-                        # if not is_opacity:
+            for s in Sr:
+                node_y_in = 0.
+                node_y_out = 0.
+                if s in Sr_good:
+                    act_pi_list = []
+                    for sync_u, sync_v, attr in initial_subgraph.edges(s, data=True):
+                        # if not attr['is_opacity']:
                         #     continue
-                        for uf in prop.keys():
-                            node_y_in += Y[(f, uf)]*prop[uf][0]
-                #
-                # 对应论文中公式 (8c)
-                # 其实可以理解为, 初始状态in_flow就是1? node_y_in = 0
-                if t == init_node:
-                    prefix_solver.Add(node_y_out == 1.0 + node_y_in)
-                else:
-                    prefix_solver.Add(node_y_out == node_y_in)
+                        act_pi_list += list(attr['prop'].keys())
+                    act_pi_list = list(set(act_pi_list))
+                    for u in act_pi_list:
+                        node_y_out += Y[(s, u)]
+                    #
+                    # for u in initial_subgraph.nodes[s]['act']:
+                    #     node_y_out += Y[(s, u)]
+                    #
+                    for f in initial_subgraph.predecessors(s):
+                        if f in Sr:
+                            prop = initial_subgraph[f][s]['prop'].copy()
+                            # is_opacity = initial_subgraph[f][s]['is_opacity']
+                            # if not is_opacity:
+                            #     continue
+                            for uf in prop.keys():
+                                node_y_in += Y[(f, uf)] * prop[uf][0]
+                    #
+                    # 对应论文中公式 (8c)
+                    # 其实可以理解为, 初始状态in_flow就是1? node_y_in = 0
+                    if s == init_node:
+                        prefix_solver.Add(node_y_out == 1.0 + node_y_in)
+                        print_c("[prefix solver] Initial flow constraint added: " + str(node_y_in) + " + 1.0 == " + str(node_y_out), color='blue')
+                    else:
+                        prefix_solver.Add(node_y_out == node_y_in)
+                        print_c("[prefix solver] Middle flow constraint added: " + str(node_y_in) + " == " + str(node_y_out), color='green')
+                elif s in Sr_bad:
+                    act_pi_list = []
+                    for sync_u, sync_v, attr in initial_subgraph.edges(s, data=True):
+                        # if not attr['is_opacity']:
+                        #     continue
+                        act_pi_list += list(attr['prop'].keys())
+                    act_pi_list = list(set(act_pi_list))
+                    for u in act_pi_list:
+                        node_y_out += Y[(s, u)]
+                    #
+                    # for u in initial_subgraph.nodes[s]['act']:
+                    #     node_y_out += Y[(s, u)]
+                    #
+                    for f in initial_subgraph.predecessors(s):
+                        if f in Sr:
+                            prop = initial_subgraph[f][s]['prop'].copy()
+                            # is_opacity = initial_subgraph[f][s]['is_opacity']
+                            # if not is_opacity:
+                            #     continue
+                            for uf in prop.keys():
+                                node_y_in += Y[(f, uf)] * prop[uf][0]
+
+                    if (type(node_y_in) != float and type(node_y_out) != float) or (type(node_y_in) != float and node_y_out != 0.0) or (type(node_y_out) != float and node_y_in != 0.0):
+                        if s == init_node:
+                            prefix_solver.Add(node_y_in == 1.0 + node_y_out)
+                            print_c("[prefix solver] Recovery constraint added: " + str(node_y_in) + " ==  1.0 + " + str(node_y_out), color='magenta')
+                        else:
+                            prefix_solver.Add(node_y_in == node_y_out)
+                            print_c("[prefix solver] Recovery constraint added: " + str(node_y_in) + " == " + str(node_y_out), color='magenta')
+            print_c('Recovery constraint added')
+
             print('Initial node flow balanced')
             print('Middle node flow balanced')
             # ----------------------
@@ -459,6 +450,12 @@ def syn_plan_prefix_in_sync_amec(prod_mdp, initial_subgraph, initial_sync_state,
             #
             # 求解在这里
             status = prefix_solver.Solve()
+            #
+            # for debugging
+            Y_val = dict()
+            for s_u in Y.keys():
+                Y_val[s_u] = Y[s_u].solution_value()
+            #
             if status == pywraplp.Solver.OPTIMAL:
                 print('Solution:')
                 print('Objective value =', prefix_solver.Objective().Value())
