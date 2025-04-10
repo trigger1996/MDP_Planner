@@ -1141,23 +1141,13 @@ def synthesize_suffix_cycle_in_sync_amec2(prod_mdp, mec_observer, sync_mec_graph
     for init_node in initial_sync_state:
 
         # paths = single_source_shortest_path(prod_mdp, init_node)            # path.keys(): 可以通过初始状态到达的状态
-        # Sn = set(paths.keys()).intersection(sf)                             # Sn, 可以由初始状态到达的MEC状态
-        reachable_sync_states = single_source_shortest_path(initial_subgraph, init_node)
-
-        Sn = set(reachable_sync_states.keys()).intersection(sf)
-        Sn_p = set(sf).difference(Sn)                                           # 可能可以从初始状态到达, 但是不可直接到达的状态, 此时，Sn是sf的子集，所以这么求是对的
-        for t in Sn_p:
-            for s in Sn:
-                path_t = list()
-                try:
-                    path_t = networkx.shortest_path(sync_mec_graph, source=s, target=t)
-                except networkx.NetworkXError:
-                    pass
-                if path_t.__len__():
-                    Sn.add(t)                                                   # 存在s->t的路径, 则说明t可由初始状态到达MEC
-                    break                                                       # 其实这步挺无聊的, 这里只是作了个确认就增加了这么多运算量
-            if t in Sn:
-                continue                                                        # 减少迭代次数
+        # Sn = set(paths.keys()).intersection(sf)                             # Sn, 可以由初始状态到达的MEC状态(此时的sf都满足opacity requirement且强连通)
+        reachable_sync_states = single_source_shortest_path(opaque_full_graph, init_node)
+        #
+        Sn_good = set(reachable_sync_states.keys()).intersection(sf)                        # 满足Opacity requirement的MEC子集, 且满足强连通
+        Sn_bad  = set(reachable_sync_states.keys()).intersection(set(mec_observer.nodes())) # 可能在运行过程中到达的坏状态
+        Sn_bad  = Sn_bad.difference(Sn_good)
+        Sn      = Sn_good.union(Sn_bad)
         print('Sf size: %s' % len(sf))
         print('reachable sf size: %s' % len(Sn))
         print('Ip size: %s' % len(ip))
@@ -1182,15 +1172,30 @@ def synthesize_suffix_cycle_in_sync_amec2(prod_mdp, mec_observer, sync_mec_graph
             #       这里Sn和之前定义其实是一样的
             #       可由初态到达, 且可到达MEC但是不在MEC内
             for s in Sn:
-                for u in act[s]:
-                    Y[(s, u)] = suffix_solver.NumVar(0, 1000, 'y[(%s, %s)]' % (s, u))
+                act_pi_list = []
+                for sync_u, sync_v, attr in opaque_full_graph.edges(s, data=True):
+                    # if not attr['is_opacity']:
+                    #     continue
+                    act_pi_list += list(attr['prop'].keys())
+                act_pi_list = list(set(act_pi_list))
+                for u in act_pi_list:
+                    Y[(s, u)] = suffix_solver.NumVar(
+                        0, 1000, 'y[(%s, %s)]' % (s, u))  # 下界，上界，名称
+                # for u in act[s]:
+                #     Y[(s, u)] = suffix_solver.NumVar(0, 1000, 'y[(%s, %s)]' % (s, u))
             print('Variables added: %d' % len(Y))
             # set objective
             obj = 0
             for s in Sn:
-                for u in act[s]:
-                    for t in prod_mdp.successors(s):
-                        prop = prod_mdp[s][t]['prop'].copy()
+                act_pi_list = []
+                for sync_u, sync_v, attr in opaque_full_graph.edges(s, data=True):
+                    # if not attr['is_opacity']:
+                    #     continue
+                    act_pi_list += list(attr['prop'].keys())
+                act_pi_list = list(set(act_pi_list))
+                for u in act_pi_list:
+                    for t in opaque_full_graph.successors(s):
+                        prop = opaque_full_graph[s][t]['prop'].copy()
                         if u in list(prop.keys()):
                             pe = prop[u][0]
                             ce = prop[u][1]

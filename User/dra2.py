@@ -259,6 +259,7 @@ class product_mdp2(Product_Dra):
     def construct_opaque_subgraph_2_amec(self, product_mdp_gamma:Product_Dra, sync_amec_3, sync_amec_graph, mec_observer, ap_pi, ap_gamma, observation_func, ctrl_obs_dict):
         #
         # 目标是生成从初始状态到达sync_amec的通路
+        ip = sync_amec_3[1]
         initial_sync_state = list({(a, b) for a in self.graph['initial'] for b in product_mdp_gamma.graph['initial']})
         stack_t = [state_t for state_t in initial_sync_state]       # make a copy
         visited = set()
@@ -320,7 +321,7 @@ class product_mdp2(Product_Dra):
 
                         is_next_state_in_sync_amec = next_sync_state in sync_amec_graph.nodes()
                         is_next_state_in_mec_observer = next_sync_state in mec_observer.nodes()
-                        is_next_state_in_ip = next_sync_state in sync_amec_3[1]
+                        is_next_state_in_ip = next_sync_state in ip
                         #
                         is_opacity = is_next_state_in_sync_amec and is_next_state_in_mec_observer
 
@@ -339,10 +340,12 @@ class product_mdp2(Product_Dra):
                                             diff_exp=diff_expected_cost_list,
                                             is_opacity=is_opacity)
 
-                        # 我在想一个神奇的问题
+                        #
                         # 其实这里解出来以后因为ip点毕竟是少数, 而且MEC强连通
-                        # 完了以后这是个bfs搜索
                         # 所以这不是一个巧合：即限制到达后ip的点以后, 其实已经能遍历大部分的点
+                        # 结论:
+                        # 当存在一个强连通组分, 其中所有状态均为ip(即sync_amec_3[1])的子集, 且初始状态必须经过该SCC才能到达其他状态的时候
+                        # 才会出现initial_subgraph的状态显著比其他状态少
                         # if not is_next_state_in_mec_observer:            # append
                         #     stack_t.append(next_sync_state)
                         if not is_next_state_in_ip:
