@@ -245,17 +245,19 @@ def syn_plan_prefix_in_sync_amec(prod_mdp, initial_subgraph, initial_sync_state,
         Sr_good = set()
         Sr_bad  = set()
         for state_ip_t in ip:
-
-            #path_inv = single_source_shortest_path(simple_digraph, state_ip_t)                      # path = single_source_shortest_path(simple_digraph, random.sample(ip, 1)[0])                                     # 为什么这边要随机初始状态?
-            path = networkx.single_target_shortest_path(initial_subgraph, target=state_ip_t)         # 哦其实原来的代码是对的, 上面建立的是一个反向图
-            #
-            # Added
-            path_p = networkx.single_target_shortest_path(sync_amec_graph, target=state_ip_t)
-            #
-            # for debugging
-            #diff_1 = set(path_inv.keys()) - set(path.keys())
-            #diff_2 = set(path.keys()) - set(path_inv.keys())
-            #
+            try:
+                #path_inv = single_source_shortest_path(simple_digraph, state_ip_t)                      # path = single_source_shortest_path(simple_digraph, random.sample(ip, 1)[0])                                     # 为什么这边要随机初始状态?
+                path = networkx.single_target_shortest_path(initial_subgraph, target=state_ip_t)         # 哦其实原来的代码是对的, 上面建立的是一个反向图
+                #
+                # Added
+                path_p = networkx.single_target_shortest_path(sync_amec_graph, target=state_ip_t)
+                #
+                # for debugging
+                #diff_1 = set(path_inv.keys()) - set(path.keys())
+                #diff_2 = set(path.keys()) - set(path_inv.keys())
+                #
+            except networkx.NetworkXError:
+                continue
             reachable_set = set(path.keys())
             print('States that can reach sf, size: %s' % str(len(reachable_set)))
             Sd = Sn.difference(reachable_set)                                                   # Sn \ { 可达状态 } -> 不可以到达MEC的状态,  可以由初态s0到达, 但不可到达MEC的状态
@@ -1125,38 +1127,41 @@ def synthesize_suffix_cycle_in_sync_amec(prod_mdp, sync_mec, MEC_pi, y_in_sf, S_
             return None, None, None
         '''
 
-def synthesize_suffix_cycle_in_sync_amec2(prod_mdp, sync_mec, MEC_pi, y_in_sf_sync, S_pi, differential_expected_cost=1.55):
+def synthesize_suffix_cycle_in_sync_amec2(prod_mdp, mec_observer, sync_mec_graph, sync_mec_3, y_in_sf_sync, opaque_full_graph, initial_sync_state, differential_expected_cost=1.55):
     # ----Synthesize optimal plan suffix to stay within the accepting MEC----
     # ----with minimal expected total cost of accepting cyclic paths----
     print_c("===========[plan suffix synthesis starts]", color=32)
     print_c("[synthesize_w_opacity] differential exp cost: %f" % (differential_expected_cost, ), color=32)
-    # step 1: find states
-    # sf:  states in MEC -> states in sync MEC
-    # ip:  MEC states intersects with Ip -> Accepting states Ip in sync MEC / state[0] intersects with IP
-    # act: actions available for each state
-    sf, sf_pi, ip, ip_pi, act, act_pi = state_action_sets_pi_from_sync_mec(sync_mec, MEC_pi)
 
-    # find S_e', I_in, and I_out
-    # in Guo et. al. Probabilstic, I_c' denotes the accepting states in AMECs
-    i_in_pi, i_out_pi, transitions_i_in_pi, transitions_i_out_pi = find_i_in_and_i_out_in_amec(prod_mdp, MEC_pi)
-    i_in, i_out,       transitions_i_in,    transitions_i_out    = find_i_in_and_i_out_in_sync_amec(prod_mdp, sync_mec, ip)
+    sf = sync_mec_3[0]                     # MEC
+    ip = sync_mec_3[1]                     # MEC 和 ip 的交集
+    act = sync_mec_3[2].copy()             # 所有状态的动作集合全集
+    delta = 0.01                            # 松弛变量?
+    gamma = 0.00                            # 根据(11), 整个系统进入MEC内以后就不用概率保证了?
+    for init_node in initial_sync_state:
 
-    delta = 0.01                    # 松弛变量?
-    gamma = 0.05                    # 根据(11), 整个系统进入MEC内以后就不用概率保证了?
-    for init_node in prod_mdp.graph['initial']:
-        # find states that reachable from initial state
-        paths = single_source_shortest_path(prod_mdp, init_node)
-        Sn_pi = set(paths.keys()).intersection(sf_pi)
-        print('Sf_pi size: %s' % len(sf_pi))                                                # sf: MEC中状态
-        print('reachable sf_pi size: %s' % len(Sn_pi))                                      # Sn: 可由当前状态到达的MEC中的状态
-        print('Ip_pi size: %s' % len(ip_pi))                                                # Ip: 可被接收的MEC的状态
-        print('Ip_pi and sf intersection size: %s' % len(Sn_pi.intersection(ip_pi)))        # 可达的MEC中的状态
-        #
-        print_c("Sn_pi: %d / sync_mec: %d" % (Sn_pi.__len__(), sync_mec.__len__(),))
-        #
-        # back to sync_mec
-        Sn = sn_pi_2_sync_sn(Sn_pi, sync_mec)
+        # paths = single_source_shortest_path(prod_mdp, init_node)            # path.keys(): 可以通过初始状态到达的状态
+        # Sn = set(paths.keys()).intersection(sf)                             # Sn, 可以由初始状态到达的MEC状态
+        reachable_sync_states = single_source_shortest_path(initial_subgraph, init_node)
 
+        Sn = set(reachable_sync_states.keys()).intersection(sf)
+        Sn_p = set(sf).difference(Sn)                                           # 可能可以从初始状态到达, 但是不可直接到达的状态, 此时，Sn是sf的子集，所以这么求是对的
+        for t in Sn_p:
+            for s in Sn:
+                path_t = list()
+                try:
+                    path_t = networkx.shortest_path(sync_mec_graph, source=s, target=t)
+                except networkx.NetworkXError:
+                    pass
+                if path_t.__len__():
+                    Sn.add(t)                                                   # 存在s->t的路径, 则说明t可由初始状态到达MEC
+                    break                                                       # 其实这步挺无聊的, 这里只是作了个确认就增加了这么多运算量
+            if t in Sn:
+                continue                                                        # 减少迭代次数
+        print('Sf size: %s' % len(sf))
+        print('reachable sf size: %s' % len(Sn))
+        print('Ip size: %s' % len(ip))
+        print('Ip and sf intersection size: %s' % len(Sn.intersection(ip)))
         # ---------solve lp------------
         print('------')
         print('ORtools for suffix starts now')
@@ -1184,314 +1189,126 @@ def synthesize_suffix_cycle_in_sync_amec2(prod_mdp, sync_mec, MEC_pi, y_in_sf_sy
             obj = 0
             for s in Sn:
                 for u in act[s]:
-                    for t in sync_mec.successors(s):
-                        prop = sync_mec[s][t]['prop'].copy()
+                    for t in prod_mdp.successors(s):
+                        prop = prod_mdp[s][t]['prop'].copy()
                         if u in list(prop.keys()):
                             pe = prop[u][0]
                             ce = prop[u][1]
-                            obj += Y[(s, u)] * pe * ce
+                            obj += Y[(s, u)]*pe*ce
             suffix_solver.Minimize(obj)
             print('Objective added')
-
             # add constraints
             # --------------------
             #
-            # description of each constraints
-            constr_descrip = []
-            #
-            # Added
-            # constraint 1
-            # 由于sync_mec内所有sync_state[0]对应的状态是一个状态, 所以其对应概率之和就应该是1
-            # it seems that there are some issues on the model, so this constraint cannot be applied,
-            # but we use the normalized result as policies such that all values can be constrainted into [0, 1]
-            '''
-            for s_pi_t in Sn_pi:
-                constr_s_pi = []
-                for s_sync_t in Sn:
-                    for u_t in act[s_sync_t]:
-                        if s_sync_t[0] == s_pi_t:
-                            Y_t = Y[(s_sync_t, u_t)]            # 单独拿出来是为了debugging
-                            constr_s_pi.append(Y_t)
-                if constr_s_pi.__len__():
-                    sum_t = suffix_solver.Sum(constr_s_pi)
-                    suffix_solver.Add(sum_t == 1.)
-                    constr_descrip.append("merge of " + str(s_pi_t))
-            print_c('inter-state constraints added', color=42)
-            print_c('number of constraints: %d' % (suffix_solver.NumConstraints(), ), color=42)
-            '''
-            # 这个约束就算错的
-            # 真正的flow是由balance, 即贝尔曼方程保证的
-            # 不是这个东西
-
-            # Constraint 2 / 11b
-            constr_f_in = []
-            constr_f_out = []
-            constr_s_in = []
-            constr_s_out = []
-            constr_s_in_f_in = []
-            constr_y0_2_f_rhs = 0.0
-
-            with Progress() as progress:
-                task_id = progress.add_task("Constraint 2 / 11b ...", total=len(Sn))
-
-                for k, sync_s in enumerate(Sn):
-                    # 更新进度条的描述
-                    progress.update(task_id, advance=1, description=f"Processing constraint 2 / 11b ... {k + 1}/{len(Sn)}")
-                    # for f_in and s_in
-                    # in this way, the constaint will not be repeated
-                    successors_to_visit = set(sync_mec.successors(sync_s))
-                    for t in successors_to_visit:               # for t in list(sync_mec.successors(sync_s)):
-                        # 检查 t 是否可索引且长度大于 0
-                        if isinstance(t, (tuple, list)) and len(t) > 0:
-                            if t in Sn and (t in ip or t[0] in S_pi):
-                                # 检查边是否存在
-                                if sync_mec.has_edge(sync_s, t):
-                                    prop = sync_mec[sync_s][t]['prop'].copy()
-                                    for u in prop.keys():
-                                        # 检查 (sync_s, u) 是否在 Y 中
-                                        if (sync_s, u) in Y:
-                                            y_t = Y[(sync_s, u)] * prop[u][0]
-                                            constr_s_in_f_in.append(y_t)
-
-                    # for f_in
-                    for t in successors_to_visit:               # for t in list(sync_mec.successors(sync_s)):
-                        if t in Sn and t in ip:
-                            if sync_mec.has_edge(sync_s, t):
-                                prop = sync_mec[sync_s][t]['prop'].copy()
-                                for u in prop.keys():
-                                    if (sync_s, u) in Y:
-                                        y_t = Y[(sync_s, u)] * prop[u][0]
-                                        constr_f_in.append(y_t)
-
-                    # for y_0
-                    if sync_s in y_in_sf_sync:
-                        constr_y0_2_f_rhs += y_in_sf_sync[sync_s]
-
-                    # for f_out
-                    if sync_s in Sn and sync_s in ip:
-                        for t in successors_to_visit:           # for t in sync_mec.successors(sync_s):
-                            if sync_mec.has_edge(sync_s, t):
-                                prop = sync_mec[sync_s][t]['prop'].copy()
-                                for u in prop.keys():
-                                    if sync_s in act and u in act[sync_s]:
-                                        #
-                                        # Sn里进Ip的
-                                        pe = prop[u][0]
-                                        Y_t = Y[(sync_s, u)] * pe
-                                        constr_f_out.append(Y_t)
-
-                    # for s_in
-                    for t in successors_to_visit:
-                        if isinstance(t, (tuple, list)) and len(t) > 0:
-                            if t in Sn and t[0] in S_pi:
-                                if sync_mec.has_edge(sync_s, t):
-                                    prop = sync_mec[sync_s][t]['prop'].copy()
-                                    for u in prop.keys():
-                                        if sync_s in act and u in act[sync_s]:
-                                            #
-                                            # Sn里进Ip的
-                                            pe = prop[u][0]
-                                            Y_t = Y[(sync_s, u)] * pe
-                                            constr_s_in.append(Y_t)
-
-                    # for s_out
-                    if sync_s in Sn and isinstance(sync_s, (tuple, list)) and len(sync_s) > 0 and sync_s[0] in S_pi:
-                        for t in successors_to_visit:
-                            if sync_mec.has_edge(sync_s, t):
-                                prop = sync_mec[sync_s][t]['prop'].copy()
-                                for u in prop.keys():
-                                    if sync_s in act and u in act[sync_s]:
-                                        pe = prop[u][0]
-                                        Y_t = Y[(sync_s, u)] * pe
-                                        constr_s_out.append(Y_t)
-
-            # Sum constraints
-            sum_s_in = suffix_solver.Sum(constr_s_in)
-            sum_s_out = suffix_solver.Sum(constr_s_out)
-            sum_f_in = suffix_solver.Sum(constr_f_in)
-            sum_f_out = suffix_solver.Sum(constr_f_out)
-            #
-            sum_s_in_f_in = suffix_solver.Sum(constr_s_in_f_in)
-
-            # Add constraints
-            suffix_solver.Add(sum_s_in_f_in == constr_y0_2_f_rhs)
-            constr_descrip.append('I_in for (11b)')
-
-            print_c("Reachability constraint added ...", color=44)
-            print_c(f"left:  {sum_s_in_f_in} \n right: {constr_y0_2_f_rhs}", color=44)
-            print_c(f"number of states in lhs: {len(constr_s_in_f_in)}", color=44)
-            print_c(f'number of constraints: {suffix_solver.NumConstraints()}', color=44)
-
-            suffix_solver.Add(sum_s_in == sum_f_out)
-            constr_descrip.append("f_out -> s_in")
-            suffix_solver.Add(sum_f_in == sum_s_out)
-            constr_descrip.append("s_out -> f_in")
-
-            print("Repeated reachability constraint added")
-            print_c('f_out -> s_in', color=34)
-            print_c(constr_f_out, color=34)
-            print_c(constr_s_in, color=34)
-            print_c('s_out -> f_in', color=35)
-            print_c(constr_s_out, color=35)
-            print_c(constr_f_in, color=35)
-
-            # Constraint 3 / 11c
-            #
-            # here we treat all sync states that represents original states togetherly,
-            # Plan B is to treat these states in sync mec separately, which may make it infeasible to solve
-            # due to too much constraints
-            nonzero_constr_num_11c = 0
-            nonzero_balance_constr_list = []
-
-            with Progress() as progress:
-                task_id = progress.add_task("Constraint 3 / 11c ...", total=len(Sn_pi))
-                for k, s_pi in enumerate(Sn_pi):
+            # 这个地方和prefix差别很大
+            for k, s in enumerate(Sn):
+                #
+                # constr3: sum of outflow
+                # constr4: sum of inflow
+                constr3 = 0
+                constr4 = 0
+                for u in act[s]:
                     #
-                    # for debugging
-                    # if s_pi == ((1.25, 2.25, 'W'), frozenset({'supply'}), 7):
-                    #     debug_var = 1
-                    # if s_pi == ((1.25, 2.25, 'W'), frozenset({'supply'}), 2):
-                    #     debug_var = 2
-                    progress.update(task_id, advance=1, description=f"Processing constraint 3 / 11c ... {k + 1}/{len(Sn_pi)}")
-
+                    # 这里也有不同
+                    # prefix
+                    #       s in Sr
+                    # suffix
+                    #       s in Sn
+                    constr3 += Y[(s, u)]
+                for f in prod_mdp.predecessors(s):
                     #
-                    constr_11c_lhs = []
-                    constr_11c_rhs = []
-
-                    for l, sync_s in enumerate(Sn):
-                        if s_pi != sync_s[0]:
-                            continue
-                        for u in act.get(sync_s, []):
-                            if (sync_s, u) in Y:
-                                y_t = Y[(sync_s, u)]
-                                constr_11c_lhs.append(y_t)
-
-                        for f in sync_mec.predecessors(sync_s):  # 求解对象不一样了, product mdp -> sync_mec
-                            if (f in Sn and sync_s not in ip) or (f in Sn and sync_s in ip and f != sync_s):
-                                if sync_mec.has_edge(f, sync_s):
-                                    prop = sync_mec[f][sync_s]['prop'].copy()
-                                    for uf in act.get(f, []):
-                                        if uf in prop:
-                                            y_t_p_e = Y[(f, uf)] * prop[uf][0]
-                                            constr_11c_rhs.append(y_t_p_e)
-                                    else:
-                                        y_t_p_e = Y[(f, uf)] * 0.00
-                                        # constr_11c_rhs.append(y_t_p_e)
-
-                    sum_11c_lhs = suffix_solver.Sum(constr_11c_lhs)
-                    sum_11c_rhs = suffix_solver.Sum(constr_11c_rhs)
+                    # 这里也有不同
+                    # prefix
+                    #       if f in Sr:
+                    # suffix
+                    #       if f in Sn 且 s in Sn 且 s not in ip
+                    if (f in Sn) and (s not in ip):
+                        prop = prod_mdp[f][s]['prop'].copy()
+                        for uf in act[f]:
+                            if uf in list(prop.keys()):
+                                constr4 += Y[(f, uf)]*prop[uf][0]
+                            else:
+                                constr4 += Y[(f, uf)]*0.00
+                    if (f in Sn) and (s in ip) and (f != s):
+                        prop = prod_mdp[f][s]['prop'].copy()
+                        for uf in act[f]:
+                            if uf in list(prop.keys()):
+                                constr4 += Y[(f, uf)]*prop[uf][0]
+                            else:
+                                constr4 += Y[(f, uf)]*0.00
+                #
+                # y_in_sf input flow of sf, sf的输入状态转移概率
+                #     if t not in y_in_sf:
+                #         y_in_sf[t] = Y[(s, u)].solution_value()*pe
+                #     else:
+                #         y_in_sf[t] += Y[(s, u)].solution_value()*pe
+                #     最后还需要归一化
+                #     当单状态状态转移Sn -> sf时会被记录到Sf
+                #
+                # 如果 s in Sf且上一时刻状态属于Sn, 但不在MEC内
+                if (s in list(y_in_sf.keys())) and (s not in ip):
+                    suffix_solver.Add(constr3 == constr4 + y_in_sf[s])          # 可能到的了的要计算?
                     #
-                    if (s_pi in list(y_in_sf.keys())) and (s_pi not in ip_pi):
-                        suffix_solver.Add(sum_11c_lhs == sum_11c_rhs + y_in_sf[s_pi])
-                        #
-                        # for debugging
-                        constr_descrip.append(str(s_pi))
-                        #
-                        # Added, for debugging
-                        print_c("constraint: %d" % (k,), color=37)
-                        print_c(sum_11c_lhs, color=38)
-                        print_c(sum_11c_rhs, color=39)
-                        print_c(y_in_sf[s_pi], color=39)
-                        print_c(" ")
+                    # Added, for debugging
+                    print_c("constraint: %d" % (k, ), color=37)
+                    print_c(constr3, color=38)
+                    print_c(constr4, color=39)
+                    print_c(y_in_sf[s], color=39)
+                    print_c(" ")
+                #
+                # 如果 s in Sf, 且上一时刻状态在Sn，且在MEC内
+                if (s in list(y_in_sf.keys())) and (s in ip):
+                    suffix_solver.Add(constr3 == y_in_sf[s])                    # 在里面的永远到的了?
                     #
-                    # 如果 s in Sf, 且上一时刻状态在Sn，且在MEC内
-                    if (s_pi in list(y_in_sf.keys())) and (s_pi in ip_pi):
-                        suffix_solver.Add(sum_11c_lhs == y_in_sf[s_pi])
-                        #
-                        # for debugging
-                        constr_descrip.append(str(s_pi))
-                        #
-                        # Added, for debugging
-                        print_c("constraint: %d" % (k,), color=37)
-                        print_c(sum_11c_lhs, color=38)
-                        print_c(y_in_sf[s_pi], color=39)
-                        print_c(" ")
+                    # Added, for debugging
+                    print_c("constraint: %d" % (k, ), color=37)
+                    print_c(constr3, color=38)
+                    print_c(y_in_sf[s], color=39)
+                    print_c(" ")
+                #
+                # 如果s不在Sf内且不在NEC内
+                if (s not in list(y_in_sf.keys())) and (s not in ip):
+                    suffix_solver.Add(constr3 == constr4)                       # 到不了的永远到不了?
                     #
-                    # 如果s不在Sf内且不在MEC内
-                    if (s_pi not in list(y_in_sf.keys())) and (s_pi not in ip_pi):
-                        suffix_solver.Add(sum_11c_lhs == sum_11c_rhs)
-                        #
-                        # for debugging
-                        constr_descrip.append(str(s_pi))
-                        #
-                        # Added, for debugging
-                        print_c("constraint: %d" % (k,), color=37)
-                        print_c(sum_11c_lhs, color=38)
-                        print_c(sum_11c_rhs, color=39)
-                        print_c(" ")
-
-                    if s_pi in y_in_sf and y_in_sf[s_pi] != 0.0:
-                        nonzero_constr_num_11c += 1
-                        print_c(
-                            f"NON-zero balance constraint {nonzero_constr_num_11c}: {s_pi} - \n left:  {sum_11c_lhs} \n right: {sum_11c_rhs} \n {y_in_sf[s_pi]}",
-                            color=45)
-                        current_constr_index_t = suffix_solver.NumConstraints() - 1
-                        nonzero_balance_constr_list.append(current_constr_index_t)
-
-            print_c("balance and initial distribution constraint added ...", color=44)
-            print_c(f'number of constraints: {suffix_solver.NumConstraints()}', color=42)
-
-            # Risk constraints
+                    # Added, for debugging
+                    print_c("constraint: %d" % (k, ), color=37)
+                    print_c(constr3, color=38)
+                    print_c(constr4, color=39)
+                    print_c(" ")
+            print('Balance condition added')
+            print('Initial sf condition added')
+            # --------------------
             y_to_ip = 0.0
             y_out = 0.0
-            #
-            with Progress() as progress:
-                task_id = progress.add_task("Risk constraints ...", total=len(Sn))
-
-                for k, s_sync in enumerate(Sn):
-                    # 更新进度条的描述
-                    progress.update(task_id, advance=1, description=f"Processing risk constraints ... {k + 1}/{len(Sn)}")
-
-                    for t_sync in sync_mec.successors(s_sync):
-                        if sync_mec.has_edge(s_sync, t_sync):
-                            prop = sync_mec[s_sync][t_sync]['prop'].copy()
-                            for u in prop.keys():
-                                if u in act.get(s_sync, []):
-                                    pe = prop[u][0]
-                                    Y_t = Y[(s_sync, u)]
-                                    if t_sync not in Sn:
-                                        y_out += Y_t * pe
-                                    elif t_sync in ip:
-                                        y_to_ip += Y_t * pe
-
-            suffix_solver.Add(y_to_ip >= (1.0 - gamma - delta) * (y_to_ip + y_out))
-            constr_descrip.append('risk constraints')
-            print_c('Risk constraint added', color=47)
-
-            # Opacity constraints
-            #
-            # CRITICAL
-            constr_opacity_lhs = []
-            constr_opacity_rhs = differential_expected_cost
-
-            with Progress() as progress:
-                task_id = progress.add_task("Opacity constraints ...", total=len(Sn))
-
-                for k, s in enumerate(Sn):
-                    # 更新进度条的描述
-                    progress.update(task_id, advance=1, description=f"Processing ... {k + 1}/{len(Sn)}")
-
-                    for t in sync_mec.successors(s):
-                        if sync_mec.has_edge(s, t):
-                            prop = sync_mec[s][t]['diff_exp'].copy()
-                            for u in prop.keys():
-                                if (s, u) in Y:
-                                    y_t = Y[(s, u)] * prop[u]
-                                    constr_opacity_lhs.append(y_t)
-
-            sum_opacity_lhs = suffix_solver.Sum(constr_opacity_lhs)
-            suffix_solver.Add(sum_opacity_lhs <= constr_opacity_rhs)
-            constr_descrip.append("differential_expected_cost")
-
-            print_c("opacity constraint added ...", color=46)
-            print_c(f'number of constraints: {suffix_solver.NumConstraints()}', color=46)
-            constr_opacity_index = suffix_solver.NumConstraints() - 1
-
+            for s in Sn:
+                for t in prod_mdp.successors(s):
+                    if t not in Sn:
+                        prop = prod_mdp[s][t]['prop'].copy()
+                        for u in prop.keys():
+                            if u in act[s]:
+                                pe = prop[u][0]
+                                #
+                                # Sn里出Sn的
+                                y_out += Y[(s, u)]*pe
+                    elif t in ip:
+                        prop = prod_mdp[s][t]['prop'].copy()
+                        for u in prop.keys():
+                            if u in act[s]:
+                                #
+                                # Sn里进Ip的
+                                pe = prop[u][0]
+                                y_to_ip += Y[(s, u)]*pe
+            # suffix_solver.Add(y_to_ip+y_out >= delta)
+            suffix_solver.Add(y_to_ip >= (1.0-gamma-delta)*(y_to_ip+y_out))
+            print_c("y_2_ip:", color=35)
+            print_c(y_to_ip, color=35)
+            print_c("y_out:", color=36)
+            print_c(y_out, color=36)
+            print('Risk constraint added')
             # ------------------------------
             # solve
             print('--optimization for suffix starts--')
             status = suffix_solver.Solve()
-            #
             if status == pywraplp.Solver.OPTIMAL:
                 print('Solution:')
                 print('Objective value =', suffix_solver.Objective().Value())
@@ -1501,157 +1318,52 @@ def synthesize_suffix_cycle_in_sync_amec2(prod_mdp, sync_mec, MEC_pi, y_in_sf_sy
                 print('Problem solved in %d iterations' %
                       suffix_solver.iterations())
             else:
-               print('The problem does not have an optimal solution.')
-               return None, None, None, None
-
-            #
-            # for debugging
-            # v = dict()
-            # for sync_state_u_t in list(Y.keys()):
-            #     state_pi_t = sync_state_u_t[0][0]
-            #     u_t = sync_state_u_t[0][0]
-            #     if state_pi_t == ((1.25, 2.25, 'W'), frozenset({'supply'}), 7):
-            #         debug_var = 3
-            #         v[sync_state_u_t] = Y[sync_state_u_t].solution_value()
-            #     if state_pi_t == ((1.25, 2.25, 'W'), frozenset({'supply'}), 2):
-            #         debug_var = 4
-            #         v[sync_state_u_t] = Y[sync_state_u_t].solution_value()
-
-            #
-            #
-            #
-            plan_suffix_non_round_robin_list = []
-            raw_value = dict()
-            for s_u_t in Y.keys():
-                s_t = s_u_t[0]
-                u_t = s_u_t[1]
-                val_t = Y[s_u_t].solution_value()
-                #
-                if s_t not in raw_value.keys():
-                    act_value_tuple = [[], []]
-                    act_value_tuple[0].append(u_t)
-                    act_value_tuple[1].append(val_t)
-                    raw_value[s_t] = act_value_tuple
-                else:
-                    raw_value[s_t][0].append(u_t)
-                    raw_value[s_t][1].append(val_t)
-
+                print('The problem does not have an optimal solution.')
+                return None, None, None
+            # compute optimal plan suffix given the LP solution
             plan_suffix = dict()
-            for k, s_pi_t in enumerate(Sn_pi):
-                #
+            for s in Sn:
                 norm = 0
                 U = []
                 P = []
-                for s_sync_t in Sn:
-                    for u_t in act[s_sync_t]:
-                        if s_pi_t == s_sync_t[0]:
-                            Y_t = Y[(s_sync_t, u_t)].solution_value()
-                            norm += Y_t
-
-                norm_sync_state_t = dict()
-                for s_sync_t in Sn:
-                    if s_pi_t != s_sync_t[0]:
-                        continue
-
-                    for u_t in act[s_sync_t]:
-                        if u_t not in U:
-                            U.append(u_t)
-                        if u_t not in norm_sync_state_t.keys():
-                            norm_sync_state_t[u_t]  = Y[(s_sync_t, u_t)].solution_value()
-                        else:
-                            norm_sync_state_t[u_t] += Y[(s_sync_t, u_t)].solution_value()
-                if norm > 0.01:
-                    for u_t in norm_sync_state_t.keys():
-                        # U.append(u_t)
-                        P.append(norm_sync_state_t[u_t] / norm)
-                        #
-                        # for debugging
-                        plan_suffix_non_round_robin_list.append(k)
-                else:
-                    for u_t in norm_sync_state_t.keys():
-                        P.append(1.0 / len(norm_sync_state_t.keys()))          # the length of act_pi[s_pi_t] is equal to that of norm_sync_state_t.keys()
-                    # #P.append(1.0 / len(act_pi[s_pi_t]))             # round robin
-                plan_suffix[s_pi_t] = [U, P]
+                for u in act[s]:
+                    norm += Y[(s, u)].solution_value()
+                for u in act[s]:
+                    U.append(u)
+                    if norm > 0.01:
+                        P.append(Y[(s, u)].solution_value()/norm)
+                    else:
+                        P.append(1.0/len(act[s]))
+                plan_suffix[s] = [U, P]
             print("----Suffix plan added")
             cost = suffix_solver.Objective().Value()
             print("----Suffix cost computed")
-
             # compute risk given the plan suffix
             risk = 0.0
             y_to_ip = 0.0
             y_out = 0.0
-            for s_sync_t in Sn:
-                s_pi_t = s_sync_t[0]
-                for t_pi_t in prod_mdp.successors(s_pi_t):
-                    prop = prod_mdp[s_pi_t][t_pi_t]['prop'].copy()
-                    for u_t in prop.keys():
-                        if u_t in act[s_sync_t]:
-                            pe = prop[u_t][0]
-                            Y_t = Y[(s_sync_t, u_t)].solution_value()
-                            if t_pi_t not in Sn_pi:
-                                y_out += Y_t * pe
-                            elif t_pi_t in ip_pi:
-                                y_to_ip += Y_t * pe
-            #
-            if (y_to_ip + y_out) > 0:
-                risk = y_out / (y_to_ip + y_out)
-            #
-            print_c('y_out: %s; y_to_ip+y_out: %s' % (y_out, y_to_ip + y_out,), color=32)
-            print_c("----Suffix risk computed", color=32)
-
-            constr_t = suffix_solver.constraint(constr_opacity_index)
-            opacity_val = 0.
-            for s_sync_t in Sn:
-                for u_t in act[s_sync_t]:
-                    Y_t = Y[(s_sync_t, u_t)]  # 单独拿出来是为了debugging
-                    if type(Y_t) != float:
-                        ki_t = constr_t.GetCoefficient(Y_t)
-                        opacity_val += ki_t * Y_t.solution_value()
-            print_c("opacity_value: %f <= %f" % (opacity_val, differential_expected_cost, ), color=35)
-            print_c("----Suffix opacity threshold computed", color=35)
-
-            #
-            # for display
-            for k in range(0, suffix_solver.NumConstraints()):
-                try:
-                    constr_t = suffix_solver.constraint(k)
-                    sum_ret_t = 0.
-                    for s_sync_t in Sn:
-                        for u_t in act[s_sync_t]:
-                            Y_t = Y[(s_sync_t, u_t)]  # 单独拿出来是为了debugging
-                            if type(Y_t) != float:
-                                ki_t = constr_t.GetCoefficient(Y_t)
-                                sum_ret_t += ki_t * Y_t.solution_value()
-                    if k in nonzero_balance_constr_list:
-                        print_c("constraint_%d %s: %f <= %f <= %f" % (k, constr_descrip[k], constr_t.lb(), sum_ret_t, constr_t.ub(),), color=45)
-                    elif k == constr_opacity_index:
-                        print_c("constraint_%d %s: %f <= %f <= %f" % (k, constr_descrip[k], constr_t.lb(), sum_ret_t, constr_t.ub(),), color=46)
-                    else:
-                        print("constraint_%d %s: %f <= %f <= %f"   % (k, constr_descrip[k], constr_t.lb(), sum_ret_t ,constr_t.ub(), ))
-                except IndexError:
-                    pass
-
-            '''                
-            print("optimal policies: ")
-            Sn_pi_sorted = list(Sn_pi)
-            #Sn_pi_sorted.sort(key=cmp_to_key(sort_grids))
-            for k, s_pi_t in enumerate(Sn_pi_sorted):
-                #
-                # for s_sync_t in Sn:
-                #     if s_sync_t[0] == s_pi_t:
-                #         print(str(s_sync_t) + " " + str(plan_suffix[s_sync_t]))
-                if k in plan_suffix_non_round_robin_list:
-                    print_c(str(s_pi_t) + " " + str(plan_suffix[s_pi_t]), color=46)
-                else:
-                    print(str(s_pi_t) + " " + str(plan_suffix[s_pi_t]))
-            '''
-
-            return plan_suffix, cost, risk, opacity_val
-        '''
-        except:
-            print("ORtools Error reported")
-            return None, None, None
-        '''
+            for s in Sn:
+                for t in prod_mdp.successors(s):
+                    if t not in Sn:
+                        prop = prod_mdp[s][t]['prop'].copy()
+                        for u in prop.keys():
+                            if u in act[s]:
+                                pe = prop[u][0]
+                                y_out += Y[(s, u)].solution_value()*pe
+                    elif t in ip:
+                        prop = prod_mdp[s][t]['prop'].copy()
+                        for u in prop.keys():
+                            if u in act[s]:
+                                pe = prop[u][0]
+                                y_to_ip += Y[(s, u)].solution_value()*pe
+            if (y_to_ip+y_out) > 0:
+                risk = y_out/(y_to_ip+y_out)
+            print('y_out: %s; y_to_ip+y_out: %s' % (y_out, y_to_ip+y_out))
+            print("----Suffix risk computed")
+            return plan_suffix, cost, risk
+        # except:
+        #     print("ORtools Error reported")
+        #     return None, None, None
 
 def syn_plan_suffix_repeated(prod_mdp, MEC, S_pi, y_in_sf):
     # ----Synthesize optimal plan suffix to stay within the accepting MEC----
@@ -2220,14 +1932,27 @@ def synthesize_full_plan_w_opacity2(mdp, task, optimizing_ap, ap_list, risk_pr, 
                             continue
 
                         initial_subgraph, initial_sync_state = prod_dra_pi.construct_opaque_subgraph_2_amec(prod_dra_gamma,
+                                                                                        sync_mec_t,
                                                                                         prod_dra_pi.sync_amec_set[prod_dra_pi.current_sync_amec_index],
                                                                                         prod_dra_pi.mec_observer_set[prod_dra_pi.current_sync_amec_index],
                                                                                         optimizing_ap, ap_4_opacity, observation_func, ctrl_obs_dict)
 
                         plan_prefix, prefix_cost, prefix_risk, y_in_sf_sync, Sr, Sd = syn_plan_prefix_in_sync_amec(prod_dra_pi, initial_subgraph, initial_sync_state, prod_dra_pi.sync_amec_set[prod_dra_pi.current_sync_amec_index], sync_mec_t, risk_pr)
 
-                        synthesize_suffix_cycle_in_sync_amec2(prod_dra_pi, prod_dra_pi.sync_amec_set[prod_dra_pi.current_sync_amec_index], MEC_pi, y_in_sf_sync, S_pi, differential_exp_cost)
+                        opaque_full_graph = prod_dra_pi.construct_fullgraph_4_amec(initial_subgraph,
+                                                                                    prod_dra_gamma,
+                                                                                        prod_dra_pi.sync_amec_set[prod_dra_pi.current_sync_amec_index],
+                                                                                        prod_dra_pi.mec_observer_set[prod_dra_pi.current_sync_amec_index],
+                                                                                        optimizing_ap, ap_4_opacity, observation_func, ctrl_obs_dict)
 
+                        plan_suffix, suffix_cost, suffix_risk, suffix_opacity_threshold = synthesize_suffix_cycle_in_sync_amec2(prod_dra_pi,
+                                                                                                                                prod_dra_pi.mec_observer_set[prod_dra_pi.current_sync_amec_index],
+                                                                                                                                prod_dra_pi.sync_amec_set[prod_dra_pi.current_sync_amec_index],
+                                                                                                                                sync_mec_t,
+                                                                                                                                y_in_sf_sync,
+                                                                                                                                opaque_full_graph,       # 用来判断Sn是否可达, 虽然没啥意义但是还是可以做,
+                                                                                                                                initial_sync_state,
+                                                                                                                                differential_exp_cost)
                         print(233)
 
 

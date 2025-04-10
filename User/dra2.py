@@ -256,7 +256,7 @@ class product_mdp2(Product_Dra):
             print("Check your MDP and Task formulation")
             print("Or try the relaxed plan")
 
-    def construct_opaque_subgraph_2_amec(self, product_mdp_gamma:Product_Dra, sync_amec, mec_observer, ap_pi, ap_gamma, observation_func, ctrl_obs_dict):
+    def construct_opaque_subgraph_2_amec(self, product_mdp_gamma:Product_Dra, sync_amec_3, sync_amec_graph, mec_observer, ap_pi, ap_gamma, observation_func, ctrl_obs_dict):
         #
         # 目标是生成从初始状态到达sync_amec的通路
         initial_sync_state = list({(a, b) for a in self.graph['initial'] for b in product_mdp_gamma.graph['initial']})
@@ -318,15 +318,20 @@ class product_mdp2(Product_Dra):
                             trans_pr_cost_list[action] = (prob, cost)
                             diff_expected_cost_list[action] = diff_cost
 
-                        is_next_state_in_sync_amec = next_sync_state in sync_amec.nodes()
+                        is_next_state_in_sync_amec = next_sync_state in sync_amec_graph.nodes()
                         is_next_state_in_mec_observer = next_sync_state in mec_observer.nodes()
+                        is_next_state_in_ip = next_sync_state in sync_amec_3[1]
+                        #
                         is_opacity = is_next_state_in_sync_amec and is_next_state_in_mec_observer
 
                         if is_opacity == False:
-                            print_c("233")
+                            debug_var = 1
 
                         if is_next_state_in_sync_amec and not is_next_state_in_mec_observer:
-                            print_c("466")
+                            debug_var = 2
+
+                        if is_next_state_in_ip:
+                            debug_var = 3
 
                         # 添加转移
                         subgraph_2_amec_t.add_edge(current_state, next_sync_state,
@@ -334,12 +339,102 @@ class product_mdp2(Product_Dra):
                                             diff_exp=diff_expected_cost_list,
                                             is_opacity=is_opacity)
 
-                        # if next_sync_state not in sync_amec.nodes():            # append
+                        # 我在想一个神奇的问题
+                        # 其实这里解出来以后因为ip点毕竟是少数, 而且MEC强连通
+                        # 完了以后这是个bfs搜索
+                        # 所以这不是一个巧合：即限制到达后ip的点以后, 其实已经能遍历大部分的点
+                        # if not is_next_state_in_mec_observer:            # append
                         #     stack_t.append(next_sync_state)
-                        if is_next_state_in_mec_observer:
+                        if not is_next_state_in_ip:
                             stack_t.append(next_sync_state)
 
         return subgraph_2_amec_t, initial_sync_state
+
+    def construct_fullgraph_4_amec(self, initial_subgraph, product_mdp_gamma: Product_Dra, sync_amec, mec_observer, ap_pi, ap_gamma, observation_func, ctrl_obs_dict):
+            #
+            # 目标是生成从初始状态到达sync_amec的通路
+            stack_t = [state_t for state_t in initial_subgraph.nodes()]  # make a copy
+            visited = set()
+            fullgraph_t = DiGraph(initial_subgraph)
+
+            while stack_t:
+                current_state = stack_t.pop()
+                if current_state in visited:
+                    continue
+                visited.add(current_state)
+
+                # 获取当前状态的出边
+                current_state_pi, current_state_gamma = current_state
+                next_state_list_pi = list(self.out_edges(current_state_pi, data=True))
+                next_state_list_gamma = list(product_mdp_gamma.out_edges(current_state_gamma, data=True))
+
+                for edge_t_pi in next_state_list_pi:
+                    for edge_t_gamma in next_state_list_gamma:
+                        # 获取下一状态
+                        next_state_pi = edge_t_pi[1]
+                        next_state_gamma = edge_t_gamma[1]
+                        next_sync_state = (next_state_pi, next_state_gamma)
+
+                        if next_sync_state in initial_subgraph.nodes():
+                            #visited.add(next_sync_state)
+                            continue
+
+                        # 1. 检查控制动作同步
+                        try:
+                            u_pi = next(iter(edge_t_pi[2]['prop'].keys()))
+                            u_gamma = next(iter(edge_t_gamma[2]['prop'].keys()))
+                            if isinstance(u_pi, tuple):
+                                u_pi = u_pi[0]
+                            if isinstance(u_gamma, tuple):
+                                u_gamma = u_gamma[0]
+
+                            # 如果不考虑可观性
+                            if ctrl_obs_dict == None and u_pi != u_gamma:
+                                continue
+                            # 如果考虑可观性
+                            elif u_pi != u_gamma and ctrl_obs_dict[str(u_pi)] == False and ctrl_obs_dict[
+                                u_gamma] == False:
+                                continue
+                        except (StopIteration, KeyError):
+                            continue  # 如果没有动作则跳过
+
+                        # 2. 检查观测同步
+                        if observation_func(next_state_pi[0]) != observation_func(next_state_gamma[0]):
+                            continue
+
+                        # 3. opacity requirement
+                        # if not is_ap_satisfy_opacity(next_state_pi, next_state_gamma, ap_pi, ap_gamma):
+                        #     continue
+
+                        # 4. 构建转移属性
+                        # if is_ap_identical(next_state_pi, next_state_gamma):
+                        if True:
+                            trans_pr_cost_list = {}
+                            diff_expected_cost_list = {}
+                            for action, (prob, cost) in edge_t_pi[2]['prop'].items():
+                                diff_cost = obtain_differential_expected_cost(action, edge_t_pi, edge_t_gamma)
+                                trans_pr_cost_list[action] = (prob, cost)
+                                diff_expected_cost_list[action] = diff_cost
+
+                            is_next_state_in_sync_amec = next_sync_state in sync_amec.nodes()
+                            is_next_state_in_mec_observer = next_sync_state in mec_observer.nodes()
+                            is_opacity = is_next_state_in_sync_amec and is_next_state_in_mec_observer
+
+                            if is_opacity == False:
+                                debug_var = 1
+
+                            if is_next_state_in_sync_amec and not is_next_state_in_mec_observer:
+                                debug_var = 2
+
+                            # 添加转移
+                            fullgraph_t.add_edge(current_state, next_sync_state,
+                                                       prop=trans_pr_cost_list,
+                                                       diff_exp=diff_expected_cost_list,
+                                                       is_opacity=is_opacity)
+
+                            stack_t.append(next_sync_state)
+
+            return fullgraph_t
 
     def re_synthesize_sync_amec(self, y_in_sf_pi, y_in_sf_gamma, ap_pi, ap_gamma, MEC_pi, MEC_gamma, product_mdp_gamma:Product_Dra, observation_func, ctrl_obs_dict, is_re_compute_Sf=True):
         # amec:
