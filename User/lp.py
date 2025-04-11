@@ -212,6 +212,63 @@ def print_policies_w_opacity(ap_4_opacity, plan_prefix, plan_suffix):
     for state_t in state_in_suffix:
         print_c("%s, %s: %s" % (str(state_t), str(plan_suffix[state_t][0]), str(plan_suffix[state_t][1]), ), color=46)
 
+
+def print_analyze_constraints_matrix_form(solver):
+    variables = solver.variables()
+    constraints = solver.constraints()
+
+    # 创建 A 和 b 的零矩阵
+    num_vars = len(variables)
+    num_constraints = len(constraints)
+
+    A = np.zeros((num_constraints, num_vars))
+    b = np.zeros(num_constraints)
+
+    print("\n=== 变量顺序（列）：===")
+    for idx, var in enumerate(variables):
+        print(f"  x[{idx}] = {var.name()}")
+
+    print("\n=== 等式约束形式 Ax = b：===")
+
+    for i, ct in enumerate(constraints):
+        coeffs = []
+        for j, var in enumerate(variables):
+            coeff = ct.GetCoefficient(var)
+            coeffs.append(coeff)
+            A[i, j] = coeff  # 填充 A 矩阵
+        rhs = ct.ub()  # 等式约束中 ub = lb = b
+        b[i] = rhs  # 填充 b 向量
+        equation = " + ".join(
+            [f"{coeff:.3g}*x[{j}]" for j, coeff in enumerate(coeffs) if coeff != 0]
+        )
+        print(f"  Row {i}: {equation} = {rhs}")
+
+    # 输出 A 和 b 的矩阵
+    print("\n=== 约束矩阵 A 和常数向量 b：===")
+    print("A = ")
+
+    # 遍历 A 矩阵的每一行，并逐行输出，每个数字对齐
+    for row in A:
+        print("[" + ", ".join([f"{val:>8.3f}" for val in row]) + "]")
+
+    print("\nb = ")
+    # 输出 b 向量，每个数字对齐
+    print("[" + ", ".join([f"{val:>8.3f}" for val in b]) + "]")
+
+    # 计算矩阵 A 的秩
+    rank_A = np.linalg.matrix_rank(A)
+    print_c(f"\n矩阵 A 的秩为：{rank_A}", color='bg_cyan', style='bold')
+
+    try:
+        # 计算 A 的伪逆
+        A_pseudo_inv = np.linalg.pinv(A)
+
+        # 使用伪逆计算 x
+        x = np.dot(A_pseudo_inv, b)
+        print(x)
+    except:
+        print_c("Balance constraints may not be feasible ...", color='red')
+
 def exp_weight(u, v, d):
     val_list = []
     for u_t in d['prop'].keys():
@@ -1304,63 +1361,9 @@ def synthesize_suffix_cycle_in_sync_amec2(prod_mdp, mec_observer, sync_mec_graph
                     print_c(" ")                                            # cyan / gray
             print('Balance condition added')
             print('Initial sf condition added')
-
-            def print_analyze_constraints_matrix_form(solver):
-                variables = solver.variables()
-                constraints = solver.constraints()
-
-                # 创建 A 和 b 的零矩阵
-                num_vars = len(variables)
-                num_constraints = len(constraints)
-
-                A = np.zeros((num_constraints, num_vars))
-                b = np.zeros(num_constraints)
-
-                print("\n=== 变量顺序（列）：===")
-                for idx, var in enumerate(variables):
-                    print(f"  x[{idx}] = {var.name()}")
-
-                print("\n=== 等式约束形式 Ax = b：===")
-
-                for i, ct in enumerate(constraints):
-                    coeffs = []
-                    for j, var in enumerate(variables):
-                        coeff = ct.GetCoefficient(var)
-                        coeffs.append(coeff)
-                        A[i, j] = coeff  # 填充 A 矩阵
-                    rhs = ct.ub()  # 等式约束中 ub = lb = b
-                    b[i] = rhs  # 填充 b 向量
-                    equation = " + ".join(
-                        [f"{coeff:.3g}*x[{j}]" for j, coeff in enumerate(coeffs) if coeff != 0]
-                    )
-                    print(f"  Row {i}: {equation} = {rhs}")
-
-                # 输出 A 和 b 的矩阵
-                print("\n=== 约束矩阵 A 和常数向量 b：===")
-                print("A = ")
-
-                # 遍历 A 矩阵的每一行，并逐行输出，每个数字对齐
-                for row in A:
-                    print("[" + ", ".join([f"{val:>8.3f}" for val in row]) + "]")
-
-                print("\nb = ")
-                # 输出 b 向量，每个数字对齐
-                print("[" + ", ".join([f"{val:>8.3f}" for val in b]) + "]")
-
-                # 计算矩阵 A 的秩
-                rank_A = np.linalg.matrix_rank(A)
-                print_c(f"\n矩阵 A 的秩为：{rank_A}", color='bg_cyan', style='bold')
-
-                # 计算 A 的伪逆
-                A_pseudo_inv = np.linalg.pinv(A)
-
-                # 使用伪逆计算 x
-                x = np.dot(A_pseudo_inv, b)
-                print(x)
-
+            #
+            # for debugging
             print_analyze_constraints_matrix_form(suffix_solver)
-
-
             #
             # --------------------
             y_to_ip = 0.0
