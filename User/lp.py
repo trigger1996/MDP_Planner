@@ -1271,7 +1271,7 @@ def synthesize_suffix_cycle_in_sync_amec2(prod_mdp, mec_observer, sync_mec_graph
             print('Objective added')
             # add constraints
             # --------------------
-            for k, s in enumerate(Sn):
+            for k, s in enumerate(Sn_good):
                 #
                 # constr3: sum of outflow
                 # constr4: sum of inflow
@@ -1293,7 +1293,7 @@ def synthesize_suffix_cycle_in_sync_amec2(prod_mdp, mec_observer, sync_mec_graph
                     #       if f in Sr:
                     # suffix
                     #       if f in Sn 且 s in Sn 且 s not in ip
-                    if (f in Sn) and (s not in ip):
+                    if (f in Sn_good) and (s not in ip):
                         prop = opaque_full_graph[f][s]['prop'].copy()
                         act_f_list = get_action_from_successor_edge(opaque_full_graph, f)
                         for uf in act_f_list:
@@ -1302,7 +1302,7 @@ def synthesize_suffix_cycle_in_sync_amec2(prod_mdp, mec_observer, sync_mec_graph
                             else:
                                 #constr4 += Y[(f, uf)] * 0.00
                                 pass
-                    if (f in Sn) and (s in ip) and (f != s):
+                    if (f in Sn_good) and (s in ip) and (f != s):
                         prop = opaque_full_graph[f][s]['prop'].copy()
                         act_f_list = get_action_from_successor_edge(opaque_full_graph, f)
                         for uf in act_f_list:
