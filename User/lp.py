@@ -1271,96 +1271,150 @@ def synthesize_suffix_cycle_in_sync_amec2(prod_mdp, mec_observer, sync_mec_graph
             print('Objective added')
             # add constraints
             # --------------------
-            for k, s in enumerate(Sn_good):
+            for k, s in enumerate(Sn):
                 #
                 # constr3: sum of outflow
                 # constr4: sum of inflow
-                constr3 = 0
-                constr4 = 0
-                act_s_list = get_action_from_successor_edge(opaque_full_graph, s)
-                for u in act_s_list:
+                constr3 = 0.
+                constr4 = 0.
+                if s in Sn_good:
+                    act_s_list = get_action_from_successor_edge(opaque_full_graph, s)
+                    for u in act_s_list:
+                        #
+                        # 这里也有不同
+                        # prefix
+                        #       s in Sr
+                        # suffix
+                        #       s in Sn
+                        constr3 += Y[(s, u)]
+                    for f in opaque_full_graph.predecessors(s):
+                        #
+                        # 这里也有不同
+                        # prefix
+                        #       if f in Sr:
+                        # suffix
+                        #       if f in Sn 且 s in Sn 且 s not in ip
+                        if (f in Sn_good) and (s not in ip):
+                            prop = opaque_full_graph[f][s]['prop'].copy()
+                            act_f_list = get_action_from_successor_edge(opaque_full_graph, f)
+                            for uf in act_f_list:
+                                if uf in list(prop.keys()):
+                                    constr4 += Y[(f, uf)] * prop[uf][0]
+                                else:
+                                    #constr4 += Y[(f, uf)] * 0.00
+                                    pass
+                        if (f in Sn_good) and (s in ip) and (f != s):
+                            prop = opaque_full_graph[f][s]['prop'].copy()
+                            act_f_list = get_action_from_successor_edge(opaque_full_graph, f)
+                            for uf in act_f_list:
+                                if uf in list(prop.keys()):
+                                    constr4 += Y[(f, uf)] * prop[uf][0]
+                                else:
+                                    #constr4 += Y[(f, uf)] * 0.00
+                                    pass
+
+
+                    # Added for debugging
+                    if s in ip:
+                        debug_var = 4
+
                     #
-                    # 这里也有不同
-                    # prefix
-                    #       s in Sr
-                    # suffix
-                    #       s in Sn
-                    constr3 += Y[(s, u)]
-                for f in opaque_full_graph.predecessors(s):
+                    # 在debug的时候, 如果有约束条件不可解, 专心看rhs有没有相同的, 而非lhs, 因为lhs肯定都是和s挂钩所以都不一样
+                    # 而且不可解多半是因为flow balance constraint
                     #
-                    # 这里也有不同
-                    # prefix
-                    #       if f in Sr:
-                    # suffix
-                    #       if f in Sn 且 s in Sn 且 s not in ip
-                    if (f in Sn_good) and (s not in ip):
-                        prop = opaque_full_graph[f][s]['prop'].copy()
-                        act_f_list = get_action_from_successor_edge(opaque_full_graph, f)
-                        for uf in act_f_list:
-                            if uf in list(prop.keys()):
+                    # y_in_sf input flow of sf, sf的输入状态转移概率
+                    #     if t not in y_in_sf:
+                    #         y_in_sf[t] = Y[(s, u)].solution_value()*pe
+                    #     else:
+                    #         y_in_sf[t] += Y[(s, u)].solution_value()*pe
+                    #     最后还需要归一化
+                    #     当单状态状态转移Sn -> sf时会被记录到Sf
+                    #
+                    # 如果 s in Sf且上一时刻状态属于Sn, 但不在MEC内
+                    if (s in list(y_in_sf_sync.keys())) and (s not in ip):
+                        suffix_solver.Add(constr3 == constr4 + y_in_sf_sync[s])  # 可能到的了的要计算?
+                        #
+                        # Added, for debugging
+                        print_c("constraint: %d" % (k,), color=32)               # green / yellow
+                        print_c(constr3, color=32)
+                        print_c(constr4, color=33)
+                        print_c(y_in_sf_sync[s], color=33)
+                        print_c(" ")
+                    #
+                    # 如果 s in Sf, 且上一时刻状态在Sn，且在MEC内
+                    if (s in list(y_in_sf_sync.keys())) and (s in ip):
+                        suffix_solver.Add(constr3 == y_in_sf_sync[s])  # 在里面的永远到的了?
+                        #
+                        # Added, for debugging
+                        print_c("constraint: %d" % (k,), color=34)
+                        print_c(constr3, color=34)
+                        print_c(y_in_sf_sync[s], color=35)
+                        print_c(" ")
+
+                    # 如果s不在Sf内且不在MEC内
+                    if (s not in list(y_in_sf_sync.keys())) and (s not in ip):
+                        suffix_solver.Add(constr3 == constr4)  # 到不了的永远到不了?
+                        #
+                        # Added, for debugging
+                        print_c("constraint: %d" % (k,), color=36)
+                        print_c(constr3, color=36)
+                        print_c(constr4, color=37)
+                        print_c(" ")                                            # cyan / gray
+                elif s in Sn_bad:
+                    # TODO
+                    # to recover
+                    act_pi_list = get_action_from_successor_edge(opaque_full_graph, s)
+                    for u in act_pi_list:
+                        constr3 += Y[(s, u)]
+                    #
+                    # for u in initial_subgraph.nodes[s]['act']:
+                    #     node_y_out += Y[(s, u)]
+                    #
+                    for f in opaque_full_graph.predecessors(s):
+                        if f in Sn:
+                            prop = opaque_full_graph[f][s]['prop'].copy()
+                            # is_opacity = initial_subgraph[f][s]['is_opacity']
+                            # if not is_opacity:
+                            #     continue
+                            for uf in prop.keys():
                                 constr4 += Y[(f, uf)] * prop[uf][0]
-                            else:
-                                #constr4 += Y[(f, uf)] * 0.00
-                                pass
-                    if (f in Sn_good) and (s in ip) and (f != s):
-                        prop = opaque_full_graph[f][s]['prop'].copy()
-                        act_f_list = get_action_from_successor_edge(opaque_full_graph, f)
-                        for uf in act_f_list:
-                            if uf in list(prop.keys()):
-                                constr4 += Y[(f, uf)] * prop[uf][0]
-                            else:
-                                #constr4 += Y[(f, uf)] * 0.00
-                                pass
 
+                    if (type(constr3) != float and type(constr4) != float) or (
+                            type(constr3) != float and constr4 != 0.0) or (
+                            type(constr4) != float and constr3 != 0.0):
+                        if (s in list(y_in_sf_sync.keys())) and (s not in ip):
+                            suffix_solver.Add(constr3 == constr4 + y_in_sf_sync[s])  # 可能到的了的要计算?
+                            #
+                            # Added, for debugging
+                            print_c("[sf bad] constraint: %d" % (k,), color=32)  # green / yellow
+                            print_c(constr3, color=32)
+                            print_c(constr4, color=33)
+                            print_c(y_in_sf_sync[s], color=33)
+                            print_c(" ")
+                        #
+                        # 如果 s in Sf, 且上一时刻状态在Sn，且在MEC内
+                        if (s in list(y_in_sf_sync.keys())) and (s in ip):
+                            suffix_solver.Add(constr3 == y_in_sf_sync[s])  # 在里面的永远到的了?
+                            #
+                            # Added, for debugging
+                            print_c("[sf bad] constraint: %d" % (k,), color=34)
+                            print_c(constr3, color=34)
+                            print_c(y_in_sf_sync[s], color=35)
+                            print_c(" ")
 
-                # Added for debugging
-                if s in ip:
-                    debug_var = 4
-
-                #
-                # 在debug的时候, 如果有约束条件不可解, 专心看rhs有没有相同的, 而非lhs, 因为lhs肯定都是和s挂钩所以都不一样
-                # 而且不可解多半是因为flow balance constraint
-                #
-                # y_in_sf input flow of sf, sf的输入状态转移概率
-                #     if t not in y_in_sf:
-                #         y_in_sf[t] = Y[(s, u)].solution_value()*pe
-                #     else:
-                #         y_in_sf[t] += Y[(s, u)].solution_value()*pe
-                #     最后还需要归一化
-                #     当单状态状态转移Sn -> sf时会被记录到Sf
-                #
-                # 如果 s in Sf且上一时刻状态属于Sn, 但不在MEC内
-                if (s in list(y_in_sf_sync.keys())) and (s not in ip):
-                    suffix_solver.Add(constr3 == constr4 + y_in_sf_sync[s])  # 可能到的了的要计算?
-                    #
-                    # Added, for debugging
-                    print_c("constraint: %d" % (k,), color=32)               # green / yellow
-                    print_c(constr3, color=32)
-                    print_c(constr4, color=33)
-                    print_c(y_in_sf_sync[s], color=33)
-                    print_c(" ")
-                #
-                # 如果 s in Sf, 且上一时刻状态在Sn，且在MEC内
-                if (s in list(y_in_sf_sync.keys())) and (s in ip):
-                    suffix_solver.Add(constr3 == y_in_sf_sync[s])  # 在里面的永远到的了?
-                    #
-                    # Added, for debugging
-                    print_c("constraint: %d" % (k,), color=34)
-                    print_c(constr3, color=34)
-                    print_c(y_in_sf_sync[s], color=35)
-                    print_c(" ")
-
-                # 如果s不在Sf内且不在MEC内
-                if (s not in list(y_in_sf_sync.keys())) and (s not in ip):
-                    suffix_solver.Add(constr3 == constr4)  # 到不了的永远到不了?
-                    #
-                    # Added, for debugging
-                    print_c("constraint: %d" % (k,), color=36)
-                    print_c(constr3, color=36)
-                    print_c(constr4, color=37)
-                    print_c(" ")                                            # cyan / gray
+                        # 如果s不在Sf内且不在MEC内
+                        if (s not in list(y_in_sf_sync.keys())) and (s not in ip):
+                            suffix_solver.Add(constr3 == constr4)  # 到不了的永远到不了?
+                            #
+                            # Added, for debugging
+                            print_c("[sf bad] constraint: %d" % (k,), color=36)
+                            print_c(constr3, color=36)
+                            print_c(constr4, color=37)
+                            print_c(" ")
+                            #
             print('Balance condition added')
             print('Initial sf condition added')
+            print('Recovery of Sf_bad added')
             #
             # for debugging
             print_analyze_constraints_matrix_form(suffix_solver)
@@ -1394,6 +1448,11 @@ def synthesize_suffix_cycle_in_sync_amec2(prod_mdp, mec_observer, sync_mec_graph
             print_c("y_out:", color=36)
             print_c(y_out, color=36)
             print('Risk constraint added')
+            #
+            # TODO opacity constraint
+            for s in Sn:
+                pass
+            #
             # ------------------------------
             # solve
             print('--optimization for suffix starts--')
@@ -1409,6 +1468,12 @@ def synthesize_suffix_cycle_in_sync_amec2(prod_mdp, mec_observer, sync_mec_graph
             else:
                 print('The problem does not have an optimal solution.')
                 return None, None, None
+            #
+            # for debugging
+            Y_val = dict()
+            for s_u in Y.keys():
+                Y_val[s_u] = Y[s_u].solution_value()
+            #
             # compute optimal plan suffix given the LP solution
             plan_suffix = dict()
             for s in Sn:
@@ -1424,6 +1489,10 @@ def synthesize_suffix_cycle_in_sync_amec2(prod_mdp, mec_observer, sync_mec_graph
                         P.append(Y[(s, u)].solution_value()/norm)
                     else:
                         P.append(1.0/len(act_s_list))
+                #
+                # TODO for debugging
+                if not P.__len__():
+                    print("warning...")         # list(mec_observer.edges(s, data=True))
                 plan_suffix[s] = [U, P]
             print("----Suffix plan added")
             cost = suffix_solver.Objective().Value()
