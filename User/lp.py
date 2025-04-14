@@ -1111,7 +1111,7 @@ def synthesize_suffix_cycle_in_sync_amec(prod_mdp, sync_mec, MEC_pi, y_in_sf, S_
                 else:
                     for u_t in norm_sync_state_t.keys():
                         P.append(1.0 / len(norm_sync_state_t.keys()))          # the length of act_pi[s_pi_t] is equal to that of norm_sync_state_t.keys()
-                    # #P.append(1.0 / len(act_pi[s_pi_t]))             # round robin
+                    # #P.append(1.0 / len(act_pi[s_pi_t]))                     # round robin
                 plan_suffix[s_pi_t] = [U, P]
             print("----Suffix plan added")
             cost = suffix_solver.Objective().Value()
@@ -1194,7 +1194,7 @@ def synthesize_suffix_cycle_in_sync_amec(prod_mdp, sync_mec, MEC_pi, y_in_sf, S_
             return None, None, None
         '''
 
-def synthesize_suffix_cycle_in_sync_amec2(prod_mdp, mec_observer, sync_mec_graph, sync_mec_3, y_in_sf_sync, opaque_full_graph, initial_sync_state, differential_expected_cost=1.55):
+def synthesize_suffix_cycle_in_sync_amec2(prod_mdp, mec_observer, sync_amec_graph, sync_mec_3, y_in_sf_sync, opaque_full_graph, initial_sync_state, differential_expected_cost=1.55):
     # ----Synthesize optimal plan suffix to stay within the accepting MEC----
     # ----with minimal expected total cost of accepting cyclic paths----
     print_c("===========[plan suffix synthesis starts]", color=32)
@@ -1271,6 +1271,10 @@ def synthesize_suffix_cycle_in_sync_amec2(prod_mdp, mec_observer, sync_mec_graph
             print('Objective added')
             # add constraints
             # --------------------
+            #
+            # description of each constraints
+            constr_descrip = []
+            #
             for k, s in enumerate(Sn):
                 #
                 # constr3: sum of outflow
@@ -1452,6 +1456,33 @@ def synthesize_suffix_cycle_in_sync_amec2(prod_mdp, mec_observer, sync_mec_graph
             # TODO opacity constraint
             for s in Sn:
                 pass
+
+            constr_opacity_lhs = []
+            constr_opacity_rhs = differential_expected_cost
+
+            with Progress() as progress:
+                task_id = progress.add_task("Opacity constraints ...", total=len(Sn))
+
+                for k, s in enumerate(Sn):
+                    # 更新进度条的描述
+                    progress.update(task_id, advance=1, description=f"Processing ... {k + 1}/{len(Sn)}")
+
+                    for t in opaque_full_graph.successors(s):
+                        if opaque_full_graph.has_edge(s, t):
+                            prop = opaque_full_graph[s][t]['diff_exp'].copy()
+                            for u in prop.keys():
+                                if (s, u) in Y:
+                                    y_t = Y[(s, u)] * prop[u]
+                                    constr_opacity_lhs.append(y_t)
+
+            sum_opacity_lhs = suffix_solver.Sum(constr_opacity_lhs)
+            suffix_solver.Add(sum_opacity_lhs <= constr_opacity_rhs)
+            constr_descrip.append("differential_expected_cost")
+
+            print_c("opacity constraint added ...", color=46)
+            print_c(f'number of constraints: {suffix_solver.NumConstraints()}', color=46)
+            constr_opacity_index = suffix_solver.NumConstraints() - 1
+
             #
             # ------------------------------
             # solve
@@ -1480,20 +1511,68 @@ def synthesize_suffix_cycle_in_sync_amec2(prod_mdp, mec_observer, sync_mec_graph
                 norm = 0
                 U = []
                 P = []
-                act_s_list = get_action_from_successor_edge(opaque_full_graph, s)
-                for u in act_s_list:
-                    norm += Y[(s, u)].solution_value()
-                for u in act_s_list:
-                    U.append(u)
-                    if norm > 0.01:
-                        P.append(Y[(s, u)].solution_value()/norm)
+                # U_total = initial_subgraph.nodes[s]['act'].copy()
+                U_total = list()
+                for sync_u, sync_v, attr in opaque_full_graph.edges(s, data=True):
+                    #
+                    # 这边就不用is_opacity了
+                    U_total += list(attr['prop'].keys())
+                    #
+                U_total = list(set(U_total))
+                U_total.sort()
+                for u in U_total:
+                    if type(Y[(s, u)]) == float:
+                        norm += 0.  # now, Y[(s, u)] is not considered as a feasible solution for opacity
                     else:
-                        P.append(1.0/len(act_s_list))
+                        norm += Y[(s, u)].solution_value()
                 #
-                # TODO for debugging
-                if not P.__len__():
-                    print("warning...")         # list(mec_observer.edges(s, data=True))
+                # TODO
+                if norm > 0.01:
+                    for u in U_total:
+                        U.append(u)
+                        if type(Y[(s, u)]) != float:
+                            P.append(Y[(s, u)].solution_value() / norm)
+                else:
+                    if s not in sf:
+                        # 当s不在sync_amec内时, 引导s到达sync_amec
+                        path_t = networkx.single_source_shortest_path(opaque_full_graph, s)
+                        reachable_set_t = set(path_t).intersection(set(sf))
+                        dist_val_dict = {}
+                        for tgt_t in reachable_set_t:
+                            dist_val_dict[tgt_t] = networkx.shortest_path_length(opaque_full_graph, s, tgt_t,
+                                                                                 weight=exp_weight)
+                        #
+                        min_dist_target = min(dist_val_dict, key=dist_val_dict.get)
+                        #
+                        if len(path_t[min_dist_target]) > 1:
+                            successor_state = path_t[min_dist_target][1]
+                            edge_data = opaque_full_graph.edges[s, successor_state]
+                            for u_p in edge_data['prop'].keys():
+                                U.append(u_p)
+                                P.append(1.0 / len(edge_data['prop'].keys()))
+                            for u_p in U_total:
+                                if u_p in edge_data['prop'].keys():
+                                    continue
+                                U.append(u_p)
+                                P.append(0.)
+                        else:
+                            # the old round_robin
+                            U.append(U_total)
+                            P.append(1.0 / len(U_total))
+                    else:
+                        # 当在amec内
+                        U_total_p = list()
+                        for sync_u, sync_v, attr in sync_amec_graph.edges(s, data=True):
+                            U_total_p += list(attr['prop'].keys())
+                        #
+                        U_total_p = list(set(U_total_p))
+                        U_total_p.sort()
+                        for u in U_total_p:
+                            U.append(u)
+                        P.append(1.0 / len(U_total_p))
+
                 plan_suffix[s] = [U, P]
+
             print("----Suffix plan added")
             cost = suffix_solver.Objective().Value()
             print("----Suffix cost computed")
@@ -1520,7 +1599,20 @@ def synthesize_suffix_cycle_in_sync_amec2(prod_mdp, mec_observer, sync_mec_graph
                 risk = y_out/(y_to_ip+y_out)
             print('y_out: %s; y_to_ip+y_out: %s' % (y_out, y_to_ip+y_out))
             print("----Suffix risk computed")
-            return plan_suffix, cost, risk
+
+            constr_t = suffix_solver.constraint(constr_opacity_index)
+            opacity_val = 0.
+            for s_sync_t in Sn:
+                act_s_list = get_action_from_successor_edge(opaque_full_graph, s)
+                for u_t in act_s_list:
+                    Y_t = Y[(s_sync_t, u_t)]  # 单独拿出来是为了debugging
+                    if type(Y_t) != float:
+                        ki_t = constr_t.GetCoefficient(Y_t)
+                        opacity_val += ki_t * Y_t.solution_value()
+            print_c("opacity_value: %f <= %f" % (opacity_val, differential_expected_cost,), color=35)
+            print_c("----Suffix opacity threshold computed", color=35)
+
+            return plan_suffix, cost, risk, opacity_val
         # except:
         #     print("ORtools Error reported")
         #     return None, None, None
@@ -2113,16 +2205,15 @@ def synthesize_full_plan_w_opacity2(mdp, task, optimizing_ap, ap_list, risk_pr, 
                                                                                                                                 opaque_full_graph,       # 用来判断Sn是否可达, 虽然没啥意义但是还是可以做,
                                                                                                                                 initial_sync_state,
                                                                                                                                 differential_exp_cost)
-                        print(233)
 
+                        plan.append([[plan_prefix, prefix_cost, prefix_risk, y_in_sf_sync],
+                                     [plan_suffix, suffix_cost, suffix_risk],
+                                     [MEC_pi[0], MEC_pi[1], Sr, Sd],
+                                     [ap_4_opacity, suffix_opacity_threshold, prod_dra_pi.current_sync_amec_index, MEC_gamma[0],
+                                      MEC_gamma[1]],
+                                     prod_dra_pi])
 
-            #
-            plan_prefix, prefix_cost, prefix_risk, y_in_sf, Sr, Sd = syn_plan_prefix(
-                prod_dra_pi, MEC_pi, risk_pr)
-            print("Best plan prefix obtained, cost: %s, risk %s" %
-                  (str(prefix_cost), str(prefix_risk)))
-
-
+                        print_policies_w_opacity(ap_4_opacity, plan_prefix, plan_suffix)
 
         if plan:
             print("=========================")

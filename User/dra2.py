@@ -378,9 +378,15 @@ class product_mdp2(Product_Dra):
                         next_state_gamma = edge_t_gamma[1]
                         next_sync_state = (next_state_pi, next_state_gamma)
 
-                        if next_sync_state in initial_subgraph.nodes():
-                            #visited.add(next_sync_state)
-                            continue
+                        if not initial_subgraph.has_edge(current_state, next_sync_state):
+                            if mec_observer.has_edge(current_state, next_sync_state):
+                                print(233)
+
+                        #
+                        # 有些时候点都有但边没有
+                        # if next_sync_state in initial_subgraph.nodes():
+                        #     #visited.add(next_sync_state)
+                        #     continue
 
                         # 1. 检查控制动作同步
                         try:
