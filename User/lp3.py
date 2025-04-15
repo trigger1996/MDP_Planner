@@ -479,7 +479,7 @@ def synthesize_full_plan_w_opacity3(mdp, task, optimizing_ap, ap_list, risk_pr, 
                             prod_dra_gamma,
                             sync_mec_t,
                             prod_dra_pi.sync_amec_set[prod_dra_pi.current_sync_amec_index],
-                            prod_dra_pi.mec_observer_set[prod_dra_pi.current_sync_amec_index],
+                            MEC_pi, MEC_gamma,
                             optimizing_ap, ap_4_opacity, observation_func, ctrl_obs_dict)
 
                         plan_prefix, prefix_cost, prefix_risk, y_in_sf_sync, Sr, Sd = syn_plan_prefix_in_sync_amec(
