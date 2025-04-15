@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 import time
 from subprocess import check_output
 from Map.simple_example_20250401 import (build_model, observation_func_0401, control_observable_dict, run_2_observations_seqs,
@@ -6,8 +8,10 @@ from MDP_TG.mdp import Motion_MDP
 from MDP_TG.dra import Dra, Product_Dra
 from MDP_TG.lp import syn_full_plan, syn_full_plan_rex
 from User.team_mdp_dra import Team_MDP, Team_Product_Dra
-from User.lp import syn_full_plan_repeated, synthesize_full_plan_w_opacity, synthesize_full_plan_w_opacity2, synthesize_full_plan_w_opacity_4_Team_MDP
+from User.lp import syn_full_plan_repeated, synthesize_full_plan_w_opacity, synthesize_full_plan_w_opacity_4_Team_MDP
 from User.vis2 import print_c, print_colored_sequence, print_highlighted_sequences
+
+from User.lp3 import synthesize_full_plan_w_opacity3
 
 from functools import cmp_to_key
 from User.grid_utils import sort_numerical_states
@@ -162,11 +166,11 @@ def room_example_main_w_opacity():
     differential_exp_cost = 15                                  #           1.590106
     is_run_opaque_synthesis = True
     if is_run_opaque_synthesis:
-        best_all_plan, prod_dra_pi = synthesize_full_plan_w_opacity(motion_mdp, ltl_formula, opt_prop, ap_list, risk_threshold,
-                                                                    differential_exp_cost,
-                                                                    observation_func=observation_func_0401,
-                                                                    ctrl_obs_dict=control_observable_dict)
-        best_all_plan, prod_dra_pi = synthesize_full_plan_w_opacity2(motion_mdp, ltl_formula, opt_prop, ap_list, risk_threshold,
+        # best_all_plan, prod_dra_pi = synthesize_full_plan_w_opacity(motion_mdp, ltl_formula, opt_prop, ap_list, risk_threshold,
+        #                                                             differential_exp_cost,
+        #                                                             observation_func=observation_func_0401,
+        #                                                             ctrl_obs_dict=control_observable_dict)
+        best_all_plan, prod_dra_pi = synthesize_full_plan_w_opacity3(motion_mdp, ltl_formula, opt_prop, ap_list, risk_threshold,
                                                                     differential_exp_cost,
                                                                     observation_func=observation_func_0401,
                                                                     ctrl_obs_dict=control_observable_dict)
