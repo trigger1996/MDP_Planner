@@ -51,31 +51,40 @@ def obtain_differential_expected_cost(current_action, edge_pi, edge_gamma):
 
     return different_expected_cost
 
-def project_sync_state_2_observer_state(observer_graph:nx.DiGraph, sync_amec_3):
+def project_observer_state_2_sync_state(sync_mec_3, observer_state_set):
+    sync_state_set = []
+    for observer_state_t in observer_state_set:
+        for sync_state_t in sync_mec_3:
+            state_pi_t = sync_state_t[0]
+            state_gamma_t = sync_state_t[1]
+            if state_pi_t == observer_state_t[0]:
+                if state_gamma_t in observer_state_t[1]:
+                    sync_state_set.append(sync_state_t)
+    sync_state_set.sort()
+    sync_state_set = list(set(sync_state_set))
+    return sync_state_set
+
+def project_sync_states_2_observer_states(observer_graph:nx.DiGraph, sync_state_set):
+    observer_state_set = []
+    for observer_state_t in observer_graph.nodes:
+        for sync_state_t in sync_state_set:
+            state_pi_t = sync_state_t[0]
+            state_gamma_t = sync_state_t[1]
+            if state_pi_t == observer_state_t[0]:
+                if state_gamma_t in observer_state_t[1]:
+                    observer_state_set.append(observer_state_t)
+    observer_state_set.sort()
+    observer_state_set = list(set(observer_state_set))
+    return observer_state_set
+
+def project_sync_mec_3_2_observer_mec_3(observer_graph:nx.DiGraph, sync_amec_3):
     mec_states = sync_amec_3[0]
     ip_states  = list(sync_amec_3[1])
     act_list   = {}
     #
-    observer_state_1 = []
-    observer_ip      = []
+    observer_state_1 = project_sync_states_2_observer_states(observer_graph, mec_states)
+    observer_ip = project_sync_states_2_observer_states(observer_graph, ip_states)
     act_list         = {}   # TODO
-    #
-    for observer_state_t in observer_graph.nodes:
-        if observer_state_t[0] == ('3', frozenset({'recharge'}), 3):
-            debug_var = -1
-        for sync_state_t in mec_states:
-            state_pi_t = sync_state_t[0]
-            if state_pi_t == observer_state_t[0]:
-                observer_state_1.append(observer_state_t)
-        for sync_state_t in ip_states:
-            state_pi_t = sync_state_t[0]
-            if state_pi_t == observer_state_t[0]:
-                observer_ip.append(observer_state_t)
-    #
-    observer_state_1.sort()
-    observer_ip.sort()
-    observer_state_1 = list(set(observer_state_1))
-    observer_ip      = list(set(observer_ip))
     #
     return [observer_state_1, observer_ip, act_list]
 

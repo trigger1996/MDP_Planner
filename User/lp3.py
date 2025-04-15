@@ -8,7 +8,7 @@ from collections import defaultdict
 from ortools.linear_solver import pywraplp
 
 from MDP_TG.dra import Dra, Product_Dra
-from User.dra3  import product_mdp3, project_sync_state_2_observer_state
+from User.dra3  import product_mdp3, project_sync_states_2_observer_states, project_sync_mec_3_2_observer_mec_3
 from User.utils import ltl_convert
 from User.vis2  import print_c
 
@@ -35,15 +35,17 @@ def exp_weight(u, v, d):
         val_list.append(val_t)
     return min(val_list)
 
-def syn_plan_prefix_in_sync_amec(prod_mdp, initial_subgraph, initial_sync_state, sync_amec_graph, sync_amec_3, gamma):
+def syn_plan_prefix_in_sync_amec(prod_mdp, initial_subgraph, initial_sync_state, sync_amec_graph, sync_amec_3, observer_mec, gamma):
     # ----Synthesize optimal plan prefix to reach accepting MEC or SCC----
     # ----with bounded risk and minimal expected total cost----
     print("===========[plan prefix synthesis starts]===========")
     #
     # sf对应MEC全集
     # ip对应MEC和DRA中接收集和MEC的交集
-    sf = sync_amec_3[0]
-    ip = sync_amec_3[1]  # force convergence to ip
+    sf = observer_mec[0]
+    ip = observer_mec[1]  # force convergence to ip
+    sf_sync_state = sync_amec_3[0]
+    ip_sync_state = sync_amec_3[1]
     delta = 0.01
 
     for init_node in initial_sync_state:        # prod_mdp.graph['initial']
@@ -70,18 +72,17 @@ def syn_plan_prefix_in_sync_amec(prod_mdp, initial_subgraph, initial_sync_state,
         Sr = set()
         Sr_good = set()
         Sr_bad  = set()
-        for state_ip_t in ip:
+        for observer_state_t in ip_observer:
             try:
                 #path_inv = single_source_shortest_path(simple_digraph, state_ip_t)                      # path = single_source_shortest_path(simple_digraph, random.sample(ip, 1)[0])                                     # 为什么这边要随机初始状态?
-                path = nx.single_target_shortest_path(initial_subgraph, target=state_ip_t)         # 哦其实原来的代码是对的, 上面建立的是一个反向图
+                path = nx.single_target_shortest_path(initial_subgraph, target=observer_state_t)         # 哦其实原来的代码是对的, 上面建立的是一个反向图
+            except nx.NetworkXError:
+                continue
+        for state_ip_t in ip:
+            try:
                 #
                 # Added
                 path_p = nx.single_target_shortest_path(sync_amec_graph, target=state_ip_t)
-                #
-                # for debugging
-                #diff_1 = set(path_inv.keys()) - set(path.keys())
-                #diff_2 = set(path.keys()) - set(path_inv.keys())
-                #
             except nx.NetworkXError:
                 continue
             reachable_set = set(path.keys())
@@ -89,8 +90,8 @@ def syn_plan_prefix_in_sync_amec(prod_mdp, initial_subgraph, initial_sync_state,
             Sd = Sn.difference(reachable_set)                                                   # Sn \ { 可达状态 } -> 不可以到达MEC的状态,  可以由初态s0到达, 但不可到达MEC的状态
             Sr = Sn.intersection(reachable_set)                                                 # Sn ^ { 可达状态 } -> 可以到达MEC的所有状态, 论文里是所有可以由s0到达的状态
 
-            reachable_set_p = set(path_p.keys())
-            Sr_good = Sn.intersection(reachable_set_p)
+            reachable_set_p = project_sync_states_2_observer_states(initial_subgraph, list(path_p.keys()))
+            Sr_good = Sn.intersection(set(reachable_set_p))
 
             # Added
             if Sr_good.__len__() and Sr.__len__():
@@ -482,11 +483,12 @@ def synthesize_full_plan_w_opacity3(mdp, task, optimizing_ap, ap_list, risk_pr, 
                                                                                     MEC_pi, MEC_gamma,
                                                                                     optimizing_ap, ap_4_opacity, observation_func, ctrl_obs_dict)
 
-                        observer_mec_3 = project_sync_state_2_observer_state(initial_subgraph, sync_mec_t)
+                        observer_mec_3 = project_sync_mec_3_2_observer_mec_3(initial_subgraph, sync_mec_t)
 
                         plan_prefix, prefix_cost, prefix_risk, y_in_sf_sync, Sr, Sd = syn_plan_prefix_in_sync_amec(
                                                                                     prod_dra_pi, initial_subgraph, initial_sync_state,
-                                                                                    prod_dra_pi.sync_amec_set[prod_dra_pi.current_sync_amec_index], observer_mec_3, risk_pr)
+                                                                                    prod_dra_pi.sync_amec_set[prod_dra_pi.current_sync_amec_index],
+                                                                                    sync_mec_t, observer_mec_3, risk_pr)
 
                         opaque_full_graph = prod_dra_pi.construct_fullgraph_4_amec(initial_subgraph,
                                                                                     prod_dra_gamma,
