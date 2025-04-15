@@ -8,7 +8,7 @@ from collections import defaultdict
 from ortools.linear_solver import pywraplp
 
 from MDP_TG.dra import Dra, Product_Dra
-from User.dra3  import product_mdp3
+from User.dra3  import product_mdp3, project_sync_state_2_observer_state
 from User.utils import ltl_convert
 from User.vis2  import print_c
 
@@ -476,34 +476,34 @@ def synthesize_full_plan_w_opacity3(mdp, task, optimizing_ap, ap_list, risk_pr, 
                             continue
 
                         initial_subgraph, initial_sync_state = prod_dra_pi.construct_opaque_subgraph_2_amec(
-                            prod_dra_gamma,
-                            sync_mec_t,
-                            prod_dra_pi.sync_amec_set[prod_dra_pi.current_sync_amec_index],
-                            MEC_pi, MEC_gamma,
-                            optimizing_ap, ap_4_opacity, observation_func, ctrl_obs_dict)
+                                                                                    prod_dra_gamma,
+                                                                                    sync_mec_t,
+                                                                                    prod_dra_pi.sync_amec_set[prod_dra_pi.current_sync_amec_index],
+                                                                                    MEC_pi, MEC_gamma,
+                                                                                    optimizing_ap, ap_4_opacity, observation_func, ctrl_obs_dict)
+
+                        observer_mec_3 = project_sync_state_2_observer_state(initial_subgraph, sync_mec_t)
 
                         plan_prefix, prefix_cost, prefix_risk, y_in_sf_sync, Sr, Sd = syn_plan_prefix_in_sync_amec(
-                            prod_dra_pi, initial_subgraph, initial_sync_state,
-                            prod_dra_pi.sync_amec_set[prod_dra_pi.current_sync_amec_index], sync_mec_t, risk_pr)
+                                                                                    prod_dra_pi, initial_subgraph, initial_sync_state,
+                                                                                    prod_dra_pi.sync_amec_set[prod_dra_pi.current_sync_amec_index], observer_mec_3, risk_pr)
 
                         opaque_full_graph = prod_dra_pi.construct_fullgraph_4_amec(initial_subgraph,
-                                                                                   prod_dra_gamma,
-                                                                                   prod_dra_pi.sync_amec_set[
-                                                                                       prod_dra_pi.current_sync_amec_index],
-                                                                                   prod_dra_pi.mec_observer_set[
-                                                                                       prod_dra_pi.current_sync_amec_index],
-                                                                                   optimizing_ap, ap_4_opacity,
-                                                                                   observation_func, ctrl_obs_dict)
+                                                                                    prod_dra_gamma,
+                                                                                    prod_dra_pi.sync_amec_set[prod_dra_pi.current_sync_amec_index],
+                                                                                    MEC_pi, MEC_gamma,
+                                                                                    optimizing_ap, ap_4_opacity,
+                                                                                    observation_func, ctrl_obs_dict)
 
-                        plan_suffix, suffix_cost, suffix_risk, suffix_opacity_threshold = synthesize_suffix_cycle_in_sync_amec2(
-                            prod_dra_pi,
-                            prod_dra_pi.mec_observer_set[prod_dra_pi.current_sync_amec_index],
-                            prod_dra_pi.sync_amec_set[prod_dra_pi.current_sync_amec_index],
-                            sync_mec_t,
-                            y_in_sf_sync,
-                            opaque_full_graph,  # 用来判断Sn是否可达, 虽然没啥意义但是还是可以做,
-                            initial_sync_state,
-                            differential_exp_cost)
+                        plan_suffix, suffix_cost, suffix_risk, suffix_opacity_threshold = synthesize_suffix_cycle_in_sync_amec(
+                                                                                    prod_dra_pi,
+                                                                                    prod_dra_pi.mec_observer_set[prod_dra_pi.current_sync_amec_index],
+                                                                                    prod_dra_pi.sync_amec_set[prod_dra_pi.current_sync_amec_index],
+                                                                                    sync_mec_t,
+                                                                                    y_in_sf_sync,
+                                                                                    opaque_full_graph,  # 用来判断Sn是否可达, 虽然没啥意义但是还是可以做,
+                                                                                    initial_sync_state,
+                                                                                    differential_exp_cost)
 
                         plan.append([[plan_prefix, prefix_cost, prefix_risk, y_in_sf_sync],
                                      [plan_suffix, suffix_cost, suffix_risk],
