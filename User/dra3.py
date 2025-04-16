@@ -205,8 +205,11 @@ class product_mdp3(Product_Dra):
                 trans_pr_cost_list = {}
                 diff_expected_cost_list = {}
                 #
+                # for debugging
                 if next_state_pi in ip_pi:
                     debug_var = 1
+                if next_state_pi[2] == 4:
+                    debug_var = 1.5
                 #
                 for edge_t_gamma in next_state_list_gamma:
                     # 获取下一状态
@@ -260,27 +263,12 @@ class product_mdp3(Product_Dra):
                 next_observed_states.sort()
                 next_states_3.sort()
 
-                is_next_state_in_ip = next_state_pi in ip_pi
-                #
-                is_opacity = next_observed_states.__len__()             # default: True, 这个很好理解, 没有打掩护的状态必然不满足Opacity
-                for state_gamma_t in set(next_observed_states).union(set(next_states_3)):
-                    if state_gamma_t not in mec_gamma_3[0]:
-                        is_opacity = False
-                is_state_pi_in_mec = next_state_pi in mec_pi_3[0]
-                if is_opacity and not is_state_pi_in_mec:               # 这步其实没啥子用, 就是调试用的
-                    print_c("warning ...")
-                is_opacity = is_opacity and is_state_pi_in_mec
-
-                # for debugging
-                if is_next_state_in_ip:
-                    debug_var = 2
-
                 for action, (prob, cost) in edge_t_pi[2]['prop'].items():
                     trans_pr_cost_list[action] = (prob, cost)                                                 # it is evident that this only corresponds to state_pi
 
                 # for debugging
                 if next_state_pi == ('0', frozenset({'upload'}), 1):
-                    debug_var = 3
+                    debug_var = 2
 
                 # 添加转移
                 next_observed_states = tuple(list(set(next_observed_states)))
@@ -311,10 +299,19 @@ class product_mdp3(Product_Dra):
                     stack_t = self.replace_list_items(stack_t, mapping_t)
 
                 if current_state == (('0', frozenset({'upload'}), 1), (('0', frozenset({'upload'}), 1),), ()) or next_sync_state == (('0', frozenset({'upload'}), 1), (('0', frozenset({'upload'}), 1),), ()):
-                    debug_var = 4
+                    debug_var = 3
 
                 if (('0', frozenset({'upload'}), 1), (('0', frozenset({'upload'}), 1),), ()) in stack_t:
-                    debug_var = 5
+                    debug_var = 4
+
+
+                is_next_state_in_ip = next_state_pi in ip_pi
+                #
+                is_opacity = self.is_state_opacity_in_observer_graph(next_sync_state, mec_pi_3, mec_gamma_3, ap_pi, ap_gamma)
+
+                # for debugging
+                if is_next_state_in_ip:
+                    debug_var = 2
 
                 subgraph_2_amec_t.add_edge(current_state, next_sync_state,
                                     prop=trans_pr_cost_list,
@@ -418,19 +415,8 @@ class product_mdp3(Product_Dra):
                     next_observed_states.sort()
                     next_states_3.sort()
 
-                    #
-                    is_opacity = next_observed_states.__len__()  # default: True, 这个很好理解, 没有打掩护的状态必然不满足Opacity
-                    for state_gamma_t in set(next_observed_states).union(set(next_states_3)):
-                        if state_gamma_t not in mec_gamma_3[0]:
-                            is_opacity = False
-                    is_state_pi_in_mec = next_state_pi in mec_pi_3[0]
-                    if is_opacity and not is_state_pi_in_mec:  # 这步其实没啥子用, 就是调试用的
-                        print_c("warning ...")
-                    is_opacity = is_opacity and is_state_pi_in_mec
-
                     for action, (prob, cost) in edge_t_pi[2]['prop'].items():
-                        trans_pr_cost_list[action] = (
-                        prob, cost)  # it is evident that this only corresponds to state_pi
+                        trans_pr_cost_list[action] = (prob, cost)  # it is evident that this only corresponds to state_pi
 
                     # 添加转移
                     next_observed_states = tuple(list(set(next_observed_states)))
@@ -459,6 +445,8 @@ class product_mdp3(Product_Dra):
                             current_state = mapping_t[current_state]
                         #
                         stack_t = self.replace_list_items(stack_t, mapping_t)
+
+                    is_opacity = self.is_state_opacity_in_observer_graph(next_sync_state, mec_pi_3, mec_gamma_3, ap_pi, ap_gamma)
 
                     #
                     # 有些时候点都有但边没有
@@ -710,6 +698,48 @@ class product_mdp3(Product_Dra):
         mec_pi_subset_1 = set(mec_pi_subset_1)
 
         return [mec_pi_subset_0, mec_pi_subset_1, mec_pi_subset_2]
+
+    def is_state_opacity_in_observer_graph(self, state, mec_pi, mec_gamma, ap_pi, ap_gamma):
+        current_state  = state[0]
+        observed_state = list(state[1]) + list(state[2])
+
+        is_observation_identical_state = not (observed_state.__len__() == 1 and current_state in observed_state)   # default: True, 这个很好理解, 没有打掩护的状态必然不满足Opacity
+        is_ip_state = ap_pi in current_state[1]
+
+        is_state_gamma_in_mec = True
+        for state_gamma_t in observed_state:
+            if state_gamma_t == current_state:
+                continue
+            if state_gamma_t not in mec_gamma[0]:
+                is_state_gamma_in_mec = False
+        is_state_pi_in_mec = current_state in mec_pi[0]
+        is_mec_satisfied = is_state_gamma_in_mec and is_state_pi_in_mec or (not is_state_pi_in_mec and is_state_gamma_in_mec)
+
+        if is_ip_state:
+            is_pi_state_satisfy_ap = is_state_satisfy_ap(current_state, ap_pi)
+            is_gamma_state_satisfy_ap = True
+            for state_gamma_t in observed_state:
+                if state_gamma_t == current_state:
+                    continue
+                is_gamma_state_satisfy_ap = is_state_satisfy_ap(state_gamma_t, ap_gamma)
+                if not is_gamma_state_satisfy_ap:
+                    break
+
+        if is_ip_state:
+            is_opacity = is_observation_identical_state and is_mec_satisfied and (is_pi_state_satisfy_ap and is_gamma_state_satisfy_ap)
+        else:
+            is_opacity = is_observation_identical_state and is_mec_satisfied
+
+        if not is_opacity:
+            debug_var = 6
+            if is_observation_identical_state:
+                debug_var = 6.1
+            if is_mec_satisfied:
+                debug_var = 6.2
+        else:
+            debug_var = 7
+
+        return is_opacity
 
     def execution(self, best_all_plan, total_T, state_seq, label_seq):
         # ----plan execution with or without given observation----

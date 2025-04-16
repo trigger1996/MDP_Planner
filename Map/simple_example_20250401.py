@@ -81,7 +81,7 @@ def run_2_observations_seqs(x_u_seqs):
     for i in range(0, x_u_seqs.__len__() - 1, 2):
         x_t = x_u_seqs[i]
         u_t = x_u_seqs[i + 1]
-        y_t = observation_func_0105(x_t, u_t)
+        y_t = observation_inv_func_0401(x_t, u_t)
         y_seq.append(y_t)
         #y_seq.append(u_t)           # u is for display and NOT in actual sequences
     return y_seq
@@ -91,7 +91,7 @@ def observation_seq_2_inference(y_seq):
     x_inv_set_seq = []
     ap_inv_seq = []
     for i in range(0, y_seq.__len__()):
-        x_inv_t = observation_inv_func_0105(y_seq[i])
+        x_inv_t = observation_inv_func_0401(y_seq[i])
         #
         ap_inv_t = []
         for state_t in x_inv_t:

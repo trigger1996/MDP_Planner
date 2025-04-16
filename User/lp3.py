@@ -3,6 +3,7 @@
 import time
 import pickle
 import networkx as nx
+import numpy    as np
 
 from collections import defaultdict
 from ortools.linear_solver import pywraplp
@@ -28,12 +29,97 @@ def find_states_satisfying_opt_prop(opt_prop, Se):
             S_pi.append(s)
     return S_pi
 
+def get_action_from_successor_edge(g, s):
+    act_list = []
+    for sync_u, sync_v, attr in g.edges(s, data=True):
+        act_list += list(attr['prop'].keys())
+    act_list = list(set(act_list))
+    act_list.sort()
+    return act_list
+
 def exp_weight(u, v, d):
     val_list = []
     for u_t in d['prop'].keys():
         val_t = d['prop'][u_t][0] * d['prop'][u_t][1]
         val_list.append(val_t)
     return min(val_list)
+
+def print_policies_w_opacity(ap_4_opacity, plan_prefix, plan_suffix):
+    # Added
+    # for printing policies
+    print_c("policy for AP: %s" % str(ap_4_opacity))
+    print_c("state action: probabilities")
+    print_c("Prefix", color=42)
+    #
+    state_in_prefix = [ state_t for state_t in plan_prefix ]
+    #state_in_prefix.sort(key=cmp_to_key(sort_grids))
+    #for state_t in plan_prefix:
+    for state_t in state_in_prefix:
+        print_c("%s, %s: %s" % (str(state_t), str(plan_prefix[state_t][0]), str(plan_prefix[state_t][1]), ), color=43)
+    #
+    print_c("Suffix", color=45)
+    state_in_suffix = [ state_t for state_t in plan_suffix ]
+    #state_in_suffix.sort(key=cmp_to_key(sort_grids))
+    #for state_t in plan_suffix:
+    for state_t in state_in_suffix:
+        print_c("%s, %s: %s" % (str(state_t), str(plan_suffix[state_t][0]), str(plan_suffix[state_t][1]), ), color=46)
+
+
+def print_analyze_constraints_matrix_form(solver):
+    variables = solver.variables()
+    constraints = solver.constraints()
+
+    # 创建 A 和 b 的零矩阵
+    num_vars = len(variables)
+    num_constraints = len(constraints)
+
+    A = np.zeros((num_constraints, num_vars))
+    b = np.zeros(num_constraints)
+
+    print("\n=== 变量顺序（列）：===")
+    for idx, var in enumerate(variables):
+        print(f"  x[{idx}] = {var.name()}")
+
+    print("\n=== 等式约束形式 Ax = b：===")
+
+    for i, ct in enumerate(constraints):
+        coeffs = []
+        for j, var in enumerate(variables):
+            coeff = ct.GetCoefficient(var)
+            coeffs.append(coeff)
+            A[i, j] = coeff  # 填充 A 矩阵
+        rhs = ct.ub()  # 等式约束中 ub = lb = b
+        b[i] = rhs  # 填充 b 向量
+        equation = " + ".join(
+            [f"{coeff:.3g}*x[{j}]" for j, coeff in enumerate(coeffs) if coeff != 0]
+        )
+        print(f"  Row {i}: {equation} = {rhs}")
+
+    # 输出 A 和 b 的矩阵
+    print("\n=== 约束矩阵 A 和常数向量 b：===")
+    print("A = ")
+
+    # 遍历 A 矩阵的每一行，并逐行输出，每个数字对齐
+    for row in A:
+        print("[" + ", ".join([f"{val:>8.3f}" for val in row]) + "]")
+
+    print("\nb = ")
+    # 输出 b 向量，每个数字对齐
+    print("[" + ", ".join([f"{val:>8.3f}" for val in b]) + "]")
+
+    # 计算矩阵 A 的秩
+    rank_A = np.linalg.matrix_rank(A)
+    print_c(f"\n矩阵 A 的秩为：{rank_A}", color='bg_cyan', style='bold')
+
+    try:
+        # 计算 A 的伪逆
+        A_pseudo_inv = np.linalg.pinv(A)
+
+        # 使用伪逆计算 x
+        x = np.dot(A_pseudo_inv, b)
+        print(x)
+    except:
+        print_c("Balance constraints may not be feasible ...", color='red')
 
 def syn_plan_prefix_in_sync_amec(prod_mdp, initial_subgraph, initial_sync_state, sync_amec_graph, sync_amec_3, observer_mec, gamma):
     # ----Synthesize optimal plan prefix to reach accepting MEC or SCC----
@@ -202,8 +288,8 @@ def syn_plan_prefix_in_sync_amec(prod_mdp, initial_subgraph, initial_sync_state,
                 if s in Sr_good:
                     act_pi_list = []
                     for sync_u, sync_v, attr in initial_subgraph.edges(s, data=True):
-                        # if not attr['is_opacity']:
-                        #     continue
+                        if not attr['is_opacity']:                                      # TODO, to check, 好的状态只让走满足opacity的边
+                            continue
                         act_pi_list += list(attr['prop'].keys())
                     act_pi_list = list(set(act_pi_list))
                     for u in act_pi_list:
@@ -215,9 +301,9 @@ def syn_plan_prefix_in_sync_amec(prod_mdp, initial_subgraph, initial_sync_state,
                     for f in initial_subgraph.predecessors(s):
                         if f in Sr:
                             prop = initial_subgraph[f][s]['prop'].copy()
-                            # is_opacity = initial_subgraph[f][s]['is_opacity']
-                            # if not is_opacity:
-                            #     continue
+                            is_opacity = initial_subgraph[f][s]['is_opacity']           # TODO, to check, 好的状态只让走满足opacity的边
+                            if not is_opacity:
+                                continue
                             for uf in prop.keys():
                                 node_y_in += Y[(f, uf)] * prop[uf][0]
                     #
@@ -236,7 +322,7 @@ def syn_plan_prefix_in_sync_amec(prod_mdp, initial_subgraph, initial_sync_state,
                         #     continue
                         for u in attr['prop'].keys():
                             # 只有当这个动作通往的是 good 状态才保留
-                            if sync_v in observer_mec[0]:                   # TODO
+                            if sync_v in observer_mec[0]:                                  # TODO, to check
                                 act_pi_list.append(u)
                     act_pi_list = list(set(act_pi_list))
                     for u in act_pi_list:
@@ -251,7 +337,7 @@ def syn_plan_prefix_in_sync_amec(prod_mdp, initial_subgraph, initial_sync_state,
                             # is_opacity = initial_subgraph[f][s]['is_opacity']
                             # if not is_opacity:
                             #     continue
-                            for uf in prop.keys():
+                            for uf in prop.keys():                                          # TODO, to check, 所有坏状态的出都要回到sync_amec的对应状态
                                 node_y_in += Y[(f, uf)] * prop[uf][0]
 
                     if (type(node_y_in) != float and type(node_y_out) != float) or (type(node_y_in) != float and node_y_out != 0.0) or (type(node_y_out) != float and node_y_in != 0.0):
@@ -413,6 +499,429 @@ def syn_plan_prefix_in_sync_amec(prod_mdp, initial_subgraph, initial_sync_state,
         #     print("ORTools Error reported")
         #     return None, None, None, None, None, None
 
+def synthesize_suffix_cycle_in_sync_amec3(prod_mdp, sync_amec_graph, sync_mec_3, y_in_sf_sync, opaque_full_graph, initial_sync_state, differential_expected_cost=1.55):
+    # ----Synthesize optimal plan suffix to stay within the accepting MEC----
+    # ----with minimal expected total cost of accepting cyclic paths----
+    print_c("===========[plan suffix synthesis starts]", color=32)
+    print_c("[synthesize_w_opacity] differential exp cost: %f" % (differential_expected_cost, ), color=32)
+
+    sf = sync_mec_3[0]                     # MEC
+    ip = sync_mec_3[1]                     # MEC 和 ip 的交集
+    act = sync_mec_3[2].copy()             # 所有状态的动作集合全集
+    delta = 0.01                            # 松弛变量?
+    gamma = 0.00                            # 根据(11), 整个系统进入MEC内以后就不用概率保证了?
+    for init_node in initial_sync_state:
+
+        # paths = nx.single_source_shortest_path(prod_mdp, init_node)                       # path.keys(): 可以通过初始状态到达的状态
+        # Sn = set(paths.keys()).intersection(sf)                                           # Sn, 可以由初始状态到达的MEC状态(此时的sf都满足opacity requirement且强连通)
+        reachable_sync_states = nx.single_source_shortest_path(opaque_full_graph, init_node)
+        #
+        Sn_good = set(reachable_sync_states.keys()).intersection(sf)                        # 满足Opacity requirement的MEC子集, 且满足强连通
+        Sn_bad  = set(reachable_sync_states.keys()).intersection(set(mec_observer.nodes())) # 可能在运行过程中到达的坏状态
+        Sn_bad  = Sn_bad.difference(Sn_good)
+        Sn      = Sn_good.union(Sn_bad)                                                     # 相当于此时Sn是MEC_observer的状态全集
+        print('Sf size: %s' % len(sf))
+        print('reachable sf size: %s' % len(Sn))
+        print('Ip size: %s' % len(ip))
+        print('Ip and sf intersection size: %s' % len(Sn.intersection(ip)))
+        # ---------solve lp------------
+        print('------')
+        print('ORtools for suffix starts now')
+        print('------')
+        #try:
+        if True:
+            Y = defaultdict(float)
+            suffix_solver = pywraplp.Solver.CreateSolver('GLOP')
+            # create variables
+            #
+            # 注意这里和prefix不同的是, prefix
+            # prefix -> Sr:
+            #       path = single_source_shortest_path(simple_digraph, random.sample(ip, 1)[0]), 即可以到达MEC的状态
+            #       Sn: path_init.keys() 和 Sf的交集, 两变Sf定义是一样的都是MEC
+            #       Sr: path.keys() 和 Sn相交, 也就是从初始状态可以到达MEC的状态
+            # suffix -> Sn:
+            #       Sn = set(paths.keys()).intersection(sf)
+            #       这里Sn和之前定义其实是一样的
+            #       可由初态到达, 且可到达MEC但是不在MEC内
+            for s in Sn:
+                act_pi_list = []
+                for sync_u, sync_v, attr in opaque_full_graph.edges(s, data=True):
+                    # if not attr['is_opacity']:
+                    #     continue
+                    act_pi_list += list(attr['prop'].keys())
+                act_pi_list = list(set(act_pi_list))
+                for u in act_pi_list:
+                    Y[(s, u)] = suffix_solver.NumVar(
+                        0, 1000, 'y[(%s, %s)]' % (s, u))  # 下界，上界，名称
+                # for u in act[s]:
+                #     Y[(s, u)] = suffix_solver.NumVar(0, 1000, 'y[(%s, %s)]' % (s, u))
+            print('Variables added: %d' % len(Y))
+            # set objective
+            obj = 0
+            for s in Sn:
+                act_pi_list = []
+                for sync_u, sync_v, attr in opaque_full_graph.edges(s, data=True):
+                    # if not attr['is_opacity']:
+                    #     continue
+                    act_pi_list += list(attr['prop'].keys())
+                act_pi_list = list(set(act_pi_list))
+                for u in act_pi_list:
+                    for t in opaque_full_graph.successors(s):
+                        prop = opaque_full_graph[s][t]['prop'].copy()
+                        if u in list(prop.keys()):
+                            pe = prop[u][0]
+                            ce = prop[u][1]
+                            obj += Y[(s, u)]*pe*ce
+            suffix_solver.Minimize(obj)
+            print('Objective added')
+            # add constraints
+            # --------------------
+            #
+            # description of each constraints
+            constr_descrip = []
+            #
+            for k, s in enumerate(Sn):
+                #
+                # constr3: sum of outflow
+                # constr4: sum of inflow
+                constr3 = 0.
+                constr4 = 0.
+                if s in Sn_good:
+                    act_s_list = get_action_from_successor_edge(opaque_full_graph, s)
+                    for u in act_s_list:
+                        #
+                        # 这里也有不同
+                        # prefix
+                        #       s in Sr
+                        # suffix
+                        #       s in Sn
+                        constr3 += Y[(s, u)]
+                    for f in opaque_full_graph.predecessors(s):
+                        #
+                        # 这里也有不同
+                        # prefix
+                        #       if f in Sr:
+                        # suffix
+                        #       if f in Sn 且 s in Sn 且 s not in ip
+                        if (f in Sn_good) and (s not in ip):
+                            prop = opaque_full_graph[f][s]['prop'].copy()
+                            act_f_list = get_action_from_successor_edge(opaque_full_graph, f)
+                            for uf in act_f_list:
+                                if uf in list(prop.keys()):
+                                    constr4 += Y[(f, uf)] * prop[uf][0]
+                                else:
+                                    #constr4 += Y[(f, uf)] * 0.00
+                                    pass
+                        if (f in Sn_good) and (s in ip) and (f != s):
+                            prop = opaque_full_graph[f][s]['prop'].copy()
+                            act_f_list = get_action_from_successor_edge(opaque_full_graph, f)
+                            for uf in act_f_list:
+                                if uf in list(prop.keys()):
+                                    constr4 += Y[(f, uf)] * prop[uf][0]
+                                else:
+                                    #constr4 += Y[(f, uf)] * 0.00
+                                    pass
+
+
+                    # Added for debugging
+                    if s in ip:
+                        debug_var = 4
+
+                    #
+                    # 在debug的时候, 如果有约束条件不可解, 专心看rhs有没有相同的, 而非lhs, 因为lhs肯定都是和s挂钩所以都不一样
+                    # 而且不可解多半是因为flow balance constraint
+                    #
+                    # y_in_sf input flow of sf, sf的输入状态转移概率
+                    #     if t not in y_in_sf:
+                    #         y_in_sf[t] = Y[(s, u)].solution_value()*pe
+                    #     else:
+                    #         y_in_sf[t] += Y[(s, u)].solution_value()*pe
+                    #     最后还需要归一化
+                    #     当单状态状态转移Sn -> sf时会被记录到Sf
+                    #
+                    # 如果 s in Sf且上一时刻状态属于Sn, 但不在MEC内
+                    if (s in list(y_in_sf_sync.keys())) and (s not in ip):
+                        suffix_solver.Add(constr3 == constr4 + y_in_sf_sync[s])  # 可能到的了的要计算?
+                        #
+                        # Added, for debugging
+                        print_c("constraint: %d" % (k,), color=32)               # green / yellow
+                        print_c(constr3, color=32)
+                        print_c(constr4, color=33)
+                        print_c(y_in_sf_sync[s], color=33)
+                        print_c(" ")
+                    #
+                    # 如果 s in Sf, 且上一时刻状态在Sn，且在MEC内
+                    if (s in list(y_in_sf_sync.keys())) and (s in ip):
+                        suffix_solver.Add(constr3 == y_in_sf_sync[s])  # 在里面的永远到的了?
+                        #
+                        # Added, for debugging
+                        print_c("constraint: %d" % (k,), color=34)
+                        print_c(constr3, color=34)
+                        print_c(y_in_sf_sync[s], color=35)
+                        print_c(" ")
+
+                    # 如果s不在Sf内且不在MEC内
+                    if (s not in list(y_in_sf_sync.keys())) and (s not in ip):
+                        suffix_solver.Add(constr3 == constr4)  # 到不了的永远到不了?
+                        #
+                        # Added, for debugging
+                        print_c("constraint: %d" % (k,), color=36)
+                        print_c(constr3, color=36)
+                        print_c(constr4, color=37)
+                        print_c(" ")                                            # cyan / gray
+                elif s in Sn_bad:
+                    # TODO
+                    # to recover
+                    act_pi_list = get_action_from_successor_edge(opaque_full_graph, s)
+                    for u in act_pi_list:
+                        constr3 += Y[(s, u)]
+                    #
+                    # for u in initial_subgraph.nodes[s]['act']:
+                    #     node_y_out += Y[(s, u)]
+                    #
+                    for f in opaque_full_graph.predecessors(s):
+                        if f in Sn:
+                            prop = opaque_full_graph[f][s]['prop'].copy()
+                            # is_opacity = initial_subgraph[f][s]['is_opacity']
+                            # if not is_opacity:
+                            #     continue
+                            for uf in prop.keys():
+                                constr4 += Y[(f, uf)] * prop[uf][0]
+
+                    if (type(constr3) != float and type(constr4) != float) or (
+                            type(constr3) != float and constr4 != 0.0) or (
+                            type(constr4) != float and constr3 != 0.0):
+                        if (s in list(y_in_sf_sync.keys())) and (s not in ip):
+                            suffix_solver.Add(constr3 == constr4 + y_in_sf_sync[s])  # 可能到的了的要计算?
+                            #
+                            # Added, for debugging
+                            print_c("[sf bad] constraint: %d" % (k,), color=32)  # green / yellow
+                            print_c(constr3, color=32)
+                            print_c(constr4, color=33)
+                            print_c(y_in_sf_sync[s], color=33)
+                            print_c(" ")
+                        #
+                        # 如果 s in Sf, 且上一时刻状态在Sn，且在MEC内
+                        if (s in list(y_in_sf_sync.keys())) and (s in ip):
+                            suffix_solver.Add(constr3 == y_in_sf_sync[s])  # 在里面的永远到的了?
+                            #
+                            # Added, for debugging
+                            print_c("[sf bad] constraint: %d" % (k,), color=34)
+                            print_c(constr3, color=34)
+                            print_c(y_in_sf_sync[s], color=35)
+                            print_c(" ")
+
+                        # 如果s不在Sf内且不在MEC内
+                        if (s not in list(y_in_sf_sync.keys())) and (s not in ip):
+                            suffix_solver.Add(constr3 == constr4)  # 到不了的永远到不了?
+                            #
+                            # Added, for debugging
+                            print_c("[sf bad] constraint: %d" % (k,), color=36)
+                            print_c(constr3, color=36)
+                            print_c(constr4, color=37)
+                            print_c(" ")
+                            #
+            print('Balance condition added')
+            print('Initial sf condition added')
+            print('Recovery of Sf_bad added')
+            #
+            # for debugging
+            print_analyze_constraints_matrix_form(suffix_solver)
+            #
+            # --------------------
+            y_to_ip = 0.0
+            y_out = 0.0
+            for s in Sn:
+                for t in opaque_full_graph.successors(s):
+                    act_s_list = get_action_from_successor_edge(opaque_full_graph, s)
+                    if t not in Sn:
+                        prop = opaque_full_graph[s][t]['prop'].copy()
+                        for u in prop.keys():
+                            if u in act_s_list:
+                                pe = prop[u][0]
+                                #
+                                # Sn里出Sn的
+                                y_out += Y[(s, u)]*pe
+                    elif t in ip:
+                        prop = opaque_full_graph[s][t]['prop'].copy()
+                        for u in prop.keys():
+                            if u in act_s_list:
+                                #
+                                # Sn里进Ip的
+                                pe = prop[u][0]
+                                y_to_ip += Y[(s, u)]*pe
+            # suffix_solver.Add(y_to_ip+y_out >= delta)
+            suffix_solver.Add(y_to_ip >= (1.0-gamma-delta)*(y_to_ip+y_out))
+            print_c("y_2_ip:", color=35)
+            print_c(y_to_ip, color=35)
+            print_c("y_out:", color=36)
+            print_c(y_out, color=36)
+            print('Risk constraint added')
+            #
+            # TODO opacity constraint
+            for s in Sn:
+                pass
+
+            constr_opacity_lhs = []
+            constr_opacity_rhs = differential_expected_cost
+
+            with Progress() as progress:
+                task_id = progress.add_task("Opacity constraints ...", total=len(Sn))
+
+                for k, s in enumerate(Sn):
+                    # 更新进度条的描述
+                    progress.update(task_id, advance=1, description=f"Processing ... {k + 1}/{len(Sn)}")
+
+                    for t in opaque_full_graph.successors(s):
+                        if opaque_full_graph.has_edge(s, t):
+                            prop = opaque_full_graph[s][t]['diff_exp'].copy()
+                            for u in prop.keys():
+                                if (s, u) in Y:
+                                    y_t = Y[(s, u)] * prop[u]
+                                    constr_opacity_lhs.append(y_t)
+
+            sum_opacity_lhs = suffix_solver.Sum(constr_opacity_lhs)
+            suffix_solver.Add(sum_opacity_lhs <= constr_opacity_rhs)
+            constr_descrip.append("differential_expected_cost")
+
+            print_c("opacity constraint added ...", color=46)
+            print_c(f'number of constraints: {suffix_solver.NumConstraints()}', color=46)
+            constr_opacity_index = suffix_solver.NumConstraints() - 1
+
+            #
+            # ------------------------------
+            # solve
+            print('--optimization for suffix starts--')
+            status = suffix_solver.Solve()
+            if status == pywraplp.Solver.OPTIMAL:
+                print('Solution:')
+                print('Objective value =', suffix_solver.Objective().Value())
+                print('Advanced usage:')
+                print('Problem solved in %f milliseconds' %
+                      suffix_solver.wall_time())
+                print('Problem solved in %d iterations' %
+                      suffix_solver.iterations())
+            else:
+                print('The problem does not have an optimal solution.')
+                return None, None, None
+            #
+            # for debugging
+            Y_val = dict()
+            for s_u in Y.keys():
+                Y_val[s_u] = Y[s_u].solution_value()
+            #
+            # compute optimal plan suffix given the LP solution
+            plan_suffix = dict()
+            for s in Sn:
+                norm = 0
+                U = []
+                P = []
+                # U_total = initial_subgraph.nodes[s]['act'].copy()
+                U_total = list()
+                for sync_u, sync_v, attr in opaque_full_graph.edges(s, data=True):
+                    #
+                    # 这边就不用is_opacity了
+                    U_total += list(attr['prop'].keys())
+                    #
+                U_total = list(set(U_total))
+                U_total.sort()
+                for u in U_total:
+                    if type(Y[(s, u)]) == float:
+                        norm += 0.  # now, Y[(s, u)] is not considered as a feasible solution for opacity
+                    else:
+                        norm += Y[(s, u)].solution_value()
+                #
+                # TODO
+                if norm > 0.01:
+                    for u in U_total:
+                        U.append(u)
+                        if type(Y[(s, u)]) != float:
+                            P.append(Y[(s, u)].solution_value() / norm)
+                else:
+                    if s not in sf:
+                        # 当s不在sync_amec内时, 引导s到达sync_amec
+                        path_t = nx.single_source_shortest_path(opaque_full_graph, s)
+                        reachable_set_t = set(path_t).intersection(set(sf))
+                        dist_val_dict = {}
+                        for tgt_t in reachable_set_t:
+                            dist_val_dict[tgt_t] = nx.shortest_path_length(opaque_full_graph, s, tgt_t,
+                                                                                 weight=exp_weight)
+                        #
+                        min_dist_target = min(dist_val_dict, key=dist_val_dict.get)
+                        #
+                        if len(path_t[min_dist_target]) > 1:
+                            successor_state = path_t[min_dist_target][1]
+                            edge_data = opaque_full_graph.edges[s, successor_state]
+                            for u_p in edge_data['prop'].keys():
+                                U.append(u_p)
+                                P.append(1.0 / len(edge_data['prop'].keys()))
+                            for u_p in U_total:
+                                if u_p in edge_data['prop'].keys():
+                                    continue
+                                U.append(u_p)
+                                P.append(0.)
+                        else:
+                            # the old round_robin
+                            U.append(U_total)
+                            P.append(1.0 / len(U_total))
+                    else:
+                        # 当在amec内
+                        U_total_p = list()
+                        for sync_u, sync_v, attr in sync_amec_graph.edges(s, data=True):
+                            U_total_p += list(attr['prop'].keys())
+                        #
+                        U_total_p = list(set(U_total_p))
+                        U_total_p.sort()
+                        for u in U_total_p:
+                            U.append(u)
+                        P.append(1.0 / len(U_total_p))
+
+                plan_suffix[s] = [U, P]
+
+            print("----Suffix plan added")
+            cost = suffix_solver.Objective().Value()
+            print("----Suffix cost computed")
+            # compute risk given the plan suffix
+            risk = 0.0
+            y_to_ip = 0.0
+            y_out = 0.0
+            for s in Sn:
+                act_s_list = get_action_from_successor_edge(opaque_full_graph, s)
+                for t in opaque_full_graph.successors(s):
+                    if t not in Sn:
+                        prop = opaque_full_graph[s][t]['prop'].copy()
+                        for u in prop.keys():
+                            if u in act_s_list:
+                                pe = prop[u][0]
+                                y_out += Y[(s, u)].solution_value()*pe
+                    elif t in ip:
+                        prop = opaque_full_graph[s][t]['prop'].copy()
+                        for u in prop.keys():
+                            if u in act_s_list:
+                                pe = prop[u][0]
+                                y_to_ip += Y[(s, u)].solution_value()*pe
+            if (y_to_ip+y_out) > 0:
+                risk = y_out/(y_to_ip+y_out)
+            print('y_out: %s; y_to_ip+y_out: %s' % (y_out, y_to_ip+y_out))
+            print("----Suffix risk computed")
+
+            constr_t = suffix_solver.constraint(constr_opacity_index)
+            opacity_val = 0.
+            for s_sync_t in Sn:
+                act_s_list = get_action_from_successor_edge(opaque_full_graph, s)
+                for u_t in act_s_list:
+                    Y_t = Y[(s_sync_t, u_t)]  # 单独拿出来是为了debugging
+                    if type(Y_t) != float:
+                        ki_t = constr_t.GetCoefficient(Y_t)
+                        opacity_val += ki_t * Y_t.solution_value()
+            print_c("opacity_value: %f <= %f" % (opacity_val, differential_expected_cost,), color=35)
+            print_c("----Suffix opacity threshold computed", color=35)
+
+            return plan_suffix, cost, risk, opacity_val
+        # except:
+        #     print("ORtools Error reported")
+        #     return None, None, None
+
 def synthesize_full_plan_w_opacity3(mdp, task, optimizing_ap, ap_list, risk_pr, differential_exp_cost, observation_func,
                                     ctrl_obs_dict, alpha=1, is_enable_inter_state_constraints=True):
     t2 = time.time()
@@ -489,9 +998,10 @@ def synthesize_full_plan_w_opacity3(mdp, task, optimizing_ap, ap_list, risk_pr, 
                                                                                     optimizing_ap, ap_4_opacity,
                                                                                     observation_func, ctrl_obs_dict)
 
-                        plan_suffix, suffix_cost, suffix_risk, suffix_opacity_threshold = synthesize_suffix_cycle_in_sync_amec(
+                        # TODO
+                        # To get rid of mec_observer
+                        plan_suffix, suffix_cost, suffix_risk, suffix_opacity_threshold = synthesize_suffix_cycle_in_sync_amec3(
                                                                                     prod_dra_pi,
-                                                                                    prod_dra_pi.mec_observer_set[prod_dra_pi.current_sync_amec_index],
                                                                                     prod_dra_pi.sync_amec_set[prod_dra_pi.current_sync_amec_index],
                                                                                     sync_mec_t,
                                                                                     y_in_sf_sync,
