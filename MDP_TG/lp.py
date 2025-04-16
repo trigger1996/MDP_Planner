@@ -233,7 +233,7 @@ def syn_plan_prefix(prod_mdp, MEC, gamma):
     for init_node in prod_mdp.graph['initial']:
         #
         # Compute the shortest path between source and all other nodes reachable from source.
-        path_init = single_source_shortest_path(prod_mdp, init_node)
+        path_init = single_source_shortest_path(prod_mdp, init_node)                        # 可由s0到达的状态, 这个其实就是论文中最开始的Sr （P. 5)，这里记为Sr0
         print('Reachable from init size: %s' % len(list(path_init.keys())))
         #
         # 能否到达当前MEC
@@ -241,20 +241,19 @@ def syn_plan_prefix(prod_mdp, MEC, gamma):
             print("Initial node can not reach sf")
             return None, None, None, None, None, None
         #
-        # path_init.keys(): 路径的初态, 和sf的差集, 求解可以到达MEC, 但是初态不在MEC内的状态
-        Sn = set(path_init.keys()).difference(sf)
+        Sn = set(path_init.keys()).difference(sf)                                           # Sr0 \backslash Sf: 可由s0到达, 但不属于MEC的状态
         # ----find bad states that can not reach MEC
         simple_digraph = DiGraph()
-        simple_digraph.add_edges_from(((v, u) for u, v in prod_mdp.edges()))                # 原product_mdp所有的边组成的图
+        simple_digraph.add_edges_from(((v, u) for u, v in prod_mdp.edges()))                # 原product_mdp所有的边组成的图， 注意这是一个反向图
         #
         # ip <- MEC[1] 这个东西应该是MEC本身的状态
         # 之所以可以用随机状态，是因为MEC内的状态是可以互相到达的，所以只要一个能到剩下都能到
         path = single_source_shortest_path(
-            simple_digraph, random.sample(ip, 1)[0])                                     # 为什么这边要随机初始状态?
-        reachable_set = set(path.keys())
+            simple_digraph, random.sample(ip, 1)[0])                                     # 求解出来是可以到达product_mdp中可以到达ip的状态, 对应论文中Sc
+        reachable_set = set(path.keys())                                                    # Sc
         print('States that can reach sf, size: %s' % str(len(reachable_set)))
-        Sd = Sn.difference(reachable_set)                                                   # Sn \ { 可达状态 } -> 不可以到达MEC的状态,  可以由初态s0到达, 但不可到达MEC的状态
-        Sr = Sn.intersection(reachable_set)                                                 # Sn ^ { 可达状态 } -> 可以到达MEC的所有状态, 论文里是所有可以由s0到达的状态
+        Sd = Sn.difference(reachable_set)                                                   # Sn \backslash { Sc } -> 不在MEC内，可由s0到达的状态除去可以到达ip的状态, 这个就是论文的Sd
+        Sr = Sn.intersection(reachable_set)                                                 # Sn \cap       { Sc } -> 不在MEC内，可以s0到达且能到达ip的状态
         # #--------------
         print('Sn size: %s; Sd inside size: %s; Sr inside size: %s' %
               (len(Sn), len(Sd), len(Sr)))

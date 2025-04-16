@@ -162,7 +162,7 @@ def room_example_main_w_opacity():
     # ------
     gamma = 0.5
     d = 100
-    risk_threshold = 0.5                                        # default:  0.1
+    risk_threshold = 0.05                                       # default:  0.1
     differential_exp_cost = 15                                  #           1.590106
     is_run_opaque_synthesis = True
     if is_run_opaque_synthesis:

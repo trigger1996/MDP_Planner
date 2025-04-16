@@ -51,17 +51,28 @@ def obtain_differential_expected_cost(current_action, edge_pi, edge_gamma):
 
     return different_expected_cost
 
-def project_observer_state_2_sync_state(sync_mec_3_1, observer_state_set):
+def project_observer_state_2_sync_state(sync_mec_3_1, observer_state_set, is_required_in_sync_mec_3_1=True):
     sync_state_set = []
     for observer_state_t in observer_state_set:
-        for sync_state_t in sync_mec_3_1:
-            state_pi_t = sync_state_t[0]
-            state_gamma_t = sync_state_t[1]
-            if state_pi_t == observer_state_t[0]:
-                if state_gamma_t in observer_state_t[1]:
-                    sync_state_set.append(sync_state_t)
+        state_pi_t = observer_state_t[0]
+        for state_gamma_t in set(observer_state_t[1]).union(observer_state_t[2]):
+            sync_state_set.append((state_pi_t, state_gamma_t))
+
     sync_state_set.sort()
     sync_state_set = list(set(sync_state_set))
+
+    if is_required_in_sync_mec_3_1:
+        state_to_remove = []
+        for sync_state_t in sync_state_set:
+            if sync_state_t not in sync_mec_3_1:
+                state_to_remove.append(sync_state_t)
+
+        for sync_state_t in state_to_remove:
+            try:
+                sync_state_set.remove(sync_state_t)
+            except:
+                pass
+
     return sync_state_set
 
 def project_sync_states_2_observer_states(observer_graph:nx.DiGraph, sync_state_set):
@@ -169,6 +180,7 @@ class product_mdp3(Product_Dra):
         stack_t = [state_t for state_t in initial_sync_state]       # make a copy
         visited = set()
         subgraph_2_amec_t = DiGraph()
+        subgraph_2_amec_t.graph['initial'] = initial_sync_state
 
         while stack_t:
             current_state = stack_t.pop()
@@ -266,10 +278,44 @@ class product_mdp3(Product_Dra):
                 for action, (prob, cost) in edge_t_pi[2]['prop'].items():
                     trans_pr_cost_list[action] = (prob, cost)                                                 # it is evident that this only corresponds to state_pi
 
+                # for debugging
+                if next_state_pi == ('0', frozenset({'upload'}), 1):
+                    debug_var = 3
+
                 # 添加转移
                 next_observed_states = tuple(list(set(next_observed_states)))
                 next_states_3        = tuple(list(set(next_states_3)))
                 next_sync_state = (next_state_pi, next_observed_states, next_states_3, )
+                #
+                mapping_t = {}
+                for observed_state_t in subgraph_2_amec_t.nodes():
+                    if observed_state_t[0] == next_state_pi:
+                        next_observed_states = list(next_observed_states)
+                        next_observed_states = next_observed_states + list(observed_state_t[1])
+                        #
+                        next_states_3 = list()
+                        next_states_3 = next_states_3 + list(observed_state_t[2])
+                        #
+                        next_observed_states = tuple(list(set(next_observed_states)))
+                        next_states_3 = tuple(list(set(next_states_3)))
+                        next_sync_state = (next_state_pi, next_observed_states, next_states_3,)
+                        #
+                        mapping_t[observed_state_t] = next_sync_state
+                        break
+                if mapping_t.__len__():
+                    nx.relabel_nodes(subgraph_2_amec_t, mapping_t, copy=False)
+                    #
+                    if current_state in mapping_t.keys():
+                        current_state = mapping_t[current_state]
+                    #
+                    stack_t = self.replace_list_items(stack_t, mapping_t)
+
+                if current_state == (('0', frozenset({'upload'}), 1), (('0', frozenset({'upload'}), 1),), ()) or next_sync_state == (('0', frozenset({'upload'}), 1), (('0', frozenset({'upload'}), 1),), ()):
+                    debug_var = 4
+
+                if (('0', frozenset({'upload'}), 1), (('0', frozenset({'upload'}), 1),), ()) in stack_t:
+                    debug_var = 5
+
                 subgraph_2_amec_t.add_edge(current_state, next_sync_state,
                                     prop=trans_pr_cost_list,
                                     diff_exp=diff_expected_cost_list,
@@ -390,6 +436,30 @@ class product_mdp3(Product_Dra):
                     next_observed_states = tuple(list(set(next_observed_states)))
                     next_states_3 = tuple(list(set(next_states_3)))
                     next_sync_state = (next_state_pi, next_observed_states, next_states_3,)
+                    #
+                    mapping_t = {}
+                    for observed_state_t in fullgraph_t.nodes():
+                        if observed_state_t[0] == next_state_pi:
+                            next_observed_states = list(next_observed_states)
+                            next_observed_states = next_observed_states + list(observed_state_t[1])
+                            #
+                            next_states_3 = list()
+                            next_states_3 = next_states_3 + list(observed_state_t[2])
+                            #
+                            next_observed_states = tuple(list(set(next_observed_states)))
+                            next_states_3 = tuple(list(set(next_states_3)))
+                            next_sync_state = (next_state_pi, next_observed_states, next_states_3,)
+                            #
+                            mapping_t[observed_state_t] = next_sync_state
+                            break
+                    if mapping_t.__len__():
+                        nx.relabel_nodes(fullgraph_t, mapping_t, copy=False)
+                        #
+                        if current_state in mapping_t.keys():
+                            current_state = mapping_t[current_state]
+                        #
+                        stack_t = self.replace_list_items(stack_t, mapping_t)
+
                     #
                     # 有些时候点都有但边没有
                     # if next_sync_state in initial_subgraph.nodes():
@@ -727,3 +797,6 @@ class product_mdp3(Product_Dra):
             M.append(m)
             t += 1
         return X, L, U, M, PX
+
+    def replace_list_items(self, lst, mapping):
+        return [mapping.get(item, item) for item in lst]

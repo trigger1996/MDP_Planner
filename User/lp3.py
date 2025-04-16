@@ -59,32 +59,25 @@ def syn_plan_prefix_in_sync_amec(prod_mdp, initial_subgraph, initial_sync_state,
             print_c("[Prefix Synthesis] Initial node can not reach sf", color='red')
             return None, None, None, None, None, None
         #
-        # path_init.keys(): 路径的初态, 和sf的差集, 求解可以到达MEC, 但是初态不在MEC内的状态
-        Sn = set(path_init.keys()).difference(sf)
+        Sn = set(path_init.keys()).difference(sf)                                                   # Sr0 \backslash Sf: 可由s0到达, 但不属于MEC的状态
         # ----find bad states that can not reach MEC
-        #simple_digraph = nx.DiGraph()
-        #simple_digraph.add_edges_from(((v, u) for u, v in sync_amec_graph.edges()))                # 原product_mdp所有的边组成的图
-        #simple_digraph.add_edges_from(((v, u) for u, v in initial_subgraph.edges()))               # TODO
-        #
-        # ip <- MEC[1] 这个东西应该是MEC本身的状态
-        # 之所以可以用随机状态，是因为MEC内的状态是可以互相到达的，所以只要一个能到剩下都能到
         Sd = set()
         Sr = set()
         Sr_good = set()
         Sr_bad  = set()
         #
-        path = dict()
         for observer_state_t in ip:
-            #path_inv = single_source_shortest_path(simple_digraph, state_ip_t)                      # path = single_source_shortest_path(simple_digraph, random.sample(ip, 1)[0])                                     # 为什么这边要随机初始状态?
-            path = nx.single_target_shortest_path(initial_subgraph, target=observer_state_t)         # 哦其实原来的代码是对的, 上面建立的是一个反向图
+            path = nx.single_target_shortest_path(initial_subgraph, target=observer_state_t)         # 可以到达product_mdp中可以到达ip的状态, 对应论文中Sc
+            Sc = set(path.keys())
 
-            sync_state_ip_t = project_observer_state_2_sync_state(sync_amec_3[0], [observer_state_t])[0]
-            path_p = nx.single_target_shortest_path(sync_amec_graph, target=sync_state_ip_t)
+            sync_state_ip_list_t = project_observer_state_2_sync_state(sync_amec_3[0], [observer_state_t])
+            path_p = dict()
+            for sync_state_ip_t in sync_state_ip_list_t:
+                path_p.update(nx.single_target_shortest_path(sync_amec_graph, target=sync_state_ip_t))
 
-            reachable_set = set(path.keys())
-            print('States that can reach sf, size: %s' % str(len(reachable_set)))
-            Sd = Sn.difference(reachable_set)                                                   # Sn \ { 可达状态 } -> 不可以到达MEC的状态,  可以由初态s0到达, 但不可到达MEC的状态
-            Sr = Sn.intersection(reachable_set)                                                 # Sn ^ { 可达状态 } -> 可以到达MEC的所有状态, 论文里是所有可以由s0到达的状态
+            print('States that can reach sf, size: %s' % str(len(Sc)))
+            Sd = Sn.difference(Sc)                                                                   # Sn \backslash { Sc } -> 不在MEC内，可由s0到达的状态除去可以到达ip的状态, 这个就是论文的Sd
+            Sr = Sn.intersection(Sc)                                                                 # Sn \cap       { Sc } -> 不在MEC内，可以s0到达且能到达ip的状态
 
             reachable_set_p = project_sync_states_2_observer_states(initial_subgraph, list(path_p.keys()))
             Sr_good = Sn.intersection(set(reachable_set_p))
@@ -241,7 +234,10 @@ def syn_plan_prefix_in_sync_amec(prod_mdp, initial_subgraph, initial_sync_state,
                     for sync_u, sync_v, attr in initial_subgraph.edges(s, data=True):
                         # if not attr['is_opacity']:
                         #     continue
-                        act_pi_list += list(attr['prop'].keys())
+                        for u in attr['prop'].keys():
+                            # 只有当这个动作通往的是 good 状态才保留
+                            if sync_v in observer_mec[0]:                   # TODO
+                                act_pi_list.append(u)
                     act_pi_list = list(set(act_pi_list))
                     for u in act_pi_list:
                         node_y_out += Y[(s, u)]
