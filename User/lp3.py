@@ -121,15 +121,15 @@ def print_analyze_constraints_matrix_form(solver):
     except:
         print_c("Balance constraints may not be feasible ...", color='red')
 
-def syn_plan_prefix_in_sync_amec(prod_mdp, initial_subgraph, initial_sync_state, sync_amec_graph, sync_amec_3, observer_mec, gamma):
+def syn_plan_prefix_in_sync_amec(prod_mdp, initial_subgraph, initial_sync_state, sync_amec_graph, sync_amec_3, observer_mec_3, gamma):
     # ----Synthesize optimal plan prefix to reach accepting MEC or SCC----
     # ----with bounded risk and minimal expected total cost----
     print("===========[plan prefix synthesis starts]===========")
     #
     # sf对应MEC全集
     # ip对应MEC和DRA中接收集和MEC的交集
-    sf = observer_mec[0]
-    ip = observer_mec[1]  # force convergence to ip
+    sf = observer_mec_3[0]
+    ip = observer_mec_3[1]  # force convergence to ip
     sf_sync_state = sync_amec_3[0]
     ip_sync_state = sync_amec_3[1]
     delta = 0.01
@@ -322,7 +322,7 @@ def syn_plan_prefix_in_sync_amec(prod_mdp, initial_subgraph, initial_sync_state,
                         #     continue
                         for u in attr['prop'].keys():
                             # 只有当这个动作通往的是 good 状态才保留
-                            if sync_v in observer_mec[0]:                                  # TODO, to check
+                            if sync_v in observer_mec_3[0]:                                  # TODO, to check
                                 act_pi_list.append(u)
                     act_pi_list = list(set(act_pi_list))
                     for u in act_pi_list:
@@ -499,26 +499,26 @@ def syn_plan_prefix_in_sync_amec(prod_mdp, initial_subgraph, initial_sync_state,
         #     print("ORTools Error reported")
         #     return None, None, None, None, None, None
 
-def synthesize_suffix_cycle_in_sync_amec3(prod_mdp, sync_amec_graph, sync_mec_3, y_in_sf_sync, opaque_full_graph, initial_sync_state, differential_expected_cost=1.55):
+def synthesize_suffix_cycle_in_sync_amec3(prod_mdp, sync_amec_graph, sync_mec_3, observer_mec_3, y_in_sf_sync, opaque_full_graph, initial_sync_state, differential_expected_cost=1.55):
     # ----Synthesize optimal plan suffix to stay within the accepting MEC----
     # ----with minimal expected total cost of accepting cyclic paths----
     print_c("===========[plan suffix synthesis starts]", color=32)
     print_c("[synthesize_w_opacity] differential exp cost: %f" % (differential_expected_cost, ), color=32)
 
-    sf = sync_mec_3[0]                     # MEC
-    ip = sync_mec_3[1]                     # MEC 和 ip 的交集
-    act = sync_mec_3[2].copy()             # 所有状态的动作集合全集
-    delta = 0.01                            # 松弛变量?
-    gamma = 0.00                            # 根据(11), 整个系统进入MEC内以后就不用概率保证了?
+    sf = observer_mec_3[0]                      # MEC
+    ip = observer_mec_3[1]                      # MEC 和 ip 的交集
+    act = observer_mec_3[2].copy()              # 所有状态的动作集合全集
+    delta = 0.01                                # 松弛变量?
+    gamma = 0.00                                # 根据(11), 整个系统进入MEC内以后就不用概率保证了?
     for init_node in initial_sync_state:
 
         # paths = nx.single_source_shortest_path(prod_mdp, init_node)                       # path.keys(): 可以通过初始状态到达的状态
         # Sn = set(paths.keys()).intersection(sf)                                           # Sn, 可以由初始状态到达的MEC状态(此时的sf都满足opacity requirement且强连通)
         reachable_sync_states = nx.single_source_shortest_path(opaque_full_graph, init_node)
         #
+        # TODO
         Sn_good = set(reachable_sync_states.keys()).intersection(sf)                        # 满足Opacity requirement的MEC子集, 且满足强连通
-        Sn_bad  = set(reachable_sync_states.keys()).intersection(set(mec_observer.nodes())) # 可能在运行过程中到达的坏状态
-        Sn_bad  = Sn_bad.difference(Sn_good)
+        Sn_bad  = set(reachable_sync_states.keys()).difference(set(Sn_good))                # 可能在运行过程中到达的坏状态
         Sn      = Sn_good.union(Sn_bad)                                                     # 相当于此时Sn是MEC_observer的状态全集
         print('Sf size: %s' % len(sf))
         print('reachable sf size: %s' % len(Sn))
@@ -1003,7 +1003,7 @@ def synthesize_full_plan_w_opacity3(mdp, task, optimizing_ap, ap_list, risk_pr, 
                         plan_suffix, suffix_cost, suffix_risk, suffix_opacity_threshold = synthesize_suffix_cycle_in_sync_amec3(
                                                                                     prod_dra_pi,
                                                                                     prod_dra_pi.sync_amec_set[prod_dra_pi.current_sync_amec_index],
-                                                                                    sync_mec_t,
+                                                                                    sync_mec_t, observer_mec_3,
                                                                                     y_in_sf_sync,
                                                                                     opaque_full_graph,  # 用来判断Sn是否可达, 虽然没啥意义但是还是可以做,
                                                                                     initial_sync_state,

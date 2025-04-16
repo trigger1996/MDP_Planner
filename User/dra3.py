@@ -108,10 +108,8 @@ class product_mdp3(Product_Dra):
             self.compute_S_f()
             #
             self.sync_amec_set    = list()
-            self.mec_observer_set = list()
             #
             self.current_sync_amec_index = 0
-            self.mec_observer_index      = 0
 
     def compute_S_f(self):
         # ----find all accepting End components----
@@ -589,92 +587,7 @@ class product_mdp3(Product_Dra):
             self.sync_amec_set.append(sync_mec_t)
             self.current_sync_amec_index = len(self.sync_amec_set) - 1
 
-            self.synthesize_mec_observer(product_mdp_gamma, sync_mec_t, MEC_pi, MEC_gamma, observation_func,
-                                         ctrl_obs_dict)
-
         print_c(f"[synthesize_w_opacity] Generated sync_amec, states: {len(sync_mec_t.nodes)}, edges: {len(sync_mec_t.edges)}")
-
-    def synthesize_mec_observer(self, product_mdp_gamma:Product_Dra, sync_amec, MEC_pi, MEC_gamma, observation_func, ctrl_obs_dict):
-
-        stack_t = [ node_t for node_t in sync_amec.nodes() ]
-        visited = set()
-        mec_observer_t = DiGraph()
-
-        while stack_t.__len__():
-            current_sync_state = stack_t.pop()
-            if current_sync_state in visited:
-                continue
-            visited.add(current_sync_state)
-
-            # 获取当前状态的出边
-            current_state_pi, current_state_gamma = current_sync_state
-            next_state_list_pi = list(self.out_edges(current_state_pi, data=True))
-            next_state_list_gamma = list(product_mdp_gamma.out_edges(current_state_gamma, data=True))
-
-            for edge_t_pi in next_state_list_pi:
-                for edge_t_gamma in next_state_list_gamma:
-                    # 获取下一状态
-                    next_state_pi = edge_t_pi[1]
-                    next_state_gamma = edge_t_gamma[1]
-                    next_sync_state = (next_state_pi, next_state_gamma)
-
-                    # 1. 检查控制动作同步
-                    try:
-                        u_pi = next(iter(edge_t_pi[2]['prop'].keys()))
-                        u_gamma = next(iter(edge_t_gamma[2]['prop'].keys()))
-                        if isinstance(u_pi, tuple):
-                            u_pi = u_pi[0]
-                        if isinstance(u_gamma, tuple):
-                            u_gamma = u_gamma[0]
-
-                        # 如果不考虑可观性
-                        if ctrl_obs_dict == None and u_pi != u_gamma:
-                            continue
-                        # 如果考虑可观性
-                        elif u_pi != u_gamma and ctrl_obs_dict[str(u_pi)] == False and ctrl_obs_dict[u_gamma] == False:
-                            continue
-                    except (StopIteration, KeyError):
-                        continue  # 如果没有动作则跳过
-
-                    # 3. 检查观测同步
-                    if observation_func(next_state_pi[0]) != observation_func(next_state_gamma[0]):
-                        continue
-
-                    trans_pr_cost_list = {}
-                    diff_expected_cost_list = {}
-                    for action, (prob, cost) in edge_t_pi[2]['prop'].items():
-                        diff_cost = obtain_differential_expected_cost(action, edge_t_pi, edge_t_gamma)
-                        trans_pr_cost_list[action] = (prob, cost)
-                        diff_expected_cost_list[action] = diff_cost
-
-                    #
-                    mec_observer_t.add_edge(current_sync_state, next_sync_state,
-                                        prop=trans_pr_cost_list,
-                                        diff_exp=diff_expected_cost_list)
-                    stack_t.append(next_sync_state)
-
-
-        if mec_observer_t.edges:
-            # 检查强连通分量并保留最大的SCC
-            scc_list = list(nx.strongly_connected_components(mec_observer_t))
-            scc_list.sort(key=lambda x: len(x), reverse=True)
-
-            if not scc_list:
-                print_c("[synthesize_w_opacity] NO SCCs found...", color=33)
-            else:
-                # 移除非最大SCC的节点
-                largest_scc = scc_list[0]
-                nodes_to_remove = [node for scc in scc_list[1:] for node in scc]
-                num_removed = 0
-
-                for node in nodes_to_remove:
-                    if node in mec_observer_t:
-                        mec_observer_t.remove_node(node)
-                        num_removed += 1
-                        print_c(f"[synthesize_w_opacity] removing node: {node}", color=36)
-
-        self.mec_observer_set.append(mec_observer_t)
-        self.mec_observer_index += 1
 
     def project_sync_amec_back_to_mec_pi(self, sync_amec, original_mec_pi):
 
