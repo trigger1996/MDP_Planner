@@ -51,10 +51,10 @@ def obtain_differential_expected_cost(current_action, edge_pi, edge_gamma):
 
     return different_expected_cost
 
-def project_observer_state_2_sync_state(sync_mec_3, observer_state_set):
+def project_observer_state_2_sync_state(sync_mec_3_1, observer_state_set):
     sync_state_set = []
     for observer_state_t in observer_state_set:
-        for sync_state_t in sync_mec_3:
+        for sync_state_t in sync_mec_3_1:
             state_pi_t = sync_state_t[0]
             state_gamma_t = sync_state_t[1]
             if state_pi_t == observer_state_t[0]:

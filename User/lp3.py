@@ -8,7 +8,7 @@ from collections import defaultdict
 from ortools.linear_solver import pywraplp
 
 from MDP_TG.dra import Dra, Product_Dra
-from User.dra3  import product_mdp3, project_sync_states_2_observer_states, project_sync_mec_3_2_observer_mec_3
+from User.dra3  import product_mdp3, project_sync_states_2_observer_states, project_observer_state_2_sync_state, project_sync_mec_3_2_observer_mec_3
 from User.utils import ltl_convert
 from User.vis2  import print_c
 
@@ -72,19 +72,15 @@ def syn_plan_prefix_in_sync_amec(prod_mdp, initial_subgraph, initial_sync_state,
         Sr = set()
         Sr_good = set()
         Sr_bad  = set()
-        for observer_state_t in ip_observer:
-            try:
-                #path_inv = single_source_shortest_path(simple_digraph, state_ip_t)                      # path = single_source_shortest_path(simple_digraph, random.sample(ip, 1)[0])                                     # 为什么这边要随机初始状态?
-                path = nx.single_target_shortest_path(initial_subgraph, target=observer_state_t)         # 哦其实原来的代码是对的, 上面建立的是一个反向图
-            except nx.NetworkXError:
-                continue
-        for state_ip_t in ip:
-            try:
-                #
-                # Added
-                path_p = nx.single_target_shortest_path(sync_amec_graph, target=state_ip_t)
-            except nx.NetworkXError:
-                continue
+        #
+        path = dict()
+        for observer_state_t in ip:
+            #path_inv = single_source_shortest_path(simple_digraph, state_ip_t)                      # path = single_source_shortest_path(simple_digraph, random.sample(ip, 1)[0])                                     # 为什么这边要随机初始状态?
+            path = nx.single_target_shortest_path(initial_subgraph, target=observer_state_t)         # 哦其实原来的代码是对的, 上面建立的是一个反向图
+
+            sync_state_ip_t = project_observer_state_2_sync_state(sync_amec_3[0], [observer_state_t])[0]
+            path_p = nx.single_target_shortest_path(sync_amec_graph, target=sync_state_ip_t)
+
             reachable_set = set(path.keys())
             print('States that can reach sf, size: %s' % str(len(reachable_set)))
             Sd = Sn.difference(reachable_set)                                                   # Sn \ { 可达状态 } -> 不可以到达MEC的状态,  可以由初态s0到达, 但不可到达MEC的状态
