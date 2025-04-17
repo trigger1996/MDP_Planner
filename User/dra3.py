@@ -749,7 +749,7 @@ class product_mdp3(Product_Dra):
         self.best_all_plan['risk']         = [ best_all_plan[0][2], best_all_plan[1][2] ]
         self.best_all_plan['sync_amec_graph']        = self.sync_amec_set[best_all_plan[3][2]]
         self.best_all_plan['initial_subgraph']       = best_all_plan[4][0]
-        self.best_all_plan['initial_observer_state'] = best_all_plan[4][1]
+        self.best_all_plan['initial_observer_state'] = best_all_plan[4][1]                          # list of possible state, not a single state
         self.best_all_plan['opaque_full_graph']      = best_all_plan[4][2]
         self.best_all_plan['mec'] = {}
         self.best_all_plan['mec']['pi']       = [best_all_plan[2][0],    best_all_plan[2][1]]
@@ -789,7 +789,7 @@ class product_mdp3(Product_Dra):
             line = format_policy_entry(state_t, actions, probs)
             print_c(line, color='blue')
 
-    def execution_in_observer_graph(self, total_T, best_all_plan=None):
+    def execution_in_observer_graph(self, total_T, best_all_plan=None, initial_state_index=0):
         # ----plan execution with or without given observation----
         if best_all_plan == None:
             best_all_plan = self.best_all_plan
@@ -802,11 +802,40 @@ class product_mdp3(Product_Dra):
         PX = []
         m = 0
         # ----
-        X.append()
+        current_state = self.best_all_plan['initial_observer_state'][initial_state_index]
+        current_label = self.best_all_plan['initial_observer_state'][initial_state_index][0][1]
+        curr_observed_label = tuple([state_t[1] for state_t in self.best_all_plan['initial_observer_state'][initial_state_index][1]])
+        X.append(self.best_all_plan['initial_observer_state'])
+        L.append(self.best_all_plan['initial_observer_state'])
+        #
+        observer_t = self.best_all_plan['opaque_full_graph']
+        is_now_in_suffix_cycle = False
         #
         for t in range(1, total_T):
+            u, m = self.act_by_plan_in_observer(current_state, self.best_all_plan['plan_prefix'], self.best_all_plan['plan_suffix'])
 
+            S = []
+            P = []
+            for next_state in self.successors(current_state):
+                prop = self[current_state][next_state]['prop']
+                if (u in list(prop.keys())):
+                    S.append(next_state)
+                    P.append(prop[u][0])
 
+            rdn = random.random()
+            pc = 0
+            for k, p in enumerate(P):
+                pc += p
+                if pc > rdn:
+                    break
+            current_state = tuple(S[k])
+            mdp_state = self.nodes[current_state]['mdp']
+            label = self.nodes[current_state]['label']
+
+            for next_state in observer_t.successors(current_state):
+                print_c(233)
+
+            is_now_in_suffix_cycle = next_state in self.best_all_plan['mec']['observer'][0]
         while (t <= total_T):
             if (t == 0):
                 # print '---initial run----'
@@ -1025,17 +1054,12 @@ class product_mdp3(Product_Dra):
             print_c("Warning, current state %s is outside prefix and suffix !" % (str(prod_state),), color=33)
             return None, 4
 
-    def act_by_plan_in_observer(self, observer_graph, best_plan, prod_state):
+    def act_by_plan_in_observer(self, state, policy_prefix, policy_suffix, is_set_in_suffix_cycle=False):
         # ----choose the randomized action by the optimal policy----
-        # recall that {best_plan = [plan_prefix, prefix_cost, prefix_risk, y_in_sf],
-        # [plan_suffix, suffix_cost, suffix_risk], [MEC[0], MEC[1], Sr, Sd], plan_bad]}
-        plan_prefix = best_plan[0][0]
-        plan_suffix = best_plan[1][0]
-        plan_bad = best_plan[3]
-        if (prod_state in plan_prefix):
+        if not is_set_in_suffix_cycle and state in policy_prefix:
             # print 'In prefix'
-            U = plan_prefix[prod_state][0]
-            P = plan_prefix[prod_state][1]
+            U = policy_prefix[state][0]
+            P = policy_prefix[state][1]
             rdn = random.random()
             pc = 0
             for k, p in enumerate(P):
@@ -1044,10 +1068,10 @@ class product_mdp3(Product_Dra):
                     break
             # print('%s action chosen: %s' % (str(prod_state), str(U[k], )))
             return U[k], 0
-        elif (prod_state in plan_suffix):
+        elif is_set_in_suffix_cycle or state in policy_suffix:
             # print 'In suffix'
-            U = plan_suffix[prod_state][0]
-            P = plan_suffix[prod_state][1]
+            U = policy_suffix[state][0]
+            P = policy_suffix[state][1]
             rdn = random.random()
             pc = 0
             for k, p in enumerate(P):
@@ -1055,24 +1079,7 @@ class product_mdp3(Product_Dra):
                 if pc > rdn:
                     break
             # print('%s action chosen: %s' % (str(prod_state), str(U[k], )))
-            if prod_state in best_plan[2][1]:
-                return U[
-                    k], 10  # it is strange for best_plan[2][1] is for state set I_p, i.e., the states that Ap is satisfied
-                # return U[k], 1
-            else:
-                return U[k], 1
-        elif (prod_state in plan_bad):
-            # print 'In bad states'
-            U = plan_bad[prod_state][0]
-            P = plan_bad[prod_state][1]
-            rdn = random.random()
-            pc = 0
-            for k, p in enumerate(P):
-                pc += p
-                if pc > rdn:
-                    break
-            # print 'action chosen: %s' %str(U[k])
-            return U[k], 2
+            return U[k], 1
         else:
             print_c("Warning, current state %s is outside prefix and suffix !" % (str(prod_state),), color=33)
             return None, 4

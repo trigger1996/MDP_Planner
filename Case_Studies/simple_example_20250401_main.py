@@ -6,6 +6,7 @@ from Map.simple_example_20250401 import (build_model, observation_func_0401, con
                                        observation_seq_2_inference, calculate_cost_from_runs, plot_cost_hist)
 from MDP_TG.mdp import Motion_MDP
 from MDP_TG.dra import Dra, Product_Dra
+from User.dra3  import product_mdp3
 from MDP_TG.lp import syn_full_plan, syn_full_plan_rex
 from User.team_mdp_dra import Team_MDP, Team_Product_Dra
 from User.lp import syn_full_plan_repeated, synthesize_full_plan_w_opacity, synthesize_full_plan_w_opacity_4_Team_MDP
@@ -84,7 +85,7 @@ def execute_example(N, total_T, prod_dra, best_all_plan, state_seq, label_seq, o
     cost_list_pi = []
     cost_list_gamma = []
     for n in range(0, N):
-        X, L, U, M, PX = prod_dra.execution(best_all_plan, total_T, state_seq, label_seq)
+        X, L, U, M, PX = prod_dra.execution_in_observer_graph(total_T)
 
         XX.append(X)
         LL.append(L)
