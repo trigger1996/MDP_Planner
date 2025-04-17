@@ -985,9 +985,9 @@ def synthesize_full_plan_w_opacity3(mdp, task, optimizing_ap, ap_list, risk_pr, 
     print('prod_dra_edges.p saved')
 
     # new main loop
+    plan = []
     for l, S_fi_pi in enumerate(prod_dra_pi.Sf):  # prod_mdp.Sf 对应所有的AMEC
         print("---for one S_fi---")
-        plan = []
         for k, MEC_pi in enumerate(S_fi_pi):
             #
             # finding states that satisfying optimizing prop
@@ -1052,39 +1052,33 @@ def synthesize_full_plan_w_opacity3(mdp, task, optimizing_ap, ap_list, risk_pr, 
                         plan.append([[plan_prefix, prefix_cost, prefix_risk, y_in_sf_sync],
                                      [plan_suffix, suffix_cost, suffix_risk],
                                      [MEC_pi[0], MEC_pi[1], Sr, Sd],
-                                     [ap_4_opacity, suffix_opacity_threshold, prod_dra_pi.current_sync_amec_index,
-                                      MEC_gamma[0],
-                                      MEC_gamma[1]],
-                                     prod_dra_pi])
+                                     [ap_4_opacity, suffix_opacity_threshold, prod_dra_pi.current_sync_amec_index, MEC_gamma],
+                                     [initial_subgraph, initial_sync_state, opaque_full_graph],
+                                     [sync_mec_t, observer_mec_3]
+                                     ])
 
-        if plan:
-            print("=========================")
-            print(" || Final compilation  ||")
-            print("=========================")
-            best_all_plan = min(plan, key=lambda p: p[0][1] + alpha * p[1][1])
-            prod_dra_pi = best_all_plan[4]
-            best_all_plan = best_all_plan[0:4]
-            print('Best plan prefix obtained for %s states in Sr' %
-                  str(len(best_all_plan[0][0])))
-            print('cost: %s; risk: %s ' %
-                  (best_all_plan[0][1], best_all_plan[0][2]))
-            print('Best plan suffix obtained for %s states in Sf' %
-                  str(len(best_all_plan[1][0])))
-            print('cost: %s; risk: %s ' %
-                  (best_all_plan[1][1], best_all_plan[1][2]))
-            print('Total cost:%s' %
-                  (best_all_plan[0][1] + alpha * best_all_plan[1][1]))
-            print_c('Opacity threshold %f <= %f' % (best_all_plan[3][1], differential_exp_cost,))
-            #
-            # TODO
-            '''
-            plan_bad = syn_plan_bad(prod_mdp, best_all_plan[2])
-            print('Plan for bad states obtained for %s states in Sd' %
-                  str(len(best_all_plan[2][3])))
-            best_all_plan.append(plan_bad)
-            '''
-            return best_all_plan, prod_dra_pi
-        else:
-            print("No valid plan found")
-            return None
+    if plan:
+        print("=========================")
+        print(" || Final compilation  ||")
+        print("=========================")
+        best_all_plan = min(plan, key=lambda p: p[0][1] + alpha * p[1][1])
+        prod_dra_pi.update_best_all_plan(best_all_plan, is_print_policy=True)
+        # print('Best plan prefix obtained for %s states in Sr' %
+        #       str(len(best_all_plan[0][0])))
+        # print('cost: %s; risk: %s ' %
+        #       (best_all_plan[0][1], best_all_plan[0][2]))
+        # print('Best plan suffix obtained for %s states in Sf' %
+        #       str(len(best_all_plan[1][0])))
+        # print('cost: %s; risk: %s ' %
+        #       (best_all_plan[1][1], best_all_plan[1][2]))
+        # print('Total cost:%s' %
+        #       (best_all_plan[0][1] + alpha * best_all_plan[1][1]))
+        # print_c('Opacity threshold %f <= %f' % (best_all_plan[3][1], differential_exp_cost,))
+        # #
+
+
+        return best_all_plan, prod_dra_pi
+    else:
+        print("No valid plan found")
+        return None
 #

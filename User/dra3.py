@@ -106,10 +106,11 @@ class product_mdp3(Product_Dra):
         else:
             Product_Dra.__init__(self, mdp, dra)
             self.compute_S_f()
-            #
-            self.sync_amec_set    = list()
-            #
+            self.sync_amec_set = list()
             self.current_sync_amec_index = 0
+            #
+            self.best_all_plan = dict()
+            #
 
     def compute_S_f(self):
         # ----find all accepting End components----
@@ -732,9 +733,54 @@ class product_mdp3(Product_Dra):
 
         return is_opacity
 
-    def update_best_all_plan(self):
+    def update_best_all_plan(self, best_all_plan, is_print_policy=True):
         # TODO
-        pass
+        # plan.append([[plan_prefix, prefix_cost, prefix_risk, y_in_sf_sync],
+        #              [plan_suffix, suffix_cost, suffix_risk],
+        #              [MEC_pi[0], MEC_pi[1], Sr, Sd],
+        #              [ap_4_opacity, suffix_opacity_threshold, prod_dra_pi.current_sync_amec_index, MEC_gamma],
+        #              [initial_subgraph, initial_sync_state, opaque_full_graph],
+        #              [sync_mec_t, observer_mec_3]
+        #              ])
+        self.best_all_plan['plan_prefix']  = best_all_plan[0][0]
+        self.best_all_plan['plan_suffix']  = best_all_plan[1][0]
+        self.best_all_plan['ap_4_opacity'] = # TODO
+        self.best_all_plan['cost']         = [ best_all_plan[0][1], best_all_plan[1][1] ]
+        self.best_all_plan['risk']         = [ best_all_plan[0][2], best_all_plan[1][2] ]
+        self.best_all_plan['sync_amec_graph']        = self.sync_amec_set[best_all_plan[3][2]]
+        self.best_all_plan['initial_subgraph']       = best_all_plan[4][0]
+        self.best_all_plan['initial_observer_state'] = best_all_plan[4][1]
+        self.best_all_plan['opaque_full_graph']      = best_all_plan[4][2]
+        self.best_all_plan['mec'] = {}
+        self.best_all_plan['mec']['pi']       = [best_all_plan[2][0],    best_all_plan[2][1]]
+        self.best_all_plan['mec']['gamma']    = [best_all_plan[3][3][0], best_all_plan[3][3][1]]
+        self.best_all_plan['mec']['sync']     = [best_all_plan[5][0][0], best_all_plan[5][0][1]]
+        self.best_all_plan['mec']['observer'] = [best_all_plan[5][1][0], best_all_plan[5][1][1]]
+
+        if is_print_policy:
+            pass
+
+    def print_policy(self):
+        # Added
+        # for printing policies
+        print_c("policy for AP: %s" % str(ap_4_opacity))
+        print_c("state action: probabilities")
+        print_c("Prefix", color=42)
+        #
+        state_in_prefix = [state_t for state_t in plan_prefix]
+        # state_in_prefix.sort(key=cmp_to_key(sort_grids))
+        # for state_t in plan_prefix:
+        for state_t in state_in_prefix:
+            print_c("%s, %s: %s" % (str(state_t), str(plan_prefix[state_t][0]), str(plan_prefix[state_t][1]),),
+                    color=43)
+        #
+        print_c("Suffix", color=45)
+        state_in_suffix = [state_t for state_t in plan_suffix]
+        # state_in_suffix.sort(key=cmp_to_key(sort_grids))
+        # for state_t in plan_suffix:
+        for state_t in state_in_suffix:
+            print_c("%s, %s: %s" % (str(state_t), str(plan_suffix[state_t][0]), str(plan_suffix[state_t][1]),),
+                    color=46)
 
     def execution_in_observer_graph(self):
         pass
@@ -817,7 +863,7 @@ class product_mdp3(Product_Dra):
                 mdp_state = self.nodes[current_state]['mdp']
                 label = self.nodes[current_state]['label']
             # ----
-            u, m = act_by_plan(self, best_all_plan, current_state)
+            u, m = self.act_by_plan(best_all_plan, current_state)
             X.append(mdp_state)
             PX.append(current_state)
             L.append(set(label))
@@ -825,6 +871,110 @@ class product_mdp3(Product_Dra):
             M.append(m)
             t += 1
         return X, L, U, M, PX
+
+    def act_by_plan(self, best_plan, prod_state):
+        # ----choose the randomized action by the optimal policy----
+        # recall that {best_plan = [plan_prefix, prefix_cost, prefix_risk, y_in_sf],
+        # [plan_suffix, suffix_cost, suffix_risk], [MEC[0], MEC[1], Sr, Sd], plan_bad]}
+        plan_prefix = best_plan[0][0]
+        plan_suffix = best_plan[1][0]
+        plan_bad = best_plan[3]
+        if (prod_state in plan_prefix):
+            # print 'In prefix'
+            U = plan_prefix[prod_state][0]
+            P = plan_prefix[prod_state][1]
+            rdn = random.random()
+            pc = 0
+            for k, p in enumerate(P):
+                pc += p
+                if pc > rdn:
+                    break
+            # print('%s action chosen: %s' % (str(prod_state), str(U[k], )))
+            return U[k], 0
+        elif (prod_state in plan_suffix):
+            # print 'In suffix'
+            U = plan_suffix[prod_state][0]
+            P = plan_suffix[prod_state][1]
+            rdn = random.random()
+            pc = 0
+            for k, p in enumerate(P):
+                pc += p
+                if pc > rdn:
+                    break
+            # print('%s action chosen: %s' % (str(prod_state), str(U[k], )))
+            if prod_state in best_plan[2][1]:
+                return U[
+                    k], 10  # it is strange for best_plan[2][1] is for state set I_p, i.e., the states that Ap is satisfied
+                # return U[k], 1
+            else:
+                return U[k], 1
+        elif (prod_state in plan_bad):
+            # print 'In bad states'
+            U = plan_bad[prod_state][0]
+            P = plan_bad[prod_state][1]
+            rdn = random.random()
+            pc = 0
+            for k, p in enumerate(P):
+                pc += p
+                if pc > rdn:
+                    break
+            # print 'action chosen: %s' %str(U[k])
+            return U[k], 2
+        else:
+            print_c("Warning, current state %s is outside prefix and suffix !" % (str(prod_state),), color=33)
+            return None, 4
+
+    def act_by_plan_in_observer(self, observer_graph, best_plan, prod_state):
+        # ----choose the randomized action by the optimal policy----
+        # recall that {best_plan = [plan_prefix, prefix_cost, prefix_risk, y_in_sf],
+        # [plan_suffix, suffix_cost, suffix_risk], [MEC[0], MEC[1], Sr, Sd], plan_bad]}
+        plan_prefix = best_plan[0][0]
+        plan_suffix = best_plan[1][0]
+        plan_bad = best_plan[3]
+        if (prod_state in plan_prefix):
+            # print 'In prefix'
+            U = plan_prefix[prod_state][0]
+            P = plan_prefix[prod_state][1]
+            rdn = random.random()
+            pc = 0
+            for k, p in enumerate(P):
+                pc += p
+                if pc > rdn:
+                    break
+            # print('%s action chosen: %s' % (str(prod_state), str(U[k], )))
+            return U[k], 0
+        elif (prod_state in plan_suffix):
+            # print 'In suffix'
+            U = plan_suffix[prod_state][0]
+            P = plan_suffix[prod_state][1]
+            rdn = random.random()
+            pc = 0
+            for k, p in enumerate(P):
+                pc += p
+                if pc > rdn:
+                    break
+            # print('%s action chosen: %s' % (str(prod_state), str(U[k], )))
+            if prod_state in best_plan[2][1]:
+                return U[
+                    k], 10  # it is strange for best_plan[2][1] is for state set I_p, i.e., the states that Ap is satisfied
+                # return U[k], 1
+            else:
+                return U[k], 1
+        elif (prod_state in plan_bad):
+            # print 'In bad states'
+            U = plan_bad[prod_state][0]
+            P = plan_bad[prod_state][1]
+            rdn = random.random()
+            pc = 0
+            for k, p in enumerate(P):
+                pc += p
+                if pc > rdn:
+                    break
+            # print 'action chosen: %s' %str(U[k])
+            return U[k], 2
+        else:
+            print_c("Warning, current state %s is outside prefix and suffix !" % (str(prod_state),), color=33)
+            return None, 4
 
     def replace_list_items(self, lst, mapping):
         return [mapping.get(item, item) for item in lst]
