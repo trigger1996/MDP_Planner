@@ -289,11 +289,34 @@ class product_mdp3(Product_Dra):
                         mapping_t[observed_state_t] = next_sync_state
                         break
                 if mapping_t.__len__():
+                    #
+                    # 更新点
                     nx.relabel_nodes(subgraph_2_amec_t, mapping_t, copy=False)
                     #
+                    # 更新exp_cost
+                    for u, v, attr in subgraph_2_amec_t.edges(data=True):
+                        diff_exp_dict_old = attr['diff_exp']
+                        diff_exp_dict_new = {}
+
+                        for action, cost_dict in diff_exp_dict_old.items():
+                            new_cost_dict = {}
+                            for next_state_gamma, diff_cost in cost_dict.items():
+                                # 替换成新的 sync state（如果有被 relabel）
+                                if next_state_gamma in mapping_t:
+                                    updated_state = mapping_t[next_state_gamma]
+                                else:
+                                    updated_state = next_state_gamma
+                                new_cost_dict[updated_state] = diff_cost
+                            diff_exp_dict_new[action] = new_cost_dict
+
+                        # 更新属性
+                        attr['diff_exp'] = diff_exp_dict_new
+                    #
+                    # 更新当前点
                     if current_state in mapping_t.keys():
                         current_state = mapping_t[current_state]
                     #
+                    # 更新未加入的点
                     stack_t = self.replace_list_items(stack_t, mapping_t)
 
                 if current_state == (('0', frozenset({'upload'}), 1), (('0', frozenset({'upload'}), 1),), ()) or next_sync_state == (('0', frozenset({'upload'}), 1), (('0', frozenset({'upload'}), 1),), ()):
@@ -311,11 +334,30 @@ class product_mdp3(Product_Dra):
                 if is_next_state_in_ip:
                     debug_var = 2
 
-                subgraph_2_amec_t.add_edge(current_state, next_sync_state,
-                                    prop=trans_pr_cost_list,
-                                    diff_exp=diff_expected_cost_list,
-                                    is_opacity=is_opacity)
+                # 如果边已经存在，需要合并 diff_expected_cost_list
+                if subgraph_2_amec_t.has_edge(current_state, next_sync_state):
+                    old_attr = subgraph_2_amec_t[current_state][next_sync_state]
+                    old_diff_exp = old_attr.get('diff_exp', {})
 
+                    # 合并新的 diff_expected_cost_list 到旧的 diff_exp
+                    for action, new_cost_dict in diff_expected_cost_list.items():
+                        if action not in old_diff_exp:
+                            old_diff_exp[action] = dict(new_cost_dict)
+                        else:
+                            for next_state_gamma, new_diff_cost in new_cost_dict.items():
+                                old_diff_exp[action][next_state_gamma] = new_diff_cost
+
+                    # 更新该边属性
+                    subgraph_2_amec_t[current_state][next_sync_state]['diff_exp'] = old_diff_exp
+                else:
+                    # 否则添加新边
+                    subgraph_2_amec_t.add_edge(
+                        current_state,
+                        next_sync_state,
+                        prop=trans_pr_cost_list,
+                        diff_exp=diff_expected_cost_list,
+                        is_opacity=is_opacity
+                    )
                 #
                 # 其实这里解出来以后因为ip点毕竟是少数, 而且MEC强连通
                 # 所以这不是一个巧合：即限制到达后ip的点以后, 其实已经能遍历大部分的点
@@ -439,6 +481,26 @@ class product_mdp3(Product_Dra):
                     if mapping_t.__len__():
                         nx.relabel_nodes(fullgraph_t, mapping_t, copy=False)
                         #
+                        #
+                        # 更新exp_cost
+                        for u, v, attr in fullgraph_t.edges(data=True):
+                            diff_exp_dict_old = attr['diff_exp']
+                            diff_exp_dict_new = {}
+
+                            for action, cost_dict in diff_exp_dict_old.items():
+                                new_cost_dict = {}
+                                for next_state_gamma, diff_cost in cost_dict.items():
+                                    # 替换成新的 sync state（如果有被 relabel）
+                                    if next_state_gamma in mapping_t:
+                                        updated_state = mapping_t[next_state_gamma]
+                                    else:
+                                        updated_state = next_state_gamma
+                                    new_cost_dict[updated_state] = diff_cost
+                                diff_exp_dict_new[action] = new_cost_dict
+
+                            # 更新属性
+                            attr['diff_exp'] = diff_exp_dict_new
+                        #
                         if current_state in mapping_t.keys():
                             current_state = mapping_t[current_state]
                         #
@@ -452,10 +514,26 @@ class product_mdp3(Product_Dra):
                     #     #visited.add(next_sync_state)
                     #     continue
                     #
-                    fullgraph_t.add_edge(current_state, next_sync_state,
-                                               prop=trans_pr_cost_list,
-                                               diff_exp=diff_expected_cost_list,
-                                               is_opacity=is_opacity)
+                    # 如果边已经存在，需要合并 diff_expected_cost_list
+                    if fullgraph_t.has_edge(current_state, next_sync_state):
+                        old_attr = fullgraph_t[current_state][next_sync_state]
+                        old_diff_exp = old_attr.get('diff_exp', {})
+
+                        # 合并新的 diff_expected_cost_list 到旧的 diff_exp
+                        for action, new_cost_dict in diff_expected_cost_list.items():
+                            if action not in old_diff_exp:
+                                old_diff_exp[action] = dict(new_cost_dict)
+                            else:
+                                for next_state_gamma, new_diff_cost in new_cost_dict.items():
+                                    old_diff_exp[action][next_state_gamma] = new_diff_cost
+
+                        # 更新该边属性
+                        fullgraph_t[current_state][next_sync_state]['diff_exp'] = old_diff_exp
+                    else:
+                        fullgraph_t.add_edge(current_state, next_sync_state,
+                                                   prop=trans_pr_cost_list,
+                                                   diff_exp=diff_expected_cost_list,
+                                                   is_opacity=is_opacity)
 
                     #
                     # 其实这里解出来以后因为ip点毕竟是少数, 而且MEC强连通
@@ -653,6 +731,13 @@ class product_mdp3(Product_Dra):
             debug_var = 7
 
         return is_opacity
+
+    def update_best_all_plan(self):
+        # TODO
+        pass
+
+    def execution_in_observer_graph(self):
+        pass
 
     def execution(self, best_all_plan, total_T, state_seq, label_seq):
         # ----plan execution with or without given observation----

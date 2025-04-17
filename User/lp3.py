@@ -29,6 +29,39 @@ def find_states_satisfying_opt_prop(opt_prop, Se):
             S_pi.append(s)
     return S_pi
 
+
+def find_scc_with_known_states(
+        G: nx.DiGraph,
+        known_states: set,
+        match_type: str = "partial"
+) -> list:
+    """
+    查找图中包含指定状态集合的强连通分量。
+
+    参数:
+        G: 有向图 (nx.DiGraph)
+        known_states: 已知状态集合（节点名集合）
+        match_type: 匹配类型，可选：
+            - "partial": 至少包含 known_states 中一个节点（默认）
+            - "full": 包含所有 known_states 中的节点
+            - "exact": 分量和 known_states 完全一致
+
+    返回:
+        list[set]：满足条件的强连通分量列表，每个分量是一个节点集合
+    """
+    sccs = list(nx.strongly_connected_components(G))
+
+    if match_type == "partial":
+        matched = [scc for scc in sccs if known_states & scc]
+    elif match_type == "full":
+        matched = [scc for scc in sccs if known_states <= scc]
+    elif match_type == "exact":
+        matched = [scc for scc in sccs if known_states == scc]
+    else:
+        raise ValueError(f"未知匹配类型: {match_type}，应为 'partial'、'full' 或 'exact'")
+
+    return matched
+
 def get_action_from_successor_edge(g, s):
     act_list = []
     for sync_u, sync_v, attr in g.edges(s, data=True):
@@ -517,8 +550,12 @@ def synthesize_suffix_cycle_in_sync_amec3(prod_mdp, sync_amec_graph, sync_mec_3,
         reachable_sync_states = nx.single_source_shortest_path(opaque_full_graph, init_node)
         #
         # TODO
+        mec_full_in_observer = find_scc_with_known_states(opaque_full_graph, set(y_in_sf_sync.keys()))
+        mec_full_in_observer = mec_full_in_observer[0]                                      # 这里只取最大的那个
+
         Sn_good = set(reachable_sync_states.keys()).intersection(sf)                        # 满足Opacity requirement的MEC子集, 且满足强连通
-        Sn_bad  = set(reachable_sync_states.keys()).difference(set(Sn_good))                # 可能在运行过程中到达的坏状态
+        Sn_bad  = set(reachable_sync_states.keys()).intersection(mec_full_in_observer)      # 可能在运行过程中到达的坏状态
+        Sn_bad  = Sn_bad.difference(Sn_good)
         Sn      = Sn_good.union(Sn_bad)                                                     # 相当于此时Sn是MEC_observer的状态全集
         print('Sf size: %s' % len(sf))
         print('reachable sf size: %s' % len(Sn))
@@ -777,7 +814,8 @@ def synthesize_suffix_cycle_in_sync_amec3(prod_mdp, sync_amec_graph, sync_mec_3,
                             prop = opaque_full_graph[s][t]['diff_exp'].copy()
                             for u in prop.keys():
                                 if (s, u) in Y:
-                                    y_t = Y[(s, u)] * prop[u]
+                                    max_diff_exp_cost = max(prop[u].values())                   # TODO 最小化上界?
+                                    y_t = Y[(s, u)] * max_diff_exp_cost                         # Y[(s, u)] * prop[u]
                                     constr_opacity_lhs.append(y_t)
 
             sum_opacity_lhs = suffix_solver.Sum(constr_opacity_lhs)
@@ -867,8 +905,10 @@ def synthesize_suffix_cycle_in_sync_amec3(prod_mdp, sync_amec_graph, sync_mec_3,
                     else:
                         # 当在amec内
                         U_total_p = list()
-                        for sync_u, sync_v, attr in sync_amec_graph.edges(s, data=True):
-                            U_total_p += list(attr['prop'].keys())
+                        #for sync_u, sync_v, attr in sync_amec_graph.edges(s, data=True):
+                        for sync_u, sync_v, attr in opaque_full_graph.edges(s, data=True):
+                            if sync_v in sf:
+                                U_total_p += list(attr['prop'].keys())
                         #
                         U_total_p = list(set(U_total_p))
                         U_total_p.sort()
