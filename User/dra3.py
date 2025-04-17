@@ -744,7 +744,7 @@ class product_mdp3(Product_Dra):
         #              ])
         self.best_all_plan['plan_prefix']  = best_all_plan[0][0]
         self.best_all_plan['plan_suffix']  = best_all_plan[1][0]
-        self.best_all_plan['ap_4_opacity'] = # TODO
+        self.best_all_plan['ap_4_opacity'] = best_all_plan[3][0]
         self.best_all_plan['cost']         = [ best_all_plan[0][1], best_all_plan[1][1] ]
         self.best_all_plan['risk']         = [ best_all_plan[0][2], best_all_plan[1][2] ]
         self.best_all_plan['sync_amec_graph']        = self.sync_amec_set[best_all_plan[3][2]]
@@ -758,32 +758,133 @@ class product_mdp3(Product_Dra):
         self.best_all_plan['mec']['observer'] = [best_all_plan[5][1][0], best_all_plan[5][1][1]]
 
         if is_print_policy:
-            pass
+            print_c("policy for AP: %s" % str(self.best_all_plan['ap_4_opacity']))
+            print_c("state action: probabilities")
+            #
+            self.print_policy(self.best_all_plan['plan_prefix'], self.best_all_plan['plan_suffix'])
 
-    def print_policy(self):
-        # Added
-        # for printing policies
-        print_c("policy for AP: %s" % str(ap_4_opacity))
-        print_c("state action: probabilities")
-        print_c("Prefix", color=42)
-        #
-        state_in_prefix = [state_t for state_t in plan_prefix]
-        # state_in_prefix.sort(key=cmp_to_key(sort_grids))
-        # for state_t in plan_prefix:
-        for state_t in state_in_prefix:
-            print_c("%s, %s: %s" % (str(state_t), str(plan_prefix[state_t][0]), str(plan_prefix[state_t][1]),),
-                    color=43)
-        #
-        print_c("Suffix", color=45)
-        state_in_suffix = [state_t for state_t in plan_suffix]
-        # state_in_suffix.sort(key=cmp_to_key(sort_grids))
-        # for state_t in plan_suffix:
-        for state_t in state_in_suffix:
-            print_c("%s, %s: %s" % (str(state_t), str(plan_suffix[state_t][0]), str(plan_suffix[state_t][1]),),
-                    color=46)
+    def print_policy(self, plan_prefix, plan_suffix):
+        def format_policy_entry(state, actions, probs):
+            # 对齐三个部分：STATE、ACTIONS、PROBS
+            state_str = str(state)
+            actions_str = str(actions)
+            probs_str = str(probs)
+            return "{:<180} {:<30}: {}".format(state_str, actions_str, probs_str)
 
-    def execution_in_observer_graph(self):
-        pass
+        # 打印 Prefix 部分
+        print_c("\nPrefix", color='bg_magenta', style='bold')
+        header = "{:<180} {:<30} {}".format("STATE", "ACTIONS", ": PROBS")
+        print_c(header, color='magenta', style='bold')
+        for state_t in plan_prefix:
+            actions, probs = plan_prefix[state_t]
+            line = format_policy_entry(state_t, actions, probs)
+            print_c(line, color='magenta')
+
+        # 打印 Suffix 部分
+        print_c("\nSuffix", color='bg_cyan', style='bold')
+        header = "{:<180} {:<30} {}".format("STATE", "ACTIONS", ": PROBS")
+        print_c(header, color='blue', style='bold')
+        for state_t in plan_suffix:
+            actions, probs = plan_suffix[state_t]
+            line = format_policy_entry(state_t, actions, probs)
+            print_c(line, color='blue')
+
+    def execution_in_observer_graph(self, total_T, best_all_plan=None):
+        # ----plan execution with or without given observation----
+        if best_all_plan == None:
+            best_all_plan = self.best_all_plan
+        #
+        t = 0
+        X = []
+        L = []
+        U = []
+        M = []
+        PX = []
+        m = 0
+        # ----
+        X.append()
+        #
+        for t in range(1, total_T):
+
+
+        while (t <= total_T):
+            if (t == 0):
+                # print '---initial run----'
+                mdp_state = state_seq[0]
+                label = label_seq[0]
+                initial_set = self.graph['initial'].copy()
+                current_state = initial_set.pop()
+            elif (t >= 1) and (len(state_seq) > t):
+                # print '---observation given---'
+                mdp_state = state_seq[t]
+                label = label_seq[t]
+                prev_state = tuple(current_state)
+                error = True
+                for next_state in self.successors(prev_state):
+                    if ((self.nodes[next_state]['mdp'] == mdp_state) and (
+                            self.nodes[next_state]['label'] == label) and (
+                            u in list(self[prev_state][next_state]['prop'].keys()))):
+                        current_state = tuple(next_state)
+                        error = False
+                        break
+                if error:
+                    print(
+                        'Error: The provided state and label sequences do NOT match the mdp structure!')
+                    break
+            else:
+                # print '---random observation---'
+                prev_state = tuple(current_state)
+                S = []
+                P = []
+                if m < 2 or m == 10:  # in prefix or suffix, added, it is admissible for states to get in Ip again (m == 10)
+                    for next_state in self.successors(prev_state):
+                        prop = self[prev_state][next_state]['prop']
+                        if (u in list(prop.keys())):
+                            S.append(next_state)
+                            P.append(prop[u][0])
+                if m == 2:  # in bad states
+                    # print 'in bad states'
+                    Sd = best_all_plan[2][3]
+                    Sf = best_all_plan[2][0]
+                    Sr = best_all_plan[2][2]
+                    (xf, lf, qf) = prev_state
+                    postqf = self.graph['dra'].successors(qf)
+                    for xt in self.graph['mdp'].successors(xf):
+                        if xt != xf:
+                            prop = self.graph['mdp'][xf][xt]['prop']
+                            if u in list(prop.keys()):
+                                prob_edge = prop[u][0]
+                                label = self.graph['mdp'].nodes[xt]['label']
+                                for lt in label.keys():
+                                    prob_label = label[lt]
+                                    dist = dict()
+                                    for qt in postqf:
+                                        if (xt, lt, qt) in Sf.union(Sr):
+                                            dist[qt] = self.graph['dra'].check_distance_for_dra_edge(
+                                                lf, qf, qt)
+                                    if list(dist.keys()):
+                                        qt = min(list(dist.keys()),
+                                                 key=lambda q: dist[q])
+                                        S.append((xt, lt, qt))
+                                        P.append(prob_edge * prob_label)
+                rdn = random.random()
+                pc = 0
+                for k, p in enumerate(P):
+                    pc += p
+                    if pc > rdn:
+                        break
+                current_state = tuple(S[k])
+                mdp_state = self.nodes[current_state]['mdp']
+                label = self.nodes[current_state]['label']
+            # ----
+            u, m = self.act_by_plan(best_all_plan, current_state)
+            X.append(mdp_state)
+            PX.append(current_state)
+            L.append(set(label))
+            U.append(u)
+            M.append(m)
+            t += 1
+        return X, L, U, M, PX
 
     def execution(self, best_all_plan, total_T, state_seq, label_seq):
         # ----plan execution with or without given observation----

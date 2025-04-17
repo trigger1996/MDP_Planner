@@ -77,27 +77,6 @@ def exp_weight(u, v, d):
         val_list.append(val_t)
     return min(val_list)
 
-def print_policies_w_opacity(ap_4_opacity, plan_prefix, plan_suffix):
-    # Added
-    # for printing policies
-    print_c("policy for AP: %s" % str(ap_4_opacity))
-    print_c("state action: probabilities")
-    print_c("Prefix", color=42)
-    #
-    state_in_prefix = [ state_t for state_t in plan_prefix ]
-    #state_in_prefix.sort(key=cmp_to_key(sort_grids))
-    #for state_t in plan_prefix:
-    for state_t in state_in_prefix:
-        print_c("%s, %s: %s" % (str(state_t), str(plan_prefix[state_t][0]), str(plan_prefix[state_t][1]), ), color=43)
-    #
-    print_c("Suffix", color=45)
-    state_in_suffix = [ state_t for state_t in plan_suffix ]
-    #state_in_suffix.sort(key=cmp_to_key(sort_grids))
-    #for state_t in plan_suffix:
-    for state_t in state_in_suffix:
-        print_c("%s, %s: %s" % (str(state_t), str(plan_suffix[state_t][0]), str(plan_suffix[state_t][1]), ), color=46)
-
-
 def print_analyze_constraints_matrix_form(solver):
     variables = solver.variables()
     constraints = solver.constraints()
