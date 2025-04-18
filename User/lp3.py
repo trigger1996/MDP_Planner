@@ -634,6 +634,10 @@ def synthesize_suffix_cycle_in_sync_amec3(prod_mdp, sync_amec_graph, sync_mec_3,
                             #       s in Sn
                             constr3 += Y[(s, u)]
                         for f in opaque_full_graph.predecessors(s):
+                            if f == (('0', frozenset({'upload'}), 2), (('0', frozenset({'upload'}), 1), ('0', frozenset({'upload'}), 2)), ()):
+                                debug_var = 3
+                            if f == (('0', frozenset({'upload'}), 1), (('0', frozenset({'upload'}), 1), ('0', frozenset({'upload'}), 2), ('0', frozenset({'upload'}), 3)), ()):
+                                debug_var = 4
                             #
                             # 这里也有不同
                             # prefix
@@ -717,6 +721,11 @@ def synthesize_suffix_cycle_in_sync_amec3(prod_mdp, sync_amec_graph, sync_mec_3,
                         #     node_y_out += Y[(s, u)]
                         #
                         for f in opaque_full_graph.predecessors(s):
+                            if f == (('0', frozenset({'upload'}), 2), (('0', frozenset({'upload'}), 1), ('0', frozenset({'upload'}), 2)), ()):
+                                debug_var = 5
+                            if f == (('0', frozenset({'upload'}), 1), (('0', frozenset({'upload'}), 1), ('0', frozenset({'upload'}), 2), ('0', frozenset({'upload'}), 3)), ()):
+                                debug_var = 6
+
                             if f in Sn:
                                 prop = opaque_full_graph[f][s]['prop'].copy()
                                 # is_opacity = initial_subgraph[f][s]['is_opacity']
