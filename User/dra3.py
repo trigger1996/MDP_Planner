@@ -793,33 +793,30 @@ class product_mdp3(Product_Dra):
         # ----plan execution with or without given observation----
         if best_all_plan == None:
             best_all_plan = self.best_all_plan
-        #
-        t = 0
-        X = []
-        L = []
-        U = []
-        M = []
-        PX = []
-        m = 0
         # ----
-        current_state = self.best_all_plan['initial_observer_state'][initial_state_index]
-        current_label = self.best_all_plan['initial_observer_state'][initial_state_index][0][1]
-        curr_observed_label = tuple([state_t[1] for state_t in self.best_all_plan['initial_observer_state'][initial_state_index][1]])
-        X.append(self.best_all_plan['initial_observer_state'])
-        L.append(self.best_all_plan['initial_observer_state'])
+        current_state, prod_state, mdp_state, observed_state, opacity_state, current_label, observed_label = self.get_individual_state_from_observers(self.best_all_plan['initial_observer_state'][initial_state_index])
+        #
+        X     = [ mdp_state ]                      # current state list
+        OX    = [ current_state ]                  # observer state list
+        O     = [ observed_state ]                 # observed state
+        X_OPA = [ opacity_state ]
+        L     = [ current_label ]
+        OL    = [ observed_label ]
+        U     = []
+        M     = []
         #
         observer_t = self.best_all_plan['opaque_full_graph']
         is_now_in_suffix_cycle = False
         #
         for t in range(1, total_T):
-            u, m = self.act_by_plan_in_observer(current_state, self.best_all_plan['plan_prefix'], self.best_all_plan['plan_suffix'])
+            u, m = self.act_by_plan_in_observer(current_state, self.best_all_plan['plan_prefix'], self.best_all_plan['plan_suffix'], is_now_in_suffix_cycle)
 
             S = []
             P = []
-            for next_state in self.successors(current_state):
-                prop = self[current_state][next_state]['prop']
+            for state_t in observer_t.successors(current_state):
+                prop = observer_t[current_state][state_t]['prop']
                 if (u in list(prop.keys())):
-                    S.append(next_state)
+                    S.append(state_t)
                     P.append(prop[u][0])
 
             rdn = random.random()
@@ -828,92 +825,25 @@ class product_mdp3(Product_Dra):
                 pc += p
                 if pc > rdn:
                     break
-            current_state = tuple(S[k])
-            mdp_state = self.nodes[current_state]['mdp']
-            label = self.nodes[current_state]['label']
+            next_state = tuple(S[k])
 
-            for next_state in observer_t.successors(current_state):
-                print_c(233)
+            #
+            # added
+            state, prod_state, mdp_state, observed_state, opacity_state, current_label, observed_label = self.get_individual_state_from_observers(next_state)
 
-            is_now_in_suffix_cycle = next_state in self.best_all_plan['mec']['observer'][0]
-        while (t <= total_T):
-            if (t == 0):
-                # print '---initial run----'
-                mdp_state = state_seq[0]
-                label = label_seq[0]
-                initial_set = self.graph['initial'].copy()
-                current_state = initial_set.pop()
-            elif (t >= 1) and (len(state_seq) > t):
-                # print '---observation given---'
-                mdp_state = state_seq[t]
-                label = label_seq[t]
-                prev_state = tuple(current_state)
-                error = True
-                for next_state in self.successors(prev_state):
-                    if ((self.nodes[next_state]['mdp'] == mdp_state) and (
-                            self.nodes[next_state]['label'] == label) and (
-                            u in list(self[prev_state][next_state]['prop'].keys()))):
-                        current_state = tuple(next_state)
-                        error = False
-                        break
-                if error:
-                    print(
-                        'Error: The provided state and label sequences do NOT match the mdp structure!')
-                    break
-            else:
-                # print '---random observation---'
-                prev_state = tuple(current_state)
-                S = []
-                P = []
-                if m < 2 or m == 10:  # in prefix or suffix, added, it is admissible for states to get in Ip again (m == 10)
-                    for next_state in self.successors(prev_state):
-                        prop = self[prev_state][next_state]['prop']
-                        if (u in list(prop.keys())):
-                            S.append(next_state)
-                            P.append(prop[u][0])
-                if m == 2:  # in bad states
-                    # print 'in bad states'
-                    Sd = best_all_plan[2][3]
-                    Sf = best_all_plan[2][0]
-                    Sr = best_all_plan[2][2]
-                    (xf, lf, qf) = prev_state
-                    postqf = self.graph['dra'].successors(qf)
-                    for xt in self.graph['mdp'].successors(xf):
-                        if xt != xf:
-                            prop = self.graph['mdp'][xf][xt]['prop']
-                            if u in list(prop.keys()):
-                                prob_edge = prop[u][0]
-                                label = self.graph['mdp'].nodes[xt]['label']
-                                for lt in label.keys():
-                                    prob_label = label[lt]
-                                    dist = dict()
-                                    for qt in postqf:
-                                        if (xt, lt, qt) in Sf.union(Sr):
-                                            dist[qt] = self.graph['dra'].check_distance_for_dra_edge(
-                                                lf, qf, qt)
-                                    if list(dist.keys()):
-                                        qt = min(list(dist.keys()),
-                                                 key=lambda q: dist[q])
-                                        S.append((xt, lt, qt))
-                                        P.append(prob_edge * prob_label)
-                rdn = random.random()
-                pc = 0
-                for k, p in enumerate(P):
-                    pc += p
-                    if pc > rdn:
-                        break
-                current_state = tuple(S[k])
-                mdp_state = self.nodes[current_state]['mdp']
-                label = self.nodes[current_state]['label']
-            # ----
-            u, m = self.act_by_plan(best_all_plan, current_state)
             X.append(mdp_state)
-            PX.append(current_state)
-            L.append(set(label))
+            OX.append(state)
+            O.append(observed_state)
+            X_OPA.append(opacity_state)
+            L.append(current_label)
+            OL.append(observed_label)
             U.append(u)
             M.append(m)
-            t += 1
-        return X, L, U, M, PX
+
+            current_state = next_state
+            is_now_in_suffix_cycle = next_state in self.best_all_plan['mec']['observer'][0]
+
+        return X, OX, O, X_OPA, L, OL, U, M
 
     def execution(self, best_all_plan, total_T, state_seq, label_seq):
         # ----plan execution with or without given observation----
@@ -1081,8 +1011,25 @@ class product_mdp3(Product_Dra):
             # print('%s action chosen: %s' % (str(prod_state), str(U[k], )))
             return U[k], 1
         else:
-            print_c("Warning, current state %s is outside prefix and suffix !" % (str(prod_state),), color=33)
+            print_c("Warning, current state %s is outside prefix and suffix !" % (str(state),), color=33)
             return None, 4
+
+    def get_individual_state_from_observers(self, observer_state):
+        is_ip_state = observer_state[2].__len__() > 0
+        prod_state     = observer_state[0]
+        mdp_state      = prod_state[0]
+        observed_state = list(set(observer_state[1]).union(observer_state[2]))
+        if is_ip_state:
+            opacity_state = list(set(observer_state[1]).difference(set(observer_state[0])))
+        else:
+            opacity_state = []
+        #
+        current_label  = set(prod_state[1])
+        observed_label = list([set(state_t[1]) for state_t in observer_state[1]]) + [ current_label ]
+
+        return observer_state, prod_state, mdp_state, observed_state, opacity_state, current_label, observed_label
+
+
 
     def replace_list_items(self, lst, mapping):
         return [mapping.get(item, item) for item in lst]

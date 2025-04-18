@@ -77,21 +77,21 @@ def print_best_all_plan(best_all_plan):
         print_c("%s, %s: %s" % (str(state_t), str(best_all_plan[1][0][state_t][0]), str(best_all_plan[1][0][state_t][1]), ), color=45)
 
 def execute_example(N, total_T, prod_dra, best_all_plan, state_seq, label_seq, opt_prop, ap_gamma, attr='opaque'):
-    XX = []
-    LL = []
-    UU = []
-    MM = []
-    PP = []
+    XX  = []
+    LL  = []
+    UU  = []
+    MM  = []
+    OXX = []
     cost_list_pi = []
     cost_list_gamma = []
     for n in range(0, N):
-        X, L, U, M, PX = prod_dra.execution_in_observer_graph(total_T)
+        X, OX, O, X_OPA, L, OL, U, M = prod_dra.execution_in_observer_graph(total_T)
 
         XX.append(X)
         LL.append(L)
         UU.append(U)
         MM.append(M)
-        PP.append(PX)
+        OXX.append(OX)
 
     print('[Product Dra] process all done')
 
