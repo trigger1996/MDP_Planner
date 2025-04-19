@@ -100,7 +100,8 @@ def execute_example(N, total_T, prod_dra, best_all_plan, state_seq, label_seq, o
         X_U = []
         for j in range(0, XX[i].__len__()):
             X_U.append(XX[i][j])
-            X_U.append(UU[i][j])
+            if j < XX[i].__len__() - 1:
+                X_U.append(UU[i][j])
         #
         Y = run_2_observations_seqs(X_U)
         X_INV, AP_INV = observation_seq_2_inference(Y)

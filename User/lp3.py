@@ -634,13 +634,15 @@ def synthesize_suffix_cycle_in_sync_amec3(prod_mdp, sync_amec_graph, sync_mec_3,
                         # 那么其实为了安全约束, 我们只能允许1
                         # 如果解释不通, 那么则允许1和2
                         for u in act_s_list:
-                            #
-                            # 这里也有不同
-                            # prefix
-                            #       s in Sr
-                            # suffix
-                            #       s in Sn
-                            constr3 += Y[(s, u)]
+                            for v, w, attr in opaque_full_graph.out_edges(s, data=True):
+                                u_p_list = attr['prop'].keys()
+                                if u in u_p_list:
+                                    if w in Sn_good:
+                                        constr3 += Y[(s, u)]
+                                    elif w in Sn_bad:
+                                        pass
+                            # the old solution
+                            #constr3 += Y[(s, u)]
                         for f in opaque_full_graph.predecessors(s):
                             if f == (('0', frozenset({'upload'}), 2), (('0', frozenset({'upload'}), 1), ('0', frozenset({'upload'}), 2)), ()):
                                 debug_var = 3
@@ -737,8 +739,6 @@ def synthesize_suffix_cycle_in_sync_amec3(prod_mdp, sync_amec_graph, sync_mec_3,
                             if f == (('0', frozenset({'upload'}), 1), (('0', frozenset({'upload'}), 1), ('0', frozenset({'upload'}), 2), ('0', frozenset({'upload'}), 3)), ()):
                                 debug_var = 6
 
-                            # TODO
-                            # 修改代码并优化/美化
                             if f in Sn_good:
                                 prop = opaque_full_graph[f][s]['prop'].copy()
                                 for uf in prop.keys():
@@ -749,6 +749,8 @@ def synthesize_suffix_cycle_in_sync_amec3(prod_mdp, sync_amec_graph, sync_mec_3,
                                     for uf in prop.keys():
                                         constr4 += Y[(f, uf)] * prop[uf][0]
 
+                            #
+                            # the old solution
                             # if f in Sn:
                             #     prop = opaque_full_graph[f][s]['prop'].copy()
                             #     # is_opacity = initial_subgraph[f][s]['is_opacity']
