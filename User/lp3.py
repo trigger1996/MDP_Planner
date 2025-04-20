@@ -631,13 +631,13 @@ def synthesize_suffix_cycle_in_sync_amec3(prod_mdp, sync_amec_graph, sync_mec_3,
                         # 1. 到达一个好状态
                         # 2. 到达一个坏状态
                         # 3. 既可能到达好状态,  又可能到达坏状态
-                        # 那么其实为了安全约束, 我们只能允许1
-                        # 如果解释不通, 那么则允许1和2
+                        # 那么其实为了安全约束, 我们只能允许1？
+                        # 如果解释不通, 那么则允许1和2？
                         for u in act_s_list:
                             for v, w, attr in opaque_full_graph.out_edges(s, data=True):
                                 u_p_list = attr['prop'].keys()
                                 if u in u_p_list:
-                                    if w in Sn_good:
+                                    if w in Sn_good:                        # 好状态只能到达好状态
                                         constr3 += Y[(s, u)]
                                     elif w in Sn_bad:
                                         pass
