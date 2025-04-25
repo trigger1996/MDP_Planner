@@ -12,9 +12,11 @@ initial_label = None
 #
 # in simulations, we can let those states with identical APs carry identical observations, which is to simulate the APs are observed satisfied
 observation_dict = {
-    'u': ['0'],
-    'v': ['1'],
-    'w': ['2', '3'],
+    'p': ['0'],
+    'q': ['1'],
+    'u': ['2', '3'],
+    'v': ['4'],
+    'w': ['5', '6'],
 }
 
 # control_observable_dict = {
@@ -31,23 +33,38 @@ def build_model():
 
     # robot nodes
     # the lower satisfaction probability may result in conflict/failure in opacity constraint in user/lp.py
-    robot_nodes_w_aps['0'] = { frozenset({'upload'}) : 1.0 }
-    robot_nodes_w_aps['1'] = { frozenset({'gather'}) : 1.  }
-    robot_nodes_w_aps['2'] = { frozenset({'gather'}) : 1.  }
-    robot_nodes_w_aps['3'] = {frozenset({'recharge'}): 1.  }
+    robot_nodes_w_aps['0'] = { frozenset({'upload'})   : 1.0 }
+    #
+    robot_nodes_w_aps['1'] = { frozenset({'gather'})   : 1.  }
+    robot_nodes_w_aps['2'] = { frozenset({'gather'})   : 1.  }
+    robot_nodes_w_aps['3'] = { frozenset({'recharge'}) : 1.  }
+    #
+    robot_nodes_w_aps['4'] = { frozenset({'gather'})   : 1.0 }
+    robot_nodes_w_aps['5'] = { frozenset({'gather'})   : 1.  }
+    robot_nodes_w_aps['6'] = { frozenset({'recharge'}) : 1.  }
+    #
     #
     robot_edges = {
         # x,   a,   x'  : prob, cost
         ('0', 'a', '1') : (1, 1),            # gather
         ('1', 'a', '0') : (1, 1),            #
+        ('0', 'b', '0') : (0.05, 2),
+        ('0', 'd', '0') : (0.05, 1),
 
         ('0', 'b', '2') : (0.5, 3),
-        ('0', 'b', '0') : (0.05, 2),
         ('2', 'b', '0') : (1, 2),
 
-        ('0', 'b', '3') : (0.4, 3),
-        ('0', 'b', '0') : (0.05, 2),
+        ('0', 'b', '3') : (0.45, 3),
         ('3', 'b', '0') : (1, 2),
+        #
+        ('0', 'c', '4') : (1, 1),           # gather
+        ('4', 'c', '0') : (1, 1),           #
+
+        ('0', 'd', '5') : (0.55, 3),
+        ('5', 'd', '0') : (1, 2),
+
+        ('0', 'd', '6') : (0.4, 3),
+        ('6', 'd', '0') : (1, 2),
     }
 
     #
