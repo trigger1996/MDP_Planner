@@ -1,13 +1,11 @@
 import time
 from subprocess import check_output
-from Map.example_room_1018 import build_model, run_2_observations_seqs, observation_seq_2_inference
+from Map.old.example_room_1018 import build_model
 from MDP_TG.mdp import Motion_MDP
 from MDP_TG.dra import Dra, Product_Dra
 from MDP_TG.lp import syn_full_plan
 from User.vis2 import print_c
 
-from functools import cmp_to_key
-from User.grid_utils import sort_grids
 
 def ltl_convert(task, is_display=True):
     #

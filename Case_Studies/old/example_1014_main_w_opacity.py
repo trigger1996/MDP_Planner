@@ -1,14 +1,12 @@
 from MDP_TG.mdp import Motion_MDP
-from MDP_TG.dra import Dra, Product_Dra
 #from MDP_TG.lp import syn_full_plan, syn_full_plan_rex
 #from MDP_TG.vis import visualize_run                        # sudo apt install texlive-latex-extra dvipng -y
-from User.lp import syn_full_plan, synthesize_full_plan_w_opacity
-from User.dra2 import product_mdp2
-from Map.example_8x5_1014 import build_model
-from Map.example_8x5_1014 import visualize_trajectories, visualiza_in_animation
-from Map.example_8x5_1014 import draw_mdp_principle, draw_action_principle
+from User.lp import synthesize_full_plan_w_opacity
+from Map.old.example_8x5_1014 import build_model
+from Map.old.example_8x5_1014 import visualize_trajectories, visualiza_in_animation
+from Map.old.example_8x5_1014 import draw_mdp_principle, draw_action_principle
 from User.vis2 import print_c
-from Map.example_8x5_1014 import observation_func as observation_func_1014
+from Map.old.example_8x5_1014 import observation_func as observation_func_1014
 
 import pickle
 import time

@@ -1,10 +1,10 @@
 import time
 from subprocess import check_output
-from Map.example_room_1018 import build_model, observation_func_1018, run_2_observations_seqs, observation_seq_2_inference, calculate_cost_from_runs, plot_cost_hist
+from Map.old.example_room_1018 import build_model, observation_func_1018, run_2_observations_seqs, observation_seq_2_inference, calculate_cost_from_runs, plot_cost_hist
 from MDP_TG.mdp import Motion_MDP
 from MDP_TG.dra import Dra, Product_Dra
-from MDP_TG.lp import syn_full_plan, syn_full_plan_rex
-from User.lp import syn_full_plan_repeated, synthesize_full_plan_w_opacity
+from MDP_TG.lp import syn_full_plan_rex
+from User.lp import synthesize_full_plan_w_opacity
 from User.vis2 import print_c
 
 from functools import cmp_to_key

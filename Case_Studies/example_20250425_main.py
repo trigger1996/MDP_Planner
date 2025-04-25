@@ -1,13 +1,18 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 import time
 from subprocess import check_output
-from Map.old.example_room_20250105 import (build_model, observation_func_0105, run_2_observations_seqs,
-                                           observation_seq_2_inference, calculate_cost_from_runs, plot_cost_hist)
+from Map.example_20250425 import (build_model, observation_func_0425, control_observable_dict, run_2_observations_seqs,
+                                  observation_seq_2_inference, calculate_cost_from_runs, plot_cost_hist)
 from MDP_TG.mdp import Motion_MDP
 from MDP_TG.dra import Dra, Product_Dra
-from MDP_TG.lp import syn_full_plan_rex
-from User.team_mdp_dra import Team_MDP
-from User.lp import synthesize_full_plan_w_opacity, synthesize_full_plan_w_opacity_4_Team_MDP
-from User.vis2 import print_c, print_highlighted_sequences
+from User.dra3  import product_mdp3
+from MDP_TG.lp import syn_full_plan, syn_full_plan_rex
+from User.team_mdp_dra import Team_MDP, Team_Product_Dra
+from User.lp import syn_full_plan_repeated, synthesize_full_plan_w_opacity, synthesize_full_plan_w_opacity_4_Team_MDP
+from User.vis2 import print_c, print_colored_sequence, print_highlighted_sequences
+
+from User.lp3 import synthesize_full_plan_w_opacity3
 
 from functools import cmp_to_key
 from User.grid_utils import sort_numerical_states
@@ -71,22 +76,22 @@ def print_best_all_plan(best_all_plan):
     for state_t in state_in_suffix:
         print_c("%s, %s: %s" % (str(state_t), str(best_all_plan[1][0][state_t][0]), str(best_all_plan[1][0][state_t][1]), ), color=45)
 
-def execute_example(N, total_T, prod_dra, best_all_plan, state_seq, label_seq, opt_prop, ap_gamma, attr='opaque'):
-    XX = []
-    LL = []
-    UU = []
-    MM = []
-    PP = []
+def execute_example_4_product_mdp3(N, total_T, prod_dra, best_all_plan, state_seq, label_seq, opt_prop, ap_gamma, attr='opaque'):
+    XX  = []
+    LL  = []
+    UU  = []
+    MM  = []
+    OXX = []
     cost_list_pi = []
     cost_list_gamma = []
     for n in range(0, N):
-        X, L, U, M, PX = prod_dra.execution(best_all_plan, total_T, state_seq, label_seq)
+        X, OX, O, X_OPA, L, OL, U, M = prod_dra.execution_in_observer_graph(total_T)
 
         XX.append(X)
         LL.append(L)
         UU.append(U)
         MM.append(M)
-        PP.append(PX)
+        OXX.append(OX)
 
     print('[Product Dra] process all done')
 
@@ -95,7 +100,8 @@ def execute_example(N, total_T, prod_dra, best_all_plan, state_seq, label_seq, o
         X_U = []
         for j in range(0, XX[i].__len__()):
             X_U.append(XX[i][j])
-            X_U.append(UU[i][j])
+            if j < XX[i].__len__() - 1:
+                X_U.append(UU[i][j])
         #
         Y = run_2_observations_seqs(X_U)
         X_INV, AP_INV = observation_seq_2_inference(Y)
@@ -124,42 +130,59 @@ def execute_example(N, total_T, prod_dra, best_all_plan, state_seq, label_seq, o
 
     return cost_list_pi, cost_list_gamma
 
-def room_example_team_robotic_w_opacity():
+def execute_example_in_origin_product_mdp(N, total_T, prod_dra, best_all_plan, state_seq, label_seq, opt_prop, ap_gamma, attr):
+    XX = []
+    LL = []
+    UU = []
+    MM = []
+    PP = []
+    for n in range(0, N):
+        X, L, U, M, PX = prod_dra.execution(best_all_plan, total_T, state_seq, label_seq)
 
-    #ltl_formula = 'GF (gather -> drop)'
-    ltl_formula = 'GF (gather -> (!gather U drop))'         # 'GF (gather -> X(!gather U drop))'
-    opt_prop = 'gather'
+        XX.append(X)
+        LL.append(L)
+        UU.append(U)
+        MM.append(M)
+        PP.append(PX)
 
-    robot_nodes, robot_edges, U, initial_node, initial_label = build_model()
+    print('[Product Dra] process all done')
 
-    initial_node  = '0'                                 # '0' and '11' available
-    initial_label = frozenset()
-    motion_mdp_1 = Motion_MDP(robot_nodes, robot_edges, U,
-                            initial_node, initial_label)
+    cost_list_pi = []
+    cost_list_gamma = []
+    color_init = 32
+    for i in range(0, XX.__len__()):
+        X_U = []
+        for j in range(0, XX[i].__len__()):
+            X_U.append(XX[i][j])
+            if j < XX[i].__len__() - 1:
+                X_U.append(UU[i][j])
+        #
+        Y = run_2_observations_seqs(X_U)
+        X_INV, AP_INV = observation_seq_2_inference(Y)
+        #
+        cost_cycle = calculate_cost_from_runs(prod_dra, XX[i], LL[i], UU[i], opt_prop)
+        cost_list_pi = cost_list_pi + cost_cycle
+        #
+        cost_cycle_p = calculate_cost_from_runs(prod_dra, XX[i], LL[i], UU[i], ap_gamma)
+        cost_list_gamma = cost_list_gamma + cost_cycle_p
+        #
+        # print_c(X_U, color=color_init)
+        # print_c(Y, color=color_init)
+        # print_c(X_INV, color=color_init)
+        # print_c(AP_INV, color=color_init)
+        # print_c("[cost / achieved_index] " + str(cost_cycle), color=color_init)
+        # color_init += 1
+        #
+        # print_colored_sequence(X_U)
+        # print_colored_sequence(Y)
+        # print_colored_sequence(X_INV)
+        # print_colored_sequence(AP_INV)
+        # print_c("[cost / achieved_index] " + str(cost_cycle), color=color_init)
+        #
+        print_highlighted_sequences(X_U, Y, X_INV, AP_INV, marker1=opt_prop, marker2=ap_gamma, attr=attr)
+    # fig = visualize_run_sequence(XX, LL, UU, MM, 'surv_result', is_visuaize=False)
 
-    initial_node  = '11'
-    initial_label = frozenset()
-    motion_mdp_2 = Motion_MDP(robot_nodes, robot_edges, U,
-                            initial_node, initial_label)
-
-    team_mdp = Team_MDP([motion_mdp_1, motion_mdp_2])
-    ap_list = obtain_all_aps_from_mdp(team_mdp)
-
-    # ----
-
-
-    # ------
-    gamma = 0.1
-    d = 100
-    risk_threshold = 0.05                                        # default:  0.1
-    differential_exp_cost = 3.5                                  #           1.590106
-    best_all_plan, prod_dra_pi = synthesize_full_plan_w_opacity_4_Team_MDP(team_mdp, ltl_formula, opt_prop, ap_list, risk_threshold,
-                                                                differential_exp_cost,
-                                                                observation_func=observation_func_0105)
-    ap_gamma = best_all_plan[3][0]
-
-    # TODO
-    # transfer team policy to individual policy
+    return cost_list_pi, cost_list_gamma
 
 def room_example_main_w_opacity():
 
@@ -193,51 +216,63 @@ def room_example_main_w_opacity():
     t42 = time.time()
 
     # ------
-    gamma = 0.1
+    gamma = 0.5
     d = 100
-    risk_threshold = 0.05                                        # default:  0.1
-    differential_exp_cost = 3.5                                  #           1.590106
-    best_all_plan, prod_dra_pi = synthesize_full_plan_w_opacity(motion_mdp, ltl_formula, opt_prop, ap_list, risk_threshold,
-                                                                differential_exp_cost,
-                                                                observation_func=observation_func_0105)
-    ap_gamma = best_all_plan[3][0]
+    risk_threshold = 0.05                                       # default:  0.1
+    differential_exp_cost = 15                                  #           1.590106
+    is_run_opaque_synthesis = True
+    if is_run_opaque_synthesis:
+        # best_all_plan, prod_dra_pi = synthesize_full_plan_w_opacity(motion_mdp, ltl_formula, opt_prop, ap_list, risk_threshold,
+        #                                                             differential_exp_cost,
+        #                                                             observation_func=observation_func_0425,
+        #                                                             ctrl_obs_dict=control_observable_dict)
+        best_all_plan, prod_dra_pi = synthesize_full_plan_w_opacity3(motion_mdp, ltl_formula, opt_prop, ap_list, risk_threshold,
+                                                                    differential_exp_cost,
+                                                                    observation_func=observation_func_0425,
+                                                                    ctrl_obs_dict=control_observable_dict)
+        ap_gamma = best_all_plan[3][0]
+    else:
+        ap_gamma = 'upload'
 
     # TODO
     best_all_plan_p = syn_full_plan_rex(prod_dra, gamma, d)
     # best_all_plan_p = syn_full_plan_repeated(prod_dra, gamma, opt_prop)
 
-    print_best_all_plan(best_all_plan)
-
-    # for visualization
+    # print_best_all_plan(best_all_plan)
+    #
+    # # for visualization
     total_T = 50
     state_seq = [ initial_node, ]
     label_seq = [ initial_label, ]
     N = 5
-
-    #
-    # Opaque runs
-    #try:
-    # TODO
-    if True:
-        cost_list_pi, cost_list_gamma = execute_example(N, total_T, prod_dra_pi, best_all_plan, state_seq, label_seq, opt_prop, ap_gamma, attr='Opaque')
-
-    # TODO
-    # except:
-    #     print_c("No best plan synthesized, try re-run this program", color=33)
-
     is_average = True
-    plot_cost_hist(cost_list_pi, bins=25, is_average=is_average, title= "Cost for Satisfaction of AP \pi in Opaque runs")
-    plot_cost_hist(cost_list_gamma, bins=25, color='r', is_average=is_average, title= "Cost for Satisfaction of AP \gamma in Opaque runs")
+    #
+    # #
+    # # Opaque runs
+    if is_run_opaque_synthesis:
+        #try:
+        # TODO
+        if True:
+            cost_list_pi, cost_list_gamma = execute_example_4_product_mdp3(N, total_T, prod_dra_pi, best_all_plan, state_seq, label_seq, opt_prop, ap_gamma, attr='Opaque')
+
+            plot_cost_hist(cost_list_pi, bins=25, is_average=is_average, title="Cost for Satisfaction of AP \pi in Opaque runs")
+            plot_cost_hist(cost_list_gamma, bins=25, color='r', is_average=is_average, title="Cost for Satisfaction of AP \gamma in Opaque runs")
+
+        # TODO
+        #except:
+            print_c("No best plan synthesized, try re-run this program", color=33)
 
     #
     print_c("\n\nFOR COMPARASION, NON_OPAQUE SYNTHESIS: \n", color=46)
-    #print_best_all_plan(best_all_plan_p)
+    print_best_all_plan(best_all_plan_p)
 
     #
     # Non-opaque runs
     #try:
+    state_seq = [ initial_node, ]
+    label_seq = [ initial_label, ]
     if True:
-        cost_list_pi_p, cost_list_gamma_p = execute_example(N, total_T, prod_dra, best_all_plan_p, state_seq, label_seq, opt_prop, ap_gamma, attr='NON-Opaque')
+        cost_list_pi_p, cost_list_gamma_p = execute_example_in_origin_product_mdp(N, total_T, prod_dra, best_all_plan_p, state_seq, label_seq,opt_prop, ap_gamma, attr='Opaque')
     # except:
     #     print_c("No best plan synthesized, try re-run this program", color=33)
     #is_average = True
@@ -258,5 +293,3 @@ def room_example_main_w_opacity():
 
 if __name__ == "__main__":
     room_example_main_w_opacity()
-
-    #room_example_team_robotic_w_opacity()
