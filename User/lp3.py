@@ -891,6 +891,13 @@ def synthesize_suffix_cycle_in_sync_amec3(prod_mdp, sync_amec_graph, sync_mec_3,
             # compute optimal plan suffix given the LP solution
             plan_suffix = dict()
             for s in Sn:
+
+                #
+                # added for debugging
+                #if s == (('0', frozenset({'upload'}), 3), (('0', frozenset({'upload'}), 3), ('0', frozenset({'upload'}), 1)), ()):
+                if s[0] == ('0', frozenset({'upload'}), 3):
+                    debug_var = 20
+
                 norm = 0
                 U = []
                 P = []
@@ -941,7 +948,8 @@ def synthesize_suffix_cycle_in_sync_amec3(prod_mdp, sync_amec_graph, sync_mec_3,
                         else:
                             # the old round_robin
                             U.append(U_total)
-                            P.append(1.0 / len(U_total))
+                            for u in U_total:
+                                P.append(1.0 / len(U_total))        # modified the number of P
                     else:
                         # 当在amec内
                         U_total_p = list()
@@ -954,7 +962,7 @@ def synthesize_suffix_cycle_in_sync_amec3(prod_mdp, sync_amec_graph, sync_mec_3,
                         U_total_p.sort()
                         for u in U_total_p:
                             U.append(u)
-                        P.append(1.0 / len(U_total_p))
+                            P.append(1.0 / len(U_total_p))
 
                 plan_suffix[s] = [U, P]
 

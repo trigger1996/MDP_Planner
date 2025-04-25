@@ -373,180 +373,180 @@ class product_mdp3(Product_Dra):
         return subgraph_2_amec_t, initial_sync_state
 
     def construct_fullgraph_4_amec(self, initial_subgraph, product_mdp_gamma: Product_Dra, sync_amec_graph, mec_pi_3, mec_gamma_3, ap_pi, ap_gamma, observation_func, ctrl_obs_dict):
-            #
-            # 目标是生成从初始状态到达sync_amec的通路
-            stack_t = [state_t for state_t in initial_subgraph.nodes()]  # make a copy
-            visited = set()
-            fullgraph_t = DiGraph(initial_subgraph)
+        #
+        # 目标是生成从初始状态到达sync_amec的通路
+        stack_t = [state_t for state_t in initial_subgraph.nodes()]  # make a copy
+        visited = set()
+        fullgraph_t = DiGraph(initial_subgraph)
 
-            while stack_t:
-                current_state = stack_t.pop()
-                if current_state in visited:
-                    continue
-                visited.add(current_state)
+        while stack_t:
+            current_state = stack_t.pop()
+            if current_state in visited:
+                continue
+            visited.add(current_state)
 
-                # 获取当前状态的出边
-                current_state_pi, current_state_gamma, state_list_3 = current_state
-                next_state_list_pi = list(self.out_edges(current_state_pi, data=True))
-                next_state_list_gamma = []
-                for state_gamma_t in set(current_state_gamma).union(set(state_list_3)):
-                    next_state_list_gamma += list(product_mdp_gamma.out_edges(state_gamma_t, data=True))
+            # 获取当前状态的出边
+            current_state_pi, current_state_gamma, state_list_3 = current_state
+            next_state_list_pi = list(self.out_edges(current_state_pi, data=True))
+            next_state_list_gamma = []
+            for state_gamma_t in set(current_state_gamma).union(set(state_list_3)):
+                next_state_list_gamma += list(product_mdp_gamma.out_edges(state_gamma_t, data=True))
 
-                for edge_t_pi in next_state_list_pi:
-                    next_state_pi = edge_t_pi[1]
-                    next_observed_states = []
-                    next_states_3 = []
-                    #
-                    is_current_pi_state = is_state_satisfy_ap(next_state_pi,
-                                                              ap_pi)  # whether current state satisfy ap pi
-                    #
-                    trans_pr_cost_list = {}
-                    diff_expected_cost_list = {}
-                    #
-                    for edge_t_gamma in next_state_list_gamma:
-                        # 获取下一状态
-                        next_state_gamma = edge_t_gamma[1]
+            for edge_t_pi in next_state_list_pi:
+                next_state_pi = edge_t_pi[1]
+                next_observed_states = []
+                next_states_3 = []
+                #
+                is_current_pi_state = is_state_satisfy_ap(next_state_pi,
+                                                          ap_pi)  # whether current state satisfy ap pi
+                #
+                trans_pr_cost_list = {}
+                diff_expected_cost_list = {}
+                #
+                for edge_t_gamma in next_state_list_gamma:
+                    # 获取下一状态
+                    next_state_gamma = edge_t_gamma[1]
 
-                        # 1. 检查控制动作同步
-                        try:
-                            u_pi = next(iter(edge_t_pi[2]['prop'].keys()))
-                            u_gamma = next(iter(edge_t_gamma[2]['prop'].keys()))
-                            if isinstance(u_pi, tuple):
-                                u_pi = u_pi[0]
-                            if isinstance(u_gamma, tuple):
-                                u_gamma = u_gamma[0]
+                    # 1. 检查控制动作同步
+                    try:
+                        u_pi = next(iter(edge_t_pi[2]['prop'].keys()))
+                        u_gamma = next(iter(edge_t_gamma[2]['prop'].keys()))
+                        if isinstance(u_pi, tuple):
+                            u_pi = u_pi[0]
+                        if isinstance(u_gamma, tuple):
+                            u_gamma = u_gamma[0]
 
-                            # 如果不考虑可观性
-                            if ctrl_obs_dict == None and u_pi != u_gamma:
-                                continue
-                            # 如果考虑可观性
-                            elif u_pi != u_gamma and ctrl_obs_dict[str(u_pi)] == False and ctrl_obs_dict[
-                                u_gamma] == False:
-                                continue
-                        except (StopIteration, KeyError):
-                            continue  # 如果没有动作则跳过
-
-                        # 2. 检查观测同步
-                        if observation_func(next_state_pi[0]) != observation_func(next_state_gamma[0]):
+                        # 如果不考虑可观性
+                        if ctrl_obs_dict == None and u_pi != u_gamma:
                             continue
+                        # 如果考虑可观性
+                        elif u_pi != u_gamma and ctrl_obs_dict[str(u_pi)] == False and ctrl_obs_dict[
+                            u_gamma] == False:
+                            continue
+                    except (StopIteration, KeyError):
+                        continue  # 如果没有动作则跳过
 
-                        # 3. opacity requirement
-                        # if not is_ap_satisfy_opacity(next_state_pi, next_state_gamma, ap_pi, ap_gamma):
-                        #     continue
+                    # 2. 检查观测同步
+                    if observation_func(next_state_pi[0]) != observation_func(next_state_gamma[0]):
+                        continue
 
-                        # 4. 构建转移属性
-                        # if is_ap_identical(next_state_pi, next_state_gamma):
-                        if is_current_pi_state:
-                            if is_state_satisfy_ap(next_state_gamma, ap_gamma) or next_state_gamma == next_state_pi:
-                                # for all state in mec_pi satisfying AP \pi, the corresponding state in mec_gamma satisfies AP gamma
-                                next_observed_states.append(next_state_gamma)
-                            else:
-                                next_states_3.append(next_state_gamma)
-                        else:
+                    # 3. opacity requirement
+                    # if not is_ap_satisfy_opacity(next_state_pi, next_state_gamma, ap_pi, ap_gamma):
+                    #     continue
+
+                    # 4. 构建转移属性
+                    # if is_ap_identical(next_state_pi, next_state_gamma):
+                    if is_current_pi_state:
+                        if is_state_satisfy_ap(next_state_gamma, ap_gamma) or next_state_gamma == next_state_pi:
+                            # for all state in mec_pi satisfying AP \pi, the corresponding state in mec_gamma satisfies AP gamma
                             next_observed_states.append(next_state_gamma)
-
-                        for action, (prob, cost) in edge_t_pi[2]['prop'].items():
-                            diff_cost = obtain_differential_expected_cost(action, edge_t_pi, edge_t_gamma)
-                            #
-                            if action not in diff_expected_cost_list.keys():
-                                diff_expected_cost_list[action] = {next_state_gamma: diff_cost}
-                            else:
-                                diff_expected_cost_list[action][next_state_gamma] = diff_cost
-
-                    next_observed_states.sort()
-                    next_states_3.sort()
+                        else:
+                            next_states_3.append(next_state_gamma)
+                    else:
+                        next_observed_states.append(next_state_gamma)
 
                     for action, (prob, cost) in edge_t_pi[2]['prop'].items():
-                        trans_pr_cost_list[action] = (prob, cost)  # it is evident that this only corresponds to state_pi
-
-                    # 添加转移
-                    next_observed_states = tuple(list(set(next_observed_states)))
-                    next_states_3 = tuple(list(set(next_states_3)))
-                    next_sync_state = (next_state_pi, next_observed_states, next_states_3,)
-                    #
-                    mapping_t = {}
-                    for observed_state_t in fullgraph_t.nodes():
-                        if observed_state_t[0] == next_state_pi:
-                            next_observed_states = list(next_observed_states)
-                            next_observed_states = next_observed_states + list(observed_state_t[1])
-                            #
-                            next_states_3 = list()
-                            next_states_3 = next_states_3 + list(observed_state_t[2])
-                            #
-                            next_observed_states = tuple(list(set(next_observed_states)))
-                            next_states_3 = tuple(list(set(next_states_3)))
-                            next_sync_state = (next_state_pi, next_observed_states, next_states_3,)
-                            #
-                            mapping_t[observed_state_t] = next_sync_state
-                            break
-                    if mapping_t.__len__():
-                        nx.relabel_nodes(fullgraph_t, mapping_t, copy=False)
+                        diff_cost = obtain_differential_expected_cost(action, edge_t_pi, edge_t_gamma)
                         #
+                        if action not in diff_expected_cost_list.keys():
+                            diff_expected_cost_list[action] = {next_state_gamma: diff_cost}
+                        else:
+                            diff_expected_cost_list[action][next_state_gamma] = diff_cost
+
+                next_observed_states.sort()
+                next_states_3.sort()
+
+                for action, (prob, cost) in edge_t_pi[2]['prop'].items():
+                    trans_pr_cost_list[action] = (prob, cost)  # it is evident that this only corresponds to state_pi
+
+                # 添加转移
+                next_observed_states = tuple(list(set(next_observed_states)))
+                next_states_3 = tuple(list(set(next_states_3)))
+                next_sync_state = (next_state_pi, next_observed_states, next_states_3,)
+                #
+                mapping_t = {}
+                for observed_state_t in fullgraph_t.nodes():
+                    if observed_state_t[0] == next_state_pi:
+                        next_observed_states = list(next_observed_states)
+                        next_observed_states = next_observed_states + list(observed_state_t[1])
                         #
-                        # 更新exp_cost
-                        for u, v, attr in fullgraph_t.edges(data=True):
-                            diff_exp_dict_old = attr['diff_exp']
-                            diff_exp_dict_new = {}
-
-                            for action, cost_dict in diff_exp_dict_old.items():
-                                new_cost_dict = {}
-                                for next_state_gamma, diff_cost in cost_dict.items():
-                                    # 替换成新的 sync state（如果有被 relabel）
-                                    if next_state_gamma in mapping_t:
-                                        updated_state = mapping_t[next_state_gamma]
-                                    else:
-                                        updated_state = next_state_gamma
-                                    new_cost_dict[updated_state] = diff_cost
-                                diff_exp_dict_new[action] = new_cost_dict
-
-                            # 更新属性
-                            attr['diff_exp'] = diff_exp_dict_new
+                        next_states_3 = list()
+                        next_states_3 = next_states_3 + list(observed_state_t[2])
                         #
-                        if current_state in mapping_t.keys():
-                            current_state = mapping_t[current_state]
+                        next_observed_states = tuple(list(set(next_observed_states)))
+                        next_states_3 = tuple(list(set(next_states_3)))
+                        next_sync_state = (next_state_pi, next_observed_states, next_states_3,)
                         #
-                        stack_t = self.replace_list_items(stack_t, mapping_t)
-
-                    is_opacity = self.is_state_opacity_in_observer_graph(next_sync_state, mec_pi_3, mec_gamma_3, ap_pi, ap_gamma)
-
+                        mapping_t[observed_state_t] = next_sync_state
+                        break
+                if mapping_t.__len__():
+                    nx.relabel_nodes(fullgraph_t, mapping_t, copy=False)
                     #
-                    # 有些时候点都有但边没有
-                    # if next_sync_state in initial_subgraph.nodes():
-                    #     #visited.add(next_sync_state)
-                    #     continue
                     #
-                    # 如果边已经存在，需要合并 diff_expected_cost_list
-                    if fullgraph_t.has_edge(current_state, next_sync_state):
-                        old_attr = fullgraph_t[current_state][next_sync_state]
-                        old_diff_exp = old_attr.get('diff_exp', {})
+                    # 更新exp_cost
+                    for u, v, attr in fullgraph_t.edges(data=True):
+                        diff_exp_dict_old = attr['diff_exp']
+                        diff_exp_dict_new = {}
 
-                        # 合并新的 diff_expected_cost_list 到旧的 diff_exp
-                        for action, new_cost_dict in diff_expected_cost_list.items():
-                            if action not in old_diff_exp:
-                                old_diff_exp[action] = dict(new_cost_dict)
-                            else:
-                                for next_state_gamma, new_diff_cost in new_cost_dict.items():
-                                    old_diff_exp[action][next_state_gamma] = new_diff_cost
+                        for action, cost_dict in diff_exp_dict_old.items():
+                            new_cost_dict = {}
+                            for next_state_gamma, diff_cost in cost_dict.items():
+                                # 替换成新的 sync state（如果有被 relabel）
+                                if next_state_gamma in mapping_t:
+                                    updated_state = mapping_t[next_state_gamma]
+                                else:
+                                    updated_state = next_state_gamma
+                                new_cost_dict[updated_state] = diff_cost
+                            diff_exp_dict_new[action] = new_cost_dict
 
-                        # 更新该边属性
-                        fullgraph_t[current_state][next_sync_state]['diff_exp'] = old_diff_exp
-                    else:
-                        fullgraph_t.add_edge(current_state, next_sync_state,
-                                                   prop=trans_pr_cost_list,
-                                                   diff_exp=diff_expected_cost_list,
-                                                   is_opacity=is_opacity)
-
+                        # 更新属性
+                        attr['diff_exp'] = diff_exp_dict_new
                     #
-                    # 其实这里解出来以后因为ip点毕竟是少数, 而且MEC强连通
-                    # 所以这不是一个巧合：即限制到达后ip的点以后, 其实已经能遍历大部分的点
-                    # 结论:
-                    # 当存在一个强连通组分, 其中所有状态均为ip(即sync_amec_3[1])的子集, 且初始状态必须经过该SCC才能到达其他状态的时候
-                    # 才会出现initial_subgraph的状态显著比其他状态少
-                    # if not is_next_state_in_mec_observer:            # append
-                    #     stack_t.append(next_sync_state)
-                    stack_t.append(next_sync_state)
+                    if current_state in mapping_t.keys():
+                        current_state = mapping_t[current_state]
+                    #
+                    stack_t = self.replace_list_items(stack_t, mapping_t)
 
-            return fullgraph_t
+                is_opacity = self.is_state_opacity_in_observer_graph(next_sync_state, mec_pi_3, mec_gamma_3, ap_pi, ap_gamma)
+
+                #
+                # 有些时候点都有但边没有
+                # if next_sync_state in initial_subgraph.nodes():
+                #     #visited.add(next_sync_state)
+                #     continue
+                #
+                # 如果边已经存在，需要合并 diff_expected_cost_list
+                if fullgraph_t.has_edge(current_state, next_sync_state):
+                    old_attr = fullgraph_t[current_state][next_sync_state]
+                    old_diff_exp = old_attr.get('diff_exp', {})
+
+                    # 合并新的 diff_expected_cost_list 到旧的 diff_exp
+                    for action, new_cost_dict in diff_expected_cost_list.items():
+                        if action not in old_diff_exp:
+                            old_diff_exp[action] = dict(new_cost_dict)
+                        else:
+                            for next_state_gamma, new_diff_cost in new_cost_dict.items():
+                                old_diff_exp[action][next_state_gamma] = new_diff_cost
+
+                    # 更新该边属性
+                    fullgraph_t[current_state][next_sync_state]['diff_exp'] = old_diff_exp
+                else:
+                    fullgraph_t.add_edge(current_state, next_sync_state,
+                                               prop=trans_pr_cost_list,
+                                               diff_exp=diff_expected_cost_list,
+                                               is_opacity=is_opacity)
+
+                #
+                # 其实这里解出来以后因为ip点毕竟是少数, 而且MEC强连通
+                # 所以这不是一个巧合：即限制到达后ip的点以后, 其实已经能遍历大部分的点
+                # 结论:
+                # 当存在一个强连通组分, 其中所有状态均为ip(即sync_amec_3[1])的子集, 且初始状态必须经过该SCC才能到达其他状态的时候
+                # 才会出现initial_subgraph的状态显著比其他状态少
+                # if not is_next_state_in_mec_observer:            # append
+                #     stack_t.append(next_sync_state)
+                stack_t.append(next_sync_state)
+
+        return fullgraph_t
 
     def re_synthesize_sync_amec(self, ap_pi, ap_gamma, MEC_pi, MEC_gamma, product_mdp_gamma:Product_Dra, observation_func, ctrl_obs_dict, is_re_compute_Sf=True):
         #

@@ -1,39 +1,13 @@
 from MDP_TG.mdp import Motion_MDP
 import matplotlib.pyplot as plt
-import networkx as nx
 import numpy as np
 import seaborn as sns
-
-from itertools import product
 
 robot_nodes_w_aps = dict()
 robot_edges = dict()
 U = []
 initial_node  = None
 initial_label = None
-
-'''
-           /-----> q_1         q_6 <---\   
-          /                     |       \
-         /                      |        \
-        |                       |         \
-        v                       v          \
-    -> q_0 ------> q_2 ------> q_4 <-----> q_5 <-  
-        ^           |           ^
-        |           |           |
-        \           |          /
-         \          v         /
-          \------> q_3 <-----/
-    
-    q_0 : upload
-    q_1 : gather
-    q_2 : gather
-    q_3 : recharge
-    q_4 : \emptyset
-    q_5 : upload
-    q_6 : recharge
-    
-'''
 
 #
 # in simulations, we can let those states with identical APs carry identical observations, which is to simulate the APs are observed satisfied
@@ -53,7 +27,7 @@ observation_dict = {
 # }
 control_observable_dict = None
 
-def build_model(initial_state):
+def build_model():
 
     global robot_nodes_w_aps, robot_edges, U, initial_node, initial_label
 
@@ -102,47 +76,6 @@ def build_model(initial_state):
 
 
     return (robot_nodes_w_aps, robot_edges, U, initial_node, initial_label)
-
-def build_product_graph_multi(graph_list, init_state_list, is_compatible=None):
-    """
-    graph_list: list of nx.DiGraph, e.g. [G1, G2, G3]
-    init_state_list: list of initial states, same length as graph_list
-    is_compatible: function(edge_data_list) -> bool, optional compatibility check
-    """
-    num_graphs = len(graph_list)
-    product_graph = nx.DiGraph()
-
-    stack = [tuple(init_state_list)]
-    visited = set()
-
-    while stack:
-        current_state = stack.pop()
-        if current_state in visited:
-            continue
-        visited.add(current_state)
-        product_graph.add_node(current_state)
-
-        # 收集每个图的出边（格式：[(next_node, edge_data), ...]）
-        out_edges_per_graph = []
-        for i, g in enumerate(graph_list):
-            s_i = current_state[i]
-            edges = list(g.out_edges(s_i, data=True))
-            out_edges_per_graph.append([(e[1], e[2]) for e in edges])
-
-        # 枚举所有组合出边：product over all graphs' out-edges
-        for edge_combo in product(*out_edges_per_graph):
-            next_states = tuple(e[0] for e in edge_combo)
-            edge_data_list = [e[1] for e in edge_combo]
-
-            if is_compatible is None or is_compatible(edge_data_list):
-                product_graph.add_edge(current_state, next_states)
-                stack.append(next_states)
-
-    return product_graph
-
-def construct_team_mdp():
-    pass
-
 
 
 def observation_func_0425(x, u=None):
