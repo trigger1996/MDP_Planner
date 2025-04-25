@@ -174,7 +174,7 @@ def print_highlighted_sequences(X_U, Y, X_INV, AP_INV, marker1='ap_pi', marker2=
     """
     # 0. 处理X_U序列
     X_U_p = []
-    for i in range(0, X_U.__len__(), 2):
+    for i in range(0, X_U.__len__() - 1, 2):
         X_U_p.append((X_U[i], X_U[i + 1]))
 
     # 1. 在AP_INV中找到所有标记位置

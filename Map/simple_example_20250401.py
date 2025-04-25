@@ -81,7 +81,7 @@ def run_2_observations_seqs(x_u_seqs):
     for i in range(0, x_u_seqs.__len__() - 1, 2):
         x_t = x_u_seqs[i]
         u_t = x_u_seqs[i + 1]
-        y_t = observation_inv_func_0401(x_t, u_t)
+        y_t = observation_func_0401(x_t, u_t)
         y_seq.append(y_t)
         #y_seq.append(u_t)           # u is for display and NOT in actual sequences
     return y_seq
@@ -114,11 +114,13 @@ def calculate_cost_from_runs(product_mdp, x, l, u, opt_prop, is_remove_zeros=Tru
     cost_cycle = 0.
     #
     x_i_last = x[0]
-    for i in range(1, x.__len__()):
+    for i in range(0, x.__len__()):
         x_i = x[i]
         x_p = None
         l_i = list(l[i])
-        u_i = u[i]
+        if i < x.__len__() - 1:
+            u_i = u[i]
+
         #
         if l_i.__len__() and opt_prop in l_i:
             if cost_list.__len__():

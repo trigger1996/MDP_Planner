@@ -76,7 +76,7 @@ def print_best_all_plan(best_all_plan):
     for state_t in state_in_suffix:
         print_c("%s, %s: %s" % (str(state_t), str(best_all_plan[1][0][state_t][0]), str(best_all_plan[1][0][state_t][1]), ), color=45)
 
-def execute_example(N, total_T, prod_dra, best_all_plan, state_seq, label_seq, opt_prop, ap_gamma, attr='opaque'):
+def execute_example_4_product_mdp3(N, total_T, prod_dra, best_all_plan, state_seq, label_seq, opt_prop, ap_gamma, attr='opaque'):
     XX  = []
     LL  = []
     UU  = []
@@ -95,6 +95,60 @@ def execute_example(N, total_T, prod_dra, best_all_plan, state_seq, label_seq, o
 
     print('[Product Dra] process all done')
 
+    color_init = 32
+    for i in range(0, XX.__len__()):
+        X_U = []
+        for j in range(0, XX[i].__len__()):
+            X_U.append(XX[i][j])
+            if j < XX[i].__len__() - 1:
+                X_U.append(UU[i][j])
+        #
+        Y = run_2_observations_seqs(X_U)
+        X_INV, AP_INV = observation_seq_2_inference(Y)
+        #
+        cost_cycle = calculate_cost_from_runs(prod_dra, XX[i], LL[i], UU[i], opt_prop)
+        cost_list_pi = cost_list_pi + cost_cycle
+        #
+        cost_cycle_p = calculate_cost_from_runs(prod_dra, XX[i], LL[i], UU[i], ap_gamma)
+        cost_list_gamma = cost_list_gamma + cost_cycle_p
+        #
+        # print_c(X_U, color=color_init)
+        # print_c(Y, color=color_init)
+        # print_c(X_INV, color=color_init)
+        # print_c(AP_INV, color=color_init)
+        # print_c("[cost / achieved_index] " + str(cost_cycle), color=color_init)
+        # color_init += 1
+        #
+        # print_colored_sequence(X_U)
+        # print_colored_sequence(Y)
+        # print_colored_sequence(X_INV)
+        # print_colored_sequence(AP_INV)
+        # print_c("[cost / achieved_index] " + str(cost_cycle), color=color_init)
+        #
+        print_highlighted_sequences(X_U, Y, X_INV, AP_INV, marker1=opt_prop, marker2=ap_gamma, attr=attr)
+    # fig = visualize_run_sequence(XX, LL, UU, MM, 'surv_result', is_visuaize=False)
+
+    return cost_list_pi, cost_list_gamma
+
+def execute_example_in_origin_product_mdp(N, total_T, prod_dra, best_all_plan, state_seq, label_seq, opt_prop, ap_gamma, attr):
+    XX = []
+    LL = []
+    UU = []
+    MM = []
+    PP = []
+    for n in range(0, N):
+        X, L, U, M, PX = prod_dra.execution(best_all_plan, total_T, state_seq, label_seq)
+
+        XX.append(X)
+        LL.append(L)
+        UU.append(U)
+        MM.append(M)
+        PP.append(PX)
+
+    print('[Product Dra] process all done')
+
+    cost_list_pi = []
+    cost_list_gamma = []
     color_init = 32
     for i in range(0, XX.__len__()):
         X_U = []
@@ -199,7 +253,7 @@ def room_example_main_w_opacity():
         #try:
         # TODO
         if True:
-            cost_list_pi, cost_list_gamma = execute_example(N, total_T, prod_dra_pi, best_all_plan, state_seq, label_seq, opt_prop, ap_gamma, attr='Opaque')
+            cost_list_pi, cost_list_gamma = execute_example_4_product_mdp3(N, total_T, prod_dra_pi, best_all_plan, state_seq, label_seq, opt_prop, ap_gamma, attr='Opaque')
 
             plot_cost_hist(cost_list_pi, bins=25, is_average=is_average, title="Cost for Satisfaction of AP \pi in Opaque runs")
             plot_cost_hist(cost_list_gamma, bins=25, color='r', is_average=is_average, title="Cost for Satisfaction of AP \gamma in Opaque runs")
@@ -215,8 +269,10 @@ def room_example_main_w_opacity():
     #
     # Non-opaque runs
     #try:
+    state_seq = [ initial_node, ]
+    label_seq = [ initial_label, ]
     if True:
-        cost_list_pi_p, cost_list_gamma_p = execute_example(N, total_T, prod_dra, best_all_plan_p, state_seq, label_seq, opt_prop, ap_gamma, attr='NON-Opaque')
+        cost_list_pi_p, cost_list_gamma_p = execute_example_in_origin_product_mdp(N, total_T, prod_dra, best_all_plan_p, state_seq, label_seq,opt_prop, ap_gamma, attr='Opaque')
     # except:
     #     print_c("No best plan synthesized, try re-run this program", color=33)
     #is_average = True

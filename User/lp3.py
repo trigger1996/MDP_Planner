@@ -881,7 +881,7 @@ def synthesize_suffix_cycle_in_sync_amec3(prod_mdp, sync_amec_graph, sync_mec_3,
                       suffix_solver.iterations())
             else:
                 print('The problem does not have an optimal solution.')
-                return None, None, None
+                return None, None, None, None
             #
             # for debugging
             Y_val = dict()
