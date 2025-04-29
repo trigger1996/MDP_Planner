@@ -1,8 +1,11 @@
 from MDP_TG.mdp import Motion_MDP
-from User.mdp3 import MDP3
 import matplotlib.pyplot as plt
+import networkx as nx
 import numpy as np
 import seaborn as sns
+
+from itertools import product
+from User.mdp2 import Motion_MDP2
 
 robot_nodes_w_aps = dict()
 robot_edges = dict()
@@ -51,7 +54,7 @@ observation_dict = {
 # }
 control_observable_dict = None
 
-def build_individual_mdp(initial_node_t=None):
+def build_model(initial_state=None):
 
     global robot_nodes_w_aps, robot_edges, U, initial_node, initial_label
 
@@ -95,43 +98,58 @@ def build_individual_mdp(initial_node_t=None):
     U = [ 'b' ]
 
     #
-    if initial_node_t != None:
+    if initial_state == None:
         initial_node  = '0'
     else:
-        initial_node = initial_node_t
+        initial_node = initial_state
     initial_label = list(robot_nodes_w_aps[initial_node].keys())[0]
-
 
     return (robot_nodes_w_aps, robot_edges, U, initial_node, initial_label)
 
+def build_product_graph_multi(graph_list, init_state_list, is_compatible=None):
+    """
+    graph_list: list of nx.DiGraph, e.g. [G1, G2, G3]
+    init_state_list: list of initial states, same length as graph_list
+    is_compatible: function(edge_data_list) -> bool, optional compatibility check
+    """
+    num_graphs = len(graph_list)
+    product_graph = nx.DiGraph()
+
+    stack = [tuple(init_state_list)]
+    visited = set()
+
+    while stack:
+        current_state = stack.pop()
+        if current_state in visited:
+            continue
+        visited.add(current_state)
+        product_graph.add_node(current_state)
+
+        # 收集每个图的出边（格式：[(next_node, edge_data), ...]）
+        out_edges_per_graph = []
+        for i, g in enumerate(graph_list):
+            s_i = current_state[i]
+            edges = list(g.out_edges(s_i, data=True))
+            out_edges_per_graph.append([(e[1], e[2]) for e in edges])
+
+        # 枚举所有组合出边：product over all graphs' out-edges
+        for edge_combo in product(*out_edges_per_graph):
+            next_states = tuple(e[0] for e in edge_combo)
+            edge_data_list = [e[1] for e in edge_combo]
+
+            if is_compatible is None or is_compatible(edge_data_list):
+                product_graph.add_edge(current_state, next_states)
+                stack.append(next_states)
+
+    return product_graph
+
 def construct_team_mdp():
-    initial_node_list = [ '0', '0' ]
+    (robot_nodes_w_aps_1, robot_edges_1, U_1, initial_node_1, initial_label_1) = build_model('0')
+    (robot_nodes_w_aps_2, robot_edges_2, U_2, initial_node_2, initial_label_2) = build_model('5')
+    mdp_r1 = Motion_MDP2(robot_nodes_w_aps_1, robot_edges_1, U_1, initial_node_1, initial_label_1)
+    mdp_r2 = Motion_MDP2(robot_nodes_w_aps_2, robot_edges_2, U_2, initial_node_2, initial_label_2)
 
-    (robot_nodes_w_aps_1, robot_edges_1, U_1, initial_node_1, initial_label_1) = build_individual_mdp(initial_node_t=initial_node_list[0])
-    (robot_nodes_w_aps_2, robot_edges_2, U_2, initial_node_2, initial_label_2) = build_individual_mdp(initial_node_t=initial_node_list[1])
-    mdp_r1 = Motion_MDP(robot_nodes_w_aps_1, robot_edges_1, U_1, initial_node_1, initial_label_1)
-    mdp_r2 = Motion_MDP(robot_nodes_w_aps_2, robot_edges_2, U_2, initial_node_2, initial_label_2)
-
-    team_mdp = MDP3()
-    team_mdp.contruct_from_individual_mdps([mdp_r1, mdp_r2], initial_node_list, [initial_label_1, initial_label_2])
-
-    # TODO
-    # 1 影响系统安全性的remove, 除去开始点外处于同一点的状态
-    team_mdp.remove_unsafe_nodes()
-    #
-    # 2 根据地图推导出来的特殊状态
-    remove_specific_states_4_team_mdp()
-    #
-    # 去掉点以后剩下的出边得unify
-    team_mdp.normalize_transition_probabilities()
-
-    return team_mdp
-
-def remove_specific_states_4_team_mdp():
-    state_list_to_remove = []
-
-    # TODO
-
+    team_mdp = build_product_graph_multi([mdp_r1, mdp_r2], [initial_node_1, initial_label_1])
 
 def observation_func_0425(x, u=None):
     global observation_dict
