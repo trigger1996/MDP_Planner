@@ -1,4 +1,5 @@
 from MDP_TG.mdp import Motion_MDP
+from User.mdp3 import MDP3
 import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
@@ -27,7 +28,7 @@ observation_dict = {
 # }
 control_observable_dict = None
 
-def build_model():
+def build_individual_mdp(initial_node_t=None):
 
     global robot_nodes_w_aps, robot_edges, U, initial_node, initial_label
 
@@ -71,11 +72,42 @@ def build_model():
     U = [ 'b' ]
 
     #
-    initial_node  = '0'
+    if initial_node_t != None:
+        initial_node  = '0'
+    else:
+        initial_node = initial_node_t
     initial_label = list(robot_nodes_w_aps[initial_node].keys())[0]
 
 
     return (robot_nodes_w_aps, robot_edges, U, initial_node, initial_label)
+
+def construct_team_mdp():
+    initial_node_list = [ '0', '0' ]
+
+    (robot_nodes_w_aps_1, robot_edges_1, U_1, initial_node_1, initial_label_1) = build_individual_mdp(initial_node_t=initial_node_list[0])
+    (robot_nodes_w_aps_2, robot_edges_2, U_2, initial_node_2, initial_label_2) = build_individual_mdp(initial_node_t=initial_node_list[1])
+    mdp_r1 = Motion_MDP(robot_nodes_w_aps_1, robot_edges_1, U_1, initial_node_1, initial_label_1)
+    mdp_r2 = Motion_MDP(robot_nodes_w_aps_2, robot_edges_2, U_2, initial_node_2, initial_label_2)
+
+    team_mdp = MDP3()
+    team_mdp.contruct_from_individual_mdps([mdp_r1, mdp_r2], initial_node_list, [initial_label_1, initial_label_2])
+
+    # TODO
+    # 1 影响系统安全性的remove, 除去开始点外处于同一点的状态
+    team_mdp.remove_unsafe_nodes()
+    #
+    # 2 根据地图推导出来的特殊状态
+    remove_specific_states_4_team_mdp()
+    #
+    # 去掉点以后剩下的出边得unify
+    team_mdp.normalize_transition_probabilities()
+
+    return team_mdp
+
+def remove_specific_states_4_team_mdp():
+    state_list_to_remove = []
+
+    # TODO
 
 
 def observation_func_0425(x, u=None):
