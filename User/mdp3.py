@@ -34,7 +34,7 @@ class MDP3(Motion_MDP):
 
         self.add_node(initial_state, label=merged_initial_label, act=initial_act_combinations)
         self.graph['init_state'] = initial_state
-        self.graph['init_label'] = initial_label
+        self.graph['init_label'] = list(merged_initial_label.keys())
         self.graph['U'] = set(product(*[mdp.graph['U'] for mdp in mdp_list]))
 
         stack = [initial_state]

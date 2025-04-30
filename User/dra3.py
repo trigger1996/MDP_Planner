@@ -1033,3 +1033,17 @@ class product_mdp3(Product_Dra):
 
     def replace_list_items(self, lst, mapping):
         return [mapping.get(item, item) for item in lst]
+
+
+class product_team_mdp3(product_mdp3):
+    def __init__(self, mdp=None, dra=None):
+        product_mdp3.__init__(self, mdp, dra)
+
+    # TODO
+    # 这个函数是不能用于
+    def build_full(self):
+        pass
+
+    # TODO
+    def composition(self, mdp_node, mdp_label, dra_node):
+        pass

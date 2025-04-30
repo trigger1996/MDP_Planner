@@ -27,7 +27,7 @@ def ltl_convert(task, is_display=True):
 
     return ltl_converted
 
-def obtain_all_aps_from_mdp(mdp:Motion_MDP, is_convert_to_str=True, is_remove_empty_ap=True):
+def obtain_all_aps_from_team_mdp(mdp:Motion_MDP, is_convert_to_str=True, is_remove_empty_ap=True):
     ap_list = []
     for state_t in mdp.nodes():
         state_attr_t = mdp.nodes()[state_t]
@@ -39,18 +39,23 @@ def obtain_all_aps_from_mdp(mdp:Motion_MDP, is_convert_to_str=True, is_remove_em
                 ap_t = list(ap_t)
                 if not ap_t.__len__():
                     ap_t = ''
-                    if is_remove_empty_ap:
-                        continue                # remove empty aps
                 else:
                     ap_t = ap_t[0]
             #
             ap_list.append(ap_t)
 
+    ap_list = list(set(ap_list))
+    if is_remove_empty_ap:
+        if '' in ap_list:
+            ap_list.remove('')
+        if ' ' in ap_list:
+            ap_list.remove(' ')
+
     return list(set(ap_list))
 
 if __name__ == "__main__":
     team_mdp = construct_team_mdp()
-    ap_list  = obtain_all_aps_from_mdp(team_mdp)
+    ap_list  = obtain_all_aps_from_team_mdp(team_mdp)
 
     # ltl_formula = 'GF (gather -> drop)'
     ltl_formula = 'GF (gather -> (!gather U drop))'  # 'GF (gather -> X(!gather U drop))'
