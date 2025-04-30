@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 matplotlib.use("TkAgg")
 
 from subprocess import check_output
-from Map.example_20250426_team_mdp import construct_team_mdp, observation_func_0425, control_observable_dict, calculate_cost_from_runs, plot_cost_hist
+from Map.example_20250426_team_mdp import construct_team_mdp, team_observation_func_0426, control_observable_dict, calculate_cost_from_runs, plot_cost_hist
 from MDP_TG.mdp import Motion_MDP
 from MDP_TG.dra import Dra, Product_Dra
 from User.lp3  import synthesize_full_plan_w_opacity3
@@ -75,7 +75,7 @@ if __name__ == "__main__":
         best_all_plan, prod_dra_pi = synthesize_full_plan_w_opacity3(team_mdp, ltl_formula, opt_prop, ap_list,
                                                                      risk_threshold,
                                                                      differential_exp_cost,
-                                                                     observation_func=observation_func_0425,
+                                                                     observation_func=team_observation_func_0426,
                                                                      ctrl_obs_dict=control_observable_dict)
         ap_gamma = best_all_plan[3][0]
     else:

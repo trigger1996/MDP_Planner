@@ -144,19 +144,27 @@ def remove_specific_states_4_team_mdp():
     # TODO
 
 
-def observation_func_0425(x, u=None):
+def observation_func_0426(x, u=None):
     global observation_dict
 
     for y in observation_dict.keys():
         if x in observation_dict[y]:
             return y
 
-    print("[observation_func_0425] Please check input x !")
+    print("[observation_func_0426] Please check input x !")
     raise TypeError
 
     return None
 
-def observation_inv_func_0425(y):
+def team_observation_func_0426(x, u=None):
+    y = []
+    for x_t in x:
+        y_t = observation_func_0426(x_t)
+        y.append(y_t)
+    y = set(y)
+    return y
+
+def observation_inv_func_0426(y):
     return observation_dict[y]
 
 def run_2_observations_seqs(x_u_seqs):
@@ -164,7 +172,7 @@ def run_2_observations_seqs(x_u_seqs):
     for i in range(0, x_u_seqs.__len__() - 1, 2):
         x_t = x_u_seqs[i]
         u_t = x_u_seqs[i + 1]
-        y_t = observation_func_0425(x_t, u_t)
+        y_t = observation_func_0426(x_t, u_t)
         y_seq.append(y_t)
         #y_seq.append(u_t)           # u is for display and NOT in actual sequences
     return y_seq
@@ -174,7 +182,7 @@ def observation_seq_2_inference(y_seq):
     x_inv_set_seq = []
     ap_inv_seq = []
     for i in range(0, y_seq.__len__()):
-        x_inv_t = observation_inv_func_0425(y_seq[i])
+        x_inv_t = observation_inv_func_0426(y_seq[i])
         #
         ap_inv_t = []
         for state_t in x_inv_t:
