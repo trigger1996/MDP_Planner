@@ -68,7 +68,7 @@ def build_individual_mdp(initial_node_t=None):
     robot_nodes_w_aps['3'] = { frozenset({'recharge'}) : 1.  }
     #
     robot_nodes_w_aps['4'] = { frozenset({''})         : 1.0 }
-    robot_nodes_w_aps['5'] = { frozenset({'upload'})   : 1.  }
+    robot_nodes_w_aps['5'] = { frozenset({'upload'})   : 0.9 }
     robot_nodes_w_aps['6'] = { frozenset({'recharge'}) : 1.  }
     #
     #
@@ -116,7 +116,7 @@ def build_individual_mdp(initial_node_t=None):
     return (robot_nodes_w_aps, robot_edges, U, initial_node, initial_label)
 
 def construct_team_mdp():
-    initial_node_list = [ '0', '0' ]
+    initial_node_list = [ '0', '5' ]
 
     (robot_nodes_w_aps_1, robot_edges_1, U_1, initial_node_1, initial_label_1) = build_individual_mdp(initial_node_t=initial_node_list[0])
     (robot_nodes_w_aps_2, robot_edges_2, U_2, initial_node_2, initial_label_2) = build_individual_mdp(initial_node_t=initial_node_list[1])

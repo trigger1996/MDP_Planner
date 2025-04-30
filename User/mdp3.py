@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+import math
 import networkx as nx
 
+from collections import defaultdict
 from itertools import product
 from MDP_TG.mdp import Motion_MDP
 from networkx import DiGraph
@@ -19,13 +21,22 @@ class MDP3(Motion_MDP):
         assert len(mdp_list) == len(initial_state_list)
         self.clear()
 
-        # 初始化状态（乘积状态元组）
         initial_state = tuple(initial_state_list)
-        self.add_node(initial_state, label=None, act=set())
-        self.graph['init_state'] = initial_state            # 设置初始状态（乘积状态）
-        self.graph['init_label'] = initial_label            # 设置初始标签（外部传入）
 
-        # 初始化队列与访问记录
+        # 初始 label 是一个元组（每个个体的命题集合）
+        initial_state = tuple(initial_state_list)
+        initial_label_dicts = [mdp.nodes[s]['label'] for mdp, s in zip(mdp_list, initial_state)]
+        merged_initial_label = self.merge_label_dicts(initial_label_dicts)
+
+        # 初始 act 是所有动作组合的集合，如 {('a', 'a'), ('b', 'd'), ...}
+        initial_action_sets = [set(mdp.nodes[s]['act']) for mdp, s in zip(mdp_list, initial_state)]
+        initial_act_combinations = set(product(*initial_action_sets))
+
+        self.add_node(initial_state, label=merged_initial_label, act=initial_act_combinations)
+        self.graph['init_state'] = initial_state
+        self.graph['init_label'] = initial_label
+        self.graph['U'] = set(product(*[mdp.graph['U'] for mdp in mdp_list]))
+
         stack = [initial_state]
         visited = set()
 
@@ -35,13 +46,12 @@ class MDP3(Motion_MDP):
                 continue
             visited.add(current_state)
 
-            # 获取每个 MDP 中当前状态的出边
+            # 当前状态每个个体的出边
             edge_lists = [
                 list(mdp.out_edges(current_state[i], data=True))
                 for i, mdp in enumerate(mdp_list)
             ]
 
-            # 枚举每组出边的组合（乘积）
             for edge_comb in product(*edge_lists):
                 valid = True
                 next_state = []
@@ -62,27 +72,31 @@ class MDP3(Motion_MDP):
                     probs.append(prob_i)
                     costs.append(cost_i)
 
-                # 要求所有动作完全一致（可以扩展为可观性约束）
-                if not valid or not all(a == actions[0] for a in actions):
+                if not valid:
                     continue
 
-                joint_action = actions[0]
+                joint_action = tuple(actions)  # ✅ 多个动作组成的联合动作
                 joint_prob = 1.0
                 for p in probs:
                     joint_prob *= p
-                max_cost = max(costs)
+                joint_cost = max(costs)
 
                 next_state_tuple = tuple(next_state)
                 if next_state_tuple not in self.nodes:
-                    self.add_node(next_state_tuple)
+                    next_action_sets = [set(mdp.nodes[s]['act']) for mdp, s in zip(mdp_list, next_state)]
+                    next_act_combinations = set(product(*next_action_sets))
+
+                    label_dicts = [mdp.nodes[s]['label'] for mdp, s in zip(mdp_list, next_state)]
+                    merged_label = self.merge_label_dicts(label_dicts)
+
+                    self.add_node(next_state_tuple, label=merged_label, act=next_act_combinations)
 
                 self.add_edge(
                     current_state,
                     next_state_tuple,
-                    prop={joint_action: [joint_prob, max_cost]}
+                    prop={joint_action: [joint_prob, joint_cost]}
                 )
 
-                # 加入遍历队列
                 if next_state_tuple not in visited:
                     stack.append(next_state_tuple)
 
@@ -110,6 +124,16 @@ class MDP3(Motion_MDP):
                     print_c(f"[MDP3] Action '{action}' not found in edge ({src}) -> ({tgt})")
             else:
                 print_c(f"[MDP3] Edge ({src}) -> ({tgt}) does not exist")
+
+    def merge_label_dicts(self, label_dicts):
+        combined_probs = defaultdict(list)
+        for label_dict in label_dicts:
+            for prop, prob in label_dict.items():
+                combined_probs[prop].append(prob)
+        merged = {}
+        for prop, prob_list in combined_probs.items():
+            merged[prop] = 1 - math.prod(1 - p for p in prob_list)
+        return merged
 
     def remove_state_sequence(self, state_sequence: list):
         for state in state_sequence:
