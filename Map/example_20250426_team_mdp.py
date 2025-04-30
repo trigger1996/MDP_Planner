@@ -11,36 +11,40 @@ initial_node  = None
 initial_label = None
 
 '''
-           /-----> q_1         q_6 <---\   
-          /                     |       \
-         /                      |        \
-        |                       |         \
-        v                       v          \
-    -> q_0 ------> q_2 ------> q_4 <-----> q_5 <-  
-        ^           |           ^
-        |           |           |
-        \           |          /
-         \          v         /
-          \------> q_3 <-----/
+           /---a--> q_1          q_6 <-b--\   
+          /                       |        \
+         /                        |         \
+        a                         a          b
+        |                         |           \
+        v                         v            \
+    -> q_0 ---b---> q_2 <--b---> q_4 <--a---> q_5 <-  
+        ^            |            ^
+        |            |            |
+        b            a            b
+        \            |            /
+         \           v           /
+          \---b---> q_3 <---c---/
 
-    q_0 : upload
-    q_1 : gather
-    q_2 : gather
-    q_3 : recharge
-    q_4 : \emptyset
-    q_5 : upload
-    q_6 : recharge
+    q_0 -a-> q_0
+    q_0 -b-> q_0
+    q_6 -b-> q_6
+
+    q_0 : upload        p
+    q_1 : gather        q
+    q_2 : gather        u
+    q_3 : recharge      u
+    q_4 : \emptyset     u
+    q_5 : upload        p
+    q_6 : recharge      u
 
 '''
 
 #
 # in simulations, we can let those states with identical APs carry identical observations, which is to simulate the APs are observed satisfied
 observation_dict = {
-    'p': ['0'],
+    'p': ['0', '5'],
     'q': ['1'],
-    'u': ['2', '3'],
-    'v': ['4'],
-    'w': ['5', '6'],
+    'u': ['2', '3', '4', '6'],
 }
 
 # control_observable_dict = {
@@ -63,8 +67,8 @@ def build_individual_mdp(initial_node_t=None):
     robot_nodes_w_aps['2'] = { frozenset({'gather'})   : 1.  }
     robot_nodes_w_aps['3'] = { frozenset({'recharge'}) : 1.  }
     #
-    robot_nodes_w_aps['4'] = { frozenset({'gather'})   : 1.0 }
-    robot_nodes_w_aps['5'] = { frozenset({'gather'})   : 1.  }
+    robot_nodes_w_aps['4'] = { frozenset({''})         : 1.0 }
+    robot_nodes_w_aps['5'] = { frozenset({'upload'})   : 1.  }
     robot_nodes_w_aps['6'] = { frozenset({'recharge'}) : 1.  }
     #
     #
@@ -73,22 +77,29 @@ def build_individual_mdp(initial_node_t=None):
         ('0', 'a', '1') : (1, 1),            # gather
         ('1', 'a', '0') : (1, 1),            #
         ('0', 'b', '0') : (0.05, 2),
-        ('0', 'd', '0') : (0.05, 1),
-
-        ('0', 'b', '2') : (0.5, 3),
-        ('2', 'b', '0') : (1, 2),
-
-        ('0', 'b', '3') : (0.45, 3),
-        ('3', 'b', '0') : (1, 2),
+        ('0', 'd', '0') : (1,    0.5),
         #
-        ('0', 'c', '4') : (1, 1),           # gather
-        ('4', 'c', '0') : (1, 1),           #
+        ('0', 'b', '2') : (0.5, 3),
+        ('2', 'a', '3') : (1,   2),
+        #
+        ('0', 'b', '3') : (0.45, 3),
+        ('3', 'b', '0') : (0.8,  2),
+        ('3', 'b', '4') : (0.2,  3),
+        #
+        #
+        ('5', 'a', '4') : (1,   1),
+        ('5', 'b', '6') : (0.5, 2),
+        ('5', 'b', '6') : (0.5, 1),
 
         ('0', 'd', '5') : (0.55, 3),
         ('5', 'd', '0') : (1, 2),
 
-        ('0', 'd', '6') : (0.4, 3),
-        ('6', 'd', '0') : (1, 2),
+        ('6', 'd', '6') : (1,   0.5),
+        ('6', 'a', '4') : (1,   2),
+
+        ('4', 'b', '2') : (1,   3),
+        ('4', 'c', '3') : (1,   2),
+        ('4', 'a', '5') : (1,   2),
     }
 
     #
