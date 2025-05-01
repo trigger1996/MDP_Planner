@@ -9,8 +9,9 @@ from collections import defaultdict
 from ortools.linear_solver import pywraplp
 
 from MDP_TG.dra import Dra, Product_Dra
-from User.dra3  import product_team_mdp3, project_sync_states_2_observer_states, project_observer_state_2_sync_state, project_sync_mec_3_2_observer_mec_3
+from User.dra3  import project_sync_states_2_observer_states, project_observer_state_2_sync_state, project_sync_mec_3_2_observer_mec_3
 from User.lp3 import find_states_satisfying_opt_prop, syn_plan_prefix_in_sync_amec, synthesize_suffix_cycle_in_sync_amec3
+from User.team_dra3 import product_team_mdp3
 from User.utils import ltl_convert
 from User.vis2  import print_c
 
