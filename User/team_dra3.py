@@ -6,6 +6,7 @@ import networkx as nx
 from networkx import DiGraph
 from networkx import strongly_connected_components_recursive
 from User.dra3 import product_mdp3
+from User.utils import print_c
 
 
 def find_MECs(mdp, Sneg):
@@ -107,50 +108,64 @@ class product_team_mdp3(product_mdp3):
         # 遍历所有 MDP 节点
         for f_mdp_node in self.graph['mdp']:
             # 遍历该节点的所有标签及其概率（标签是 frozenset，概率是 float）
-            for f_mdp_label, f_label_prob in self.graph['mdp'].nodes[f_mdp_node]['label'].items():
-                # 遍历所有 DRA 节点
-                # TODO 问题1, 如何确定dra node和mdp node的关联性
-                # TODO 问题2, 如果不存在关联性, 那么是否可以将team mdp的prop直接全部取出来?
-                for f_dra_node in self.graph['dra']:
-                    # 构造当前的乘积节点（前缀）
-                    f_prod_node = self.composition(f_mdp_node, f_mdp_label, f_dra_node)
+            f_mdp_label = []
+            for f_mdp_label_t, f_label_prob_t in self.graph['mdp'].nodes[f_mdp_node]['label'].items():
+                # TODO 1
+                f_mdp_label.append(f_mdp_label_t)
+            f_mdp_label = list(set(f_mdp_label))
+            f_mdp_label.sort()
+            f_mdp_label = tuple(f_mdp_label)
+            # 遍历所有 DRA 节点
+            # TODO 问题1, 如何确定dra node和mdp node的关联性
+            # TODO 问题2, 如果不存在关联性, 那么是否可以将team mdp的prop直接全部取出来?
+            for f_dra_node in self.graph['dra']:
+                # 构造当前的乘积节点（前缀）
+                f_prod_node = self.composition(f_mdp_node, f_mdp_label, f_dra_node)
 
-                    # 遍历 MDP 中该节点的后继节点
-                    for t_mdp_node in self.graph['mdp'].successors(f_mdp_node):
-                        # 获取 MDP 边的属性信息（通常包含转移概率和成本）
-                        mdp_edge = self.graph['mdp'][f_mdp_node][t_mdp_node]
+                # 遍历 MDP 中该节点的后继节点
+                for t_mdp_node in self.graph['mdp'].successors(f_mdp_node):
+                    # 获取 MDP 边的属性信息（通常包含转移概率和成本）
+                    mdp_edge = self.graph['mdp'][f_mdp_node][t_mdp_node]
 
-                        # 遍历目标 MDP 节点的所有标签及其概率
-                        for t_mdp_label, t_label_prob in self.graph['mdp'].nodes[t_mdp_node]['label'].items():
-                            # 遍历 DRA 中当前 DRA 状态的所有后继 DRA 状态
-                            for t_dra_node in self.graph['dra'].successors(f_dra_node):
-                                # 构造下一个乘积节点（后缀）
-                                t_prod_node = self.composition(t_mdp_node, t_mdp_label, t_dra_node)
+                    # 遍历目标 MDP 节点的所有标签及其概率
+                    t_mdp_label = set()
+                    for t_mdp_label_t, t_label_prob in self.graph['mdp'].nodes[t_mdp_node]['label'].items():
+                        # TODO 2
+                        t_mdp_label.add(t_mdp_label_t)
+                    t_mdp_label = list(set(t_mdp_label))
+                    t_mdp_label.sort()
+                    t_mdp_label = tuple(t_mdp_label)
+                    # 遍历 DRA 中当前 DRA 状态的所有后继 DRA 状态
+                    for t_dra_node in self.graph['dra'].successors(f_dra_node):
+                        # 构造下一个乘积节点（后缀）
+                        t_prod_node = self.composition(t_mdp_node, t_mdp_label, t_dra_node)
 
-                                # 检查当前标签是否满足 DRA 的转移条件（根据边标签判断是否允许转移）
-                                truth = self.graph['dra'].check_label_for_dra_edge(
-                                    f_mdp_label, f_dra_node, t_dra_node)
+                        # 检查当前标签是否满足 DRA 的转移条件（根据边标签判断是否允许转移）
+                        truth = self.graph['dra'].check_label_for_dra_edge(
+                            f_mdp_label, f_dra_node, t_dra_node)
 
-                                if truth:
-                                    prob_cost = dict()
-                                    # 遍历该 MDP 边上的所有 action u 和其属性 attri = (prob, cost)
-                                    for u, attri in mdp_edge['prop'].items():
-                                        # attri[0] 是转移概率，attri[1] 是代价
-                                        if t_label_prob * attri[0] != 0:
-                                            # 将乘积边的属性记录为字典：{action: (prob, cost)}
-                                            prob_cost[u] = (t_label_prob * attri[0], attri[1])
+                        if truth:
+                            prob_cost = dict()
+                            # 遍历该 MDP 边上的所有 action u 和其属性 attri = (prob, cost)
+                            for u, attri in mdp_edge['prop'].items():
+                                # attri[0] 是转移概率，attri[1] 是代价
+                                if t_label_prob * attri[0] != 0:
+                                    # 将乘积边的属性记录为字典：{action: (prob, cost)}
+                                    prob_cost[u] = (t_label_prob * attri[0], attri[1])
 
-                                    # 如果有合法的转移，则在乘积图中添加边
-                                    if list(prob_cost.keys()):
-                                        self.add_edge(f_prod_node, t_prod_node, prop=prob_cost)
+                            # 如果有合法的转移，则在乘积图中添加边
+                            if list(prob_cost.keys()):
+                                self.add_edge(f_prod_node, t_prod_node, prop=prob_cost)
 
         # 构建接受状态信息（通常用于后续做模型检测或策略合成）
-        self.build_acc()
+        self.build_acc()        # TODO
 
         # 输出构建完成信息
         print("-------Prod DRA Constructed-------")
         print("%s states, %s edges and %s accepting pairs" % (
             str(len(self.nodes())), str(len(self.edges())), str(len(self.graph['accept']))))
+
+        # TODO, for reference, 165 nodes and 955 edges
 
     # 构造乘积节点
     def composition(self, mdp_node, mdp_label, dra_node):
@@ -162,7 +177,6 @@ class product_team_mdp3(product_mdp3):
             # 复制该 MDP 节点的可用动作集合
             Us = self.graph['mdp'].nodes[mdp_node]['act'].copy()
             # 添加乘积节点，并记录其属性（源 MDP 节点、标签、DRA 状态、可用动作）
-            # TODO
             self.add_node(prod_node, mdp=mdp_node,
                           label=mdp_label, dra=dra_node, act=Us)
 
@@ -178,7 +192,7 @@ class product_team_mdp3(product_mdp3):
     def compute_S_f(self):
         # ----find all accepting End components----
         S = set(self.nodes())
-        acc_pairs = self.graph['accept']
+        acc_pairs = self.graph['accept']        # TODO
         S_f = []
         k = 1
         for pair in acc_pairs:
