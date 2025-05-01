@@ -1,8 +1,13 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 from MDP_TG.mdp import Motion_MDP
 from User.mdp3 import MDP3
+from User.utils import print_c
+
 import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
+
 
 robot_nodes_w_aps = dict()
 robot_edges = dict()
@@ -131,18 +136,31 @@ def construct_team_mdp():
     team_mdp.remove_unsafe_nodes()
     #
     # 2 根据地图推导出来的特殊状态
-    remove_specific_states_4_team_mdp()
+    remove_specific_states_4_team_mdp(team_mdp)
     #
     # 去掉点以后剩下的出边得unify
     team_mdp.normalize_transition_probabilities()
 
     return team_mdp
 
-def remove_specific_states_4_team_mdp():
+def remove_specific_states_4_team_mdp(team_mdp:MDP3):
     state_list_to_remove = []
 
     # TODO
+    for team_node_t in team_mdp.nodes():
+        if team_node_t[0] == '4':
+            state_list_to_remove.append(team_node_t)
+        if team_node_t[0] == '5':
+            state_list_to_remove.append(team_node_t)
+        if team_node_t[0] == '6':
+            state_list_to_remove.append(team_node_t)
 
+        if team_node_t[1] == '0':
+            state_list_to_remove.append(team_node_t)
+        if team_node_t[1] == '1':
+            state_list_to_remove.append(team_node_t)
+
+    team_mdp.remove_state_sequence(state_list_to_remove)
 
 def observation_func_0426(x, u=None):
     global observation_dict

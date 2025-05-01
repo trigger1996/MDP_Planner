@@ -139,9 +139,9 @@ class MDP3(Motion_MDP):
         for state in state_sequence:
             if self.has_node(state):
                 self.remove_node(state)
-                print_c(f"[MDP3] Removed state:   {state}")
+                print_c(f"[MDP3] Removed state:   {state}", color='yellow')
             else:
-                print_c(f"[MDP3] State not found: {state}")
+                print_c(f"[MDP3] State not found: {state}", color='yellow')
 
     def remove_unsafe_nodes(self):
         nodes_to_remove = []
@@ -158,6 +158,7 @@ class MDP3(Motion_MDP):
 
         if self.graph['init_state'] in nodes_to_remove:
             nodes_to_remove.remove(self.graph['init_state'])
+            print_c(f"[MDP3] Restored state:   {self.graph['init_state']}", color='cyan')
         self.remove_state_sequence(nodes_to_remove)
 
     def normalize_transition_probabilities(mdp: DiGraph):
