@@ -10,7 +10,7 @@ from subprocess import check_output
 from Map.example_20250426_team_mdp import construct_team_mdp, team_observation_func_0426, control_observable_dict, calculate_cost_from_runs, plot_cost_hist
 from MDP_TG.mdp import Motion_MDP
 from MDP_TG.dra import Dra, Product_Dra
-from User.lp3  import synthesize_full_plan_w_opacity3
+from User.team_lp3  import synthesize_full_plan_w_opacity3
 from User.mdp3 import MDP3
 from User.utils import print_c
 
