@@ -5,7 +5,9 @@ import networkx as nx
 
 from networkx import DiGraph
 from networkx import strongly_connected_components_recursive
+from MDP_TG.dra import Product_Dra
 from User.dra3 import product_mdp3
+from User.dra3 import obtain_differential_expected_cost, is_ap_satisfy_opacity
 from User.utils import print_c
 
 
@@ -258,3 +260,123 @@ class product_team_mdp3(product_mdp3):
             print("No accepting ECs found!")
             print("Check your MDP and Task formulation")
             print("Or try the relaxed plan")
+
+    def re_synthesize_sync_amec(self, ap_pi, ap_gamma, MEC_pi, MEC_gamma, product_mdp_gamma:Product_Dra, observation_func, ctrl_obs_dict, is_re_compute_Sf=True):
+        #
+        # 想了一下这个还是沿用旧的
+        # sync_amec的最大问题在于它的初始状态只凭借两个集合是很难确定的
+        mec_state_set_pi = MEC_pi[0]
+        mec_state_set_gamma = MEC_gamma[0]
+
+        stack_t = []
+        for state_pi_t in mec_state_set_pi:
+            for state_gamma_t in mec_state_set_gamma:
+                ap_state_pi = set(state_pi_t[1])
+                ap_state_gamma = set(state_gamma_t[1])
+                if ap_pi in ap_state_pi:
+                    if ap_gamma in ap_state_gamma:
+                        stack_t.append((state_pi_t, state_gamma_t,))
+
+        #
+        stack_t = list(set(stack_t))
+        visited = set()
+        sync_mec_t = DiGraph()
+
+        while stack_t:
+            current_state = stack_t.pop()
+            if current_state in visited:
+                continue
+            visited.add(current_state)
+
+            # 获取当前状态的出边
+            current_state_pi, current_state_gamma = current_state
+            next_state_list_pi = list(self.out_edges(current_state_pi, data=True))
+            next_state_list_gamma = list(product_mdp_gamma.out_edges(current_state_gamma, data=True))
+
+            for edge_t_pi in next_state_list_pi:
+                for edge_t_gamma in next_state_list_gamma:
+                    # 获取下一状态
+                    next_state_pi = edge_t_pi[1]
+                    next_state_gamma = edge_t_gamma[1]
+                    next_sync_state = (next_state_pi, next_state_gamma)
+
+                    # 1. 检查控制动作同步
+                    try:
+                        u_pi = next(iter(edge_t_pi[2]['prop'].keys()))
+                        u_gamma = next(iter(edge_t_gamma[2]['prop'].keys()))
+                        if isinstance(u_pi, tuple):
+                            u_pi = u_pi[0]
+                        if isinstance(u_gamma, tuple):
+                            u_gamma = u_gamma[0]
+
+                        # 如果不考虑可观性
+                        if ctrl_obs_dict == None and u_pi != u_gamma:
+                            continue
+                        # 如果考虑可观性
+                        elif u_pi != u_gamma and ctrl_obs_dict[str(u_pi)] == False and ctrl_obs_dict[u_gamma] == False:
+                            continue
+                    except (StopIteration, KeyError):
+                        continue  # 如果没有动作则跳过
+
+                    # 2. 检查状态是否在AMEC中
+                    if (next_state_pi not in mec_state_set_pi or
+                            next_state_gamma not in mec_state_set_gamma):
+                        continue
+
+                    # 3. 检查观测同步
+                    if observation_func(next_state_pi[0]) != observation_func(next_state_gamma[0]):
+                        continue
+
+                    # 4. opacity requirement
+                    is_opacity_satisfied = True
+                    if not is_ap_satisfy_opacity(next_state_pi, next_state_gamma, ap_pi, ap_gamma):
+                        is_opacity_satisfied = False
+
+                    # 5. 构建转移属性
+                    # if is_ap_identical(next_state_pi, next_state_gamma):
+                    if True:
+                        trans_pr_cost_list = {}
+                        diff_expected_cost_list = {}
+                        for action, (prob, cost) in edge_t_pi[2]['prop'].items():
+                            diff_cost = obtain_differential_expected_cost(action, edge_t_pi, edge_t_gamma)
+                            trans_pr_cost_list[action] = (prob, cost)
+                            diff_expected_cost_list[action] = diff_cost
+
+                        #
+                        if is_opacity_satisfied:
+                            sync_mec_t.add_edge(current_state, next_sync_state,
+                                                prop=trans_pr_cost_list,
+                                                diff_exp=diff_expected_cost_list)
+                        stack_t.append(next_sync_state)
+
+        # 完成后处理
+        print_c(
+            f"[synthesize_w_opacity] DFS completed, states: {len(sync_mec_t.nodes)}, edges: {len(sync_mec_t.edges)}",
+            color=33)
+
+        if sync_mec_t.edges:
+            # 检查强连通分量并保留最大的SCC
+            scc_list = list(nx.strongly_connected_components(sync_mec_t))
+            scc_list.sort(key=lambda x: len(x), reverse=True)
+
+            if not scc_list:
+                print_c("[synthesize_w_opacity] NO SCCs found...", color=33)
+            else:
+                # 移除非最大SCC的节点
+                largest_scc = scc_list[0]
+                nodes_to_remove = [node for scc in scc_list[1:] for node in scc]
+                num_removed = 0
+
+                for node in nodes_to_remove:
+                    if node in sync_mec_t:
+                        sync_mec_t.remove_node(node)
+                        num_removed += 1
+                        print_c(f"[synthesize_w_opacity] removing node: {node}", color=35)
+
+                print_c(f"[synthesize_w_opacity] number of states removed: {num_removed}", color=33)
+
+            # 保存结果
+            self.sync_amec_set.append(sync_mec_t)
+            self.current_sync_amec_index = len(self.sync_amec_set) - 1
+
+        print_c(f"[synthesize_w_opacity] Generated sync_amec, states: {len(sync_mec_t.nodes)}, edges: {len(sync_mec_t.edges)}")
