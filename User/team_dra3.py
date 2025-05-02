@@ -111,13 +111,13 @@ class product_team_mdp3(product_mdp3):
             f_mdp_label = []
             for f_mdp_label_t, f_label_prob_t in self.graph['mdp'].nodes[f_mdp_node]['label'].items():
                 # TODO 1
-                f_mdp_label.append(f_mdp_label_t)
+                f_mdp_label.append(next(iter(f_mdp_label_t)))
             f_mdp_label = list(set(f_mdp_label))
+            if f_mdp_label.__len__() > 1 and str('') in f_mdp_label:        # TODO, 整合为一个函数
+                f_mdp_label.remove(str(''))                                 # TODO, 其他类型空
             f_mdp_label.sort()
             f_mdp_label = tuple(f_mdp_label)
             # 遍历所有 DRA 节点
-            # TODO 问题1, 如何确定dra node和mdp node的关联性
-            # TODO 问题2, 如果不存在关联性, 那么是否可以将team mdp的prop直接全部取出来?
             for f_dra_node in self.graph['dra']:
                 # 构造当前的乘积节点（前缀）
                 f_prod_node = self.composition(f_mdp_node, f_mdp_label, f_dra_node)
@@ -128,11 +128,13 @@ class product_team_mdp3(product_mdp3):
                     mdp_edge = self.graph['mdp'][f_mdp_node][t_mdp_node]
 
                     # 遍历目标 MDP 节点的所有标签及其概率
-                    t_mdp_label = set()
+                    t_mdp_label = []
                     for t_mdp_label_t, t_label_prob in self.graph['mdp'].nodes[t_mdp_node]['label'].items():
                         # TODO 2
-                        t_mdp_label.add(t_mdp_label_t)
+                        t_mdp_label.append(next(iter(t_mdp_label_t)))
                     t_mdp_label = list(set(t_mdp_label))
+                    if t_mdp_label.__len__() > 1 and str('') in t_mdp_label:    # TODO, 整合为一个函数
+                        t_mdp_label.remove(str(''))                             # TODO, 其他类型空, 比如frozenset, 而且现在这边是写死了, 为了frozenset -> set
                     t_mdp_label.sort()
                     t_mdp_label = tuple(t_mdp_label)
                     # 遍历 DRA 中当前 DRA 状态的所有后继 DRA 状态
@@ -158,7 +160,7 @@ class product_team_mdp3(product_mdp3):
                                 self.add_edge(f_prod_node, t_prod_node, prop=prob_cost)
 
         # 构建接受状态信息（通常用于后续做模型检测或策略合成）
-        self.build_acc()        # TODO
+        self.build_acc()
 
         # 输出构建完成信息
         print("-------Prod DRA Constructed-------")
@@ -166,6 +168,26 @@ class product_team_mdp3(product_mdp3):
             str(len(self.nodes())), str(len(self.edges())), str(len(self.graph['accept']))))
 
         # TODO, for reference, 165 nodes and 955 edges
+
+    def check_label_for_dra_edge(self, label, f_dra_node, t_dra_node):
+        # ----check if a label satisfies the guards on one dra edge----
+        guard_string_list = self[f_dra_node][t_dra_node]['guard_string']
+        guard_int_list = []
+        for st in guard_string_list:
+            int_st = []
+            for l in st:
+                int_st.append(int(l))
+            guard_int_list.append(int_st)
+        for guard_list in guard_int_list:
+            valid = True
+            for k, ap in enumerate(self.graph['symbols']):
+                if (guard_list[k] == 1) and (ap not in label):
+                    valid = False
+                if (guard_list[k] == 0) and (ap in label):
+                    valid = False
+            if valid:
+                return True
+        return False
 
     # 构造乘积节点
     def composition(self, mdp_node, mdp_label, dra_node):
