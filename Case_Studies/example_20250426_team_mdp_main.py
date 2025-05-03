@@ -55,7 +55,9 @@ def obtain_all_aps_from_team_mdp(mdp:Motion_MDP, is_convert_to_str=True, is_remo
         if ' ' in ap_list:
             ap_list.remove(' ')
 
-    return list(set(ap_list))
+    ap_list = list(set(ap_list))
+    ap_list.sort()
+    return ap_list
 
 if __name__ == "__main__":
     team_mdp = construct_team_mdp()

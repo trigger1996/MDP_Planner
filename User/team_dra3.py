@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import networkx as nx
+import textwrap
 
 from collections import Counter
 from networkx import DiGraph
@@ -386,18 +387,32 @@ class product_team_mdp3(product_mdp3):
             self.current_sync_amec_index = len(self.sync_amec_set) - 1
 
         print_c(f"[synthesize_w_opacity] Generated sync_amec, states: {len(sync_mec_t.nodes)}, edges: {len(sync_mec_t.edges)}")
-        
+
     def print_policy(self, plan_prefix, plan_suffix):
-        def format_policy_entry(state, actions, probs):
-            # 对齐三个部分：STATE、ACTIONS、PROBS
+        def format_policy_entry(state, actions, probs, width=120, indent="  "):
+            # 自动换行三个部分：STATE、ACTIONS、PROBS
             state_str = str(state)
             actions_str = str(actions)
             probs_str = str(probs)
-            return "{:<500} {:<30}: {}".format(state_str, actions_str, probs_str)
+
+            state_lines = textwrap.wrap(state_str, width=width)
+            actions_lines = textwrap.wrap(actions_str, width=30)
+            probs_lines = textwrap.wrap(probs_str, width=40)
+
+            max_lines = max(len(state_lines), len(actions_lines), len(probs_lines))
+            result_lines = []
+
+            for i in range(max_lines):
+                state_part = state_lines[i] if i < len(state_lines) else ""
+                actions_part = actions_lines[i] if i < len(actions_lines) else ""
+                probs_part = probs_lines[i] if i < len(probs_lines) else ""
+                result_lines.append("{:<{w1}} {:<30}: {}".format(state_part, actions_part, probs_part, w1=width))
+
+            return "\n".join(result_lines)
 
         # 打印 Prefix 部分
         print_c("\nPrefix", color='bg_magenta', style='bold')
-        header = "{:<500} {:<30} {}".format("STATE", "ACTIONS", ": PROBS")
+        header = "{:<120} {:<30} {}".format("STATE", "ACTIONS", ": PROBS")
         print_c(header, color='magenta', style='bold')
         for state_t in plan_prefix:
             actions, probs = plan_prefix[state_t]
@@ -406,7 +421,7 @@ class product_team_mdp3(product_mdp3):
 
         # 打印 Suffix 部分
         print_c("\nSuffix", color='bg_cyan', style='bold')
-        header = "{:<500} {:<30} {}".format("STATE", "ACTIONS", ": PROBS")
+        header = "{:<120} {:<30} {}".format("STATE", "ACTIONS", ": PROBS")
         print_c(header, color='blue', style='bold')
         for state_t in plan_suffix:
             actions, probs = plan_suffix[state_t]

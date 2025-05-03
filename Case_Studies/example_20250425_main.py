@@ -53,7 +53,9 @@ def obtain_all_aps_from_mdp(mdp:Motion_MDP, is_convert_to_str=True, is_remove_em
             #
             ap_list.append(ap_t)
 
-    return list(set(ap_list))
+    ap_list = list(set(ap_list))
+    ap_list.sort()
+    return ap_list
 
 def print_best_all_plan(best_all_plan):
     # Added
