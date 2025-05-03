@@ -14,6 +14,10 @@ from User.team_lp3  import synthesize_full_plan_w_opacity3
 from User.mdp3 import MDP3
 from User.utils import print_c
 
+# for debugging
+# import random
+# random.seed(42)         # for debugging, if for alternative solutions, this line can be removed
+
 def ltl_convert(task, is_display=True):
     #
     # https://www.ltl2dstar.de/docs/ltl2dstar.html#:~:text=ltl2dstar%20is%20designed%20to%20use%20an%20external%20tool%20to%20convert
