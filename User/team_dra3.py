@@ -3,6 +3,7 @@
 
 import networkx as nx
 
+from collections import Counter
 from networkx import DiGraph
 from networkx import strongly_connected_components_recursive
 from MDP_TG.dra import Product_Dra
@@ -304,10 +305,15 @@ class product_team_mdp3(product_mdp3):
                     try:
                         u_pi = next(iter(edge_t_pi[2]['prop'].keys()))
                         u_gamma = next(iter(edge_t_gamma[2]['prop'].keys()))
-                        if isinstance(u_pi, tuple):
-                            u_pi = u_pi[0]
-                        if isinstance(u_gamma, tuple):
-                            u_gamma = u_gamma[0]
+                        #
+                        # Added, Removed
+                        # if isinstance(u_pi, tuple):
+                        #     u_pi = u_pi[0]
+                        # if isinstance(u_gamma, tuple):
+                        #     u_gamma = u_gamma[0]
+
+                        # TODO, Added, to verify
+                        u_pi_equal_to_u_gamma = Counter(u_pi) == Counter(u_gamma)
 
                         # 如果不考虑可观性
                         if ctrl_obs_dict == None and u_pi != u_gamma:
@@ -380,3 +386,29 @@ class product_team_mdp3(product_mdp3):
             self.current_sync_amec_index = len(self.sync_amec_set) - 1
 
         print_c(f"[synthesize_w_opacity] Generated sync_amec, states: {len(sync_mec_t.nodes)}, edges: {len(sync_mec_t.edges)}")
+        
+    def print_policy(self, plan_prefix, plan_suffix):
+        def format_policy_entry(state, actions, probs):
+            # 对齐三个部分：STATE、ACTIONS、PROBS
+            state_str = str(state)
+            actions_str = str(actions)
+            probs_str = str(probs)
+            return "{:<500} {:<30}: {}".format(state_str, actions_str, probs_str)
+
+        # 打印 Prefix 部分
+        print_c("\nPrefix", color='bg_magenta', style='bold')
+        header = "{:<500} {:<30} {}".format("STATE", "ACTIONS", ": PROBS")
+        print_c(header, color='magenta', style='bold')
+        for state_t in plan_prefix:
+            actions, probs = plan_prefix[state_t]
+            line = format_policy_entry(state_t, actions, probs)
+            print_c(line, color='magenta')
+
+        # 打印 Suffix 部分
+        print_c("\nSuffix", color='bg_cyan', style='bold')
+        header = "{:<500} {:<30} {}".format("STATE", "ACTIONS", ": PROBS")
+        print_c(header, color='blue', style='bold')
+        for state_t in plan_suffix:
+            actions, probs = plan_suffix[state_t]
+            line = format_policy_entry(state_t, actions, probs)
+            print_c(line, color='blue')

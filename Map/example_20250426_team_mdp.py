@@ -82,7 +82,6 @@ def build_individual_mdp(initial_node_t=None):
         ('0', 'a', '1') : (1, 1),            # gather
         ('1', 'a', '0') : (1, 1),            #
         ('0', 'b', '0') : (0.05, 2),
-        ('0', 'd', '0') : (1,    0.5),
         #
         ('0', 'b', '2') : (0.5, 3),
         ('2', 'a', '3') : (1,   2),
@@ -93,18 +92,14 @@ def build_individual_mdp(initial_node_t=None):
         #
         #
         ('5', 'a', '4') : (1,   1),
-        ('5', 'b', '6') : (0.5, 2),
-        ('5', 'b', '6') : (0.5, 1),
-
-        ('0', 'd', '5') : (0.55, 3),
-        ('5', 'd', '0') : (1, 2),
-
-        ('6', 'd', '6') : (1,   0.5),
+        ('5', 'b', '6') : (1,   2),
+        #
+        ('6', 'b', '6') : (1,   0.5),
         ('6', 'a', '4') : (1,   2),
-
+        #
         ('4', 'b', '2') : (1,   3),
-        ('4', 'c', '3') : (1,   2),
-        ('4', 'a', '5') : (1,   2),
+        ('4', 'a', '3') : (0.5,  2),
+        ('4', 'a', '5') : (0.5,  2),
     }
 
     #
@@ -146,19 +141,19 @@ def construct_team_mdp():
 def remove_specific_states_4_team_mdp(team_mdp:MDP3):
     state_list_to_remove = []
 
-    # TODO
-    for team_node_t in team_mdp.nodes():
-        if team_node_t[0] == '4':
-            state_list_to_remove.append(team_node_t)
-        if team_node_t[0] == '5':
-            state_list_to_remove.append(team_node_t)
-        if team_node_t[0] == '6':
-            state_list_to_remove.append(team_node_t)
-
-        if team_node_t[1] == '0':
-            state_list_to_remove.append(team_node_t)
-        if team_node_t[1] == '1':
-            state_list_to_remove.append(team_node_t)
+    # # TODO
+    # for team_node_t in team_mdp.nodes():
+    #     if team_node_t[0] == '4':
+    #         state_list_to_remove.append(team_node_t)
+    #     if team_node_t[0] == '5':
+    #         state_list_to_remove.append(team_node_t)
+    #     if team_node_t[0] == '6':
+    #         state_list_to_remove.append(team_node_t)
+    #
+    #     if team_node_t[1] == '0':
+    #         state_list_to_remove.append(team_node_t)
+    #     if team_node_t[1] == '1':
+    #         state_list_to_remove.append(team_node_t)
 
     team_mdp.remove_state_sequence(state_list_to_remove)
 
@@ -179,7 +174,7 @@ def team_observation_func_0426(x, u=None):
     for x_t in x:
         y_t = observation_func_0426(x_t)
         y.append(y_t)
-    y = set(y)
+    y = set(y)              # MUST BE set here, for the observer cannot distinguish the sequence of the control
     return y
 
 def observation_inv_func_0426(y):
