@@ -1109,7 +1109,10 @@ def synthesize_full_plan_w_opacity3(mdp, task, optimizing_ap, ap_list, risk_pr, 
         print("=========================")
         print(" || Final compilation  ||")
         print("=========================")
-        best_all_plan = min(plan, key=lambda p: p[0][1] + alpha * p[1][1])
+        # best_all_plan = min(plan, key=lambda p: p[0][1] + alpha * p[1][1])
+        valid_plans = [p for p in plan if p[0][1] is not None and p[1][1] is not None]
+        best_all_plan = min(valid_plans, key=lambda p: p[0][1] + alpha * p[1][1])
+        #
         prod_dra_pi.update_best_all_plan(best_all_plan, is_print_policy=True)
         # print('Best plan prefix obtained for %s states in Sr' %
         #       str(len(best_all_plan[0][0])))
