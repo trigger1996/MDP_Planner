@@ -511,6 +511,32 @@ class product_team_mdp3(product_mdp3):
                     if ('0', '5') in next_state_pi and ('0', '5') in observed_state_t[0]:
                         debug_var = 3.1
 
+                    #
+                    # 几点思考
+                    # 1 相同MDP状态, 不同DRA状态的乘积状态能否合并？
+                    #       不能, 因为表示不同任务状态, 且状态转移关系主要依靠同步深度搜索, 即符合原prod_mdp_pi的状态转移关系
+                    # 2 观测相同的点可以合并吗, 如果可以合并, 其历史状态如何表述?
+                    #       可以, 在从prod_mdp_gamma搜索观测状态时, 满足o(x, u) = o(x', u'), x, u为prod_mdp_pi的状态和动作, x', u'为prod_mdp_gamma的状态和动作
+                    #       这里只有观测相同才会被同步(现有工作主要和u无关, 以后观测可以加上u), 这里的u可以用于表示和区分不同的历史动作
+                    #       同时, 观测器的状态转移关系可以表示系统的历史的evolution, 所以不用担心系统的历史不被表示
+                    # Some Thoughts
+                    #
+                    # 1. Can product states with the same MDP state but different DRA states be merged?
+                    #    No, because they represent different task states, and the state transition
+                    #    relationships mainly rely on synchronized deep search, meaning they must follow
+                    #    the transition structure of the original `prod_mdp_pi`.
+                    #
+                    # 2. Can points with the same observation be merged? If so, how should their historical
+                    #    states be represented?
+                    #    Yes, when searching for observation states from `prod_mdp_gamma`, the condition
+                    #    o(x, u) = o(x', u') must be satisfied, where x, u are the state and action from
+                    #    `prod_mdp_pi`, and x', u' are from `prod_mdp_gamma`.
+                    #    Here, only identical observations will be synchronized (in current work, this is
+                    #    mostly independent of u, but in the future, the observation could include u).
+                    #    The action u can help indicate and differentiate different historical actions.
+                    #    Moreover, the transition structure of the observer can capture the historical
+                    #    evolution of the system, so there's no need to worry that the system's history
+                    #    won't be represented.
                     if observed_state_t[0] == next_state_pi:
                         next_observed_states = list(next_observed_states)
                         next_observed_states = next_observed_states + list(observed_state_t[1])
