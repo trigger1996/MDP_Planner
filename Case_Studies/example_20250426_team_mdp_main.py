@@ -203,10 +203,10 @@ if __name__ == "__main__":
     # print_best_all_plan(best_all_plan)
     #
     # # for visualization
-    total_T = 500
+    total_T = 50
     state_seq = [initial_node, ]
     label_seq = [initial_label, ]
-    N = 50000
+    N = 5
     is_average = True
     #
     # #
