@@ -9,7 +9,6 @@ matplotlib.use("TkAgg")
 from functools import cmp_to_key
 from subprocess import check_output
 from Map.example_20250426_team_mdp import construct_team_mdp, team_observation_func_0426, control_observable_dict, run_2_observations_seqs, observation_seq_2_inference, calculate_cost_from_runs, plot_cost_hist
-from Map.example_20250426_team_mdp import initial_node, initial_label
 from MDP_TG.mdp import Motion_MDP
 from MDP_TG.dra import Dra
 from MDP_TG.lp  import syn_full_plan_rex
@@ -171,8 +170,8 @@ def execute_example_in_origin_product_mdp(N, total_T, prod_dra, best_all_plan, s
     return cost_list_pi, cost_list_gamma
 
 if __name__ == "__main__":
-    team_mdp = construct_team_mdp()
-    ap_list  = obtain_all_aps_from_team_mdp(team_mdp)
+    team_mdp, initial_node, initial_label = construct_team_mdp()
+    ap_list                               = obtain_all_aps_from_team_mdp(team_mdp)
 
     # ltl_formula = 'GF (gather -> drop)'
     ltl_formula = 'GF (gather -> (!gather U drop))'  # 'GF (gather -> X(!gather U drop))'
@@ -204,10 +203,10 @@ if __name__ == "__main__":
     # print_best_all_plan(best_all_plan)
     #
     # # for visualization
-    total_T = 50
+    total_T = 500
     state_seq = [initial_node, ]
     label_seq = [initial_label, ]
-    N = 5
+    N = 50000
     is_average = True
     #
     # #

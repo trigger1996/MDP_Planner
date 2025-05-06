@@ -144,7 +144,7 @@ def construct_team_mdp():
     initial_node  = tuple(initial_node_list)
     initial_label = tuple([initial_label_1, initial_label_2])
 
-    return team_mdp
+    return team_mdp, initial_node, initial_label
 
 def remove_specific_states_4_team_mdp(team_mdp:MDP3):
     state_list_to_remove = []
