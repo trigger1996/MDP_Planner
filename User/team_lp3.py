@@ -859,17 +859,31 @@ def synthesize_suffix_cycle_in_sync_amec3(prod_mdp, sync_amec_graph, sync_mec_3,
                                 P.append(1.0 / len(U_total))        # modified the number of P
                     else:
                         # 当在amec内
-                        U_total_p = list()
+                        U_total_p_good = list()
+                        U_total_p_bad  = list()
                         #for sync_u, sync_v, attr in sync_amec_graph.edges(s, data=True):
                         for sync_u, sync_v, attr in opaque_full_graph.edges(s, data=True):
                             if sync_v in sf:
-                                U_total_p += list(attr['prop'].keys())
+                                U_total_p_good += list(attr['prop'].keys())
+                            else:
+                                U_total_p_bad  += list(attr['prop'].keys())
                         #
-                        U_total_p = list(set(U_total_p))
-                        U_total_p.sort()
-                        for u in U_total_p:
+                        U_total_p_good = list(set(U_total_p_good))
+                        U_total_p_good.sort()
+                        for u in U_total_p_good:
                             U.append(u)
-                            P.append(1.0 / len(U_total_p))
+                            P.append(1.0 / len(U_total_p_good))
+                        #
+                        # TODO
+                        # 这个会影响概率连贯性?
+                        U_total_p_bad = list(set(U_total_p_bad))
+                        U_total_p_bad.sort()
+                        for u in U_total_p_bad:
+                            U.append(u)
+                            P.append(0.)
+
+                if U.__len__() == 0:
+                    debug_var = 4.1
 
                 plan_suffix[s] = [U, P]
 

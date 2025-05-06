@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+from collections import Counter
 from MDP_TG.mdp import Motion_MDP
 from User.mdp3 import MDP3
 from User.utils import print_c
@@ -116,6 +117,9 @@ def build_individual_mdp(initial_node_t=None):
     return (robot_nodes_w_aps, robot_edges, U, initial_node, initial_label)
 
 def construct_team_mdp():
+    # Added
+    global initial_node, initial_label
+
     initial_node_list = [ '0', '5' ]
 
     (robot_nodes_w_aps_1, robot_edges_1, U_1, initial_node_1, initial_label_1) = build_individual_mdp(initial_node_t=initial_node_list[0])
@@ -135,6 +139,10 @@ def construct_team_mdp():
     #
     # 去掉点以后剩下的出边得unify
     team_mdp.normalize_transition_probabilities()
+
+    # Added
+    initial_node  = tuple(initial_node_list)
+    initial_label = tuple([initial_label_1, initial_label_2])
 
     return team_mdp
 
@@ -157,6 +165,9 @@ def remove_specific_states_4_team_mdp(team_mdp:MDP3):
 
     team_mdp.remove_state_sequence(state_list_to_remove)
 
+def obs_to_hashable(obs):
+    return frozenset(Counter(obs).items())
+
 def observation_func_0426(x, u=None):
     global observation_dict
 
@@ -174,18 +185,45 @@ def team_observation_func_0426(x, u=None):
     for x_t in x:
         y_t = observation_func_0426(x_t)
         y.append(y_t)
-    y = set(y)              # MUST BE set here, for the observer cannot distinguish the sequence of the control
+    y = Counter(y)              # MUST BE set or Counter here, for the observer cannot distinguish the sequence of the control
+    #y = obs_to_hashable(y)
+    #y = set(y)
     return y
 
 def observation_inv_func_0426(y):
     return observation_dict[y]
+
+def team_observation_inv_func_0426(y):
+    """
+    根据输入的 Counter 返回对应的状态组合。
+    规则：
+      1. 对每个 key 的计数（如 {'p': 2}），重复其对应的状态元组多次（如 ('0', '5') 重复 2 次）。
+      2. 输出为一个元组，其中每个元素是状态的元组。
+
+    其他可能的输出形式（需修改代码）：
+      - 返回 set: 使用 set.update() 合并所有状态，忽略计数。
+      - 返回 Counter: 统计每个状态的累计出现次数。
+    """
+    result = []
+    for key, count in y.items():
+        states_tuple = tuple(observation_dict[key])  # 将列表转为元组，如 ('0', '5')
+        result.extend([states_tuple] * count)       # 重复元组多次
+
+    # Return the corresponding states as a tuple
+    return tuple(result)  # 转为元组输出
+
+    # Alternatively, to return as a set:
+    # return set(observation_dict[observation_key])
+
+    # Or as a Counter (counting each state once):
+    # return Counter(observation_dict[observation_key])
 
 def run_2_observations_seqs(x_u_seqs):
     y_seq = []
     for i in range(0, x_u_seqs.__len__() - 1, 2):
         x_t = x_u_seqs[i]
         u_t = x_u_seqs[i + 1]
-        y_t = observation_func_0426(x_t, u_t)
+        y_t = team_observation_func_0426(x_t, u_t)
         y_seq.append(y_t)
         #y_seq.append(u_t)           # u is for display and NOT in actual sequences
     return y_seq
@@ -195,14 +233,18 @@ def observation_seq_2_inference(y_seq):
     x_inv_set_seq = []
     ap_inv_seq = []
     for i in range(0, y_seq.__len__()):
-        x_inv_t = observation_inv_func_0426(y_seq[i])
+        x_inv_t = team_observation_inv_func_0426(y_seq[i])
         #
         ap_inv_t = []
-        for state_t in x_inv_t:
-            # ap_inv_t = ap_inv_t + list(robot_nodes_w_aps[state_t].keys())
-            ap_list_t = list(robot_nodes_w_aps[state_t].keys())
-            for ap_t in ap_list_t:
-                ap_inv_t = ap_inv_t + list(ap_t)
+        for team_state_t in x_inv_t:
+            ap_i = []
+            for state_t in team_state_t:
+                # ap_inv_t = ap_inv_t + list(robot_nodes_w_aps[state_t].keys())
+                ap_list_t = list(robot_nodes_w_aps[state_t].keys())
+                for ap_t in ap_list_t:
+                    ap_i = ap_i + list(ap_t)
+            ap_i = tuple(set(ap_i))
+        ap_inv_t.append(ap_i)
 
         ap_inv_t = list(set(ap_inv_t))
         x_inv_set_seq.append(x_inv_t)

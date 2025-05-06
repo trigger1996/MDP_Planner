@@ -387,6 +387,8 @@ class product_team_mdp3(product_mdp3):
 
         print_c(f"[synthesize_w_opacity] Generated sync_amec, states: {len(sync_mec_t.nodes)}, edges: {len(sync_mec_t.edges)}")
 
+    #
+    # Seems identical to the function for individual system
     def construct_opaque_subgraph_2_amec(self, product_mdp_gamma:Product_Dra, sync_amec_3, sync_amec_graph, mec_pi_3, mec_gamma_3, ap_pi, ap_gamma, observation_func, ctrl_obs_dict):
         #
         # 目标是生成从初始状态到达sync_amec的通路
@@ -638,6 +640,8 @@ class product_team_mdp3(product_mdp3):
 
         return subgraph_2_amec_t, initial_sync_state
 
+    #
+    # Seems identical to the function for individual system
     def construct_fullgraph_4_amec(self, initial_subgraph, product_mdp_gamma: Product_Dra, sync_amec_graph, mec_pi_3, mec_gamma_3, ap_pi, ap_gamma, observation_func, ctrl_obs_dict):
         #
         # 目标是生成从初始状态到达sync_amec的通路
