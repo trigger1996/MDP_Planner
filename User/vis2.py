@@ -2,6 +2,8 @@ import os
 import logging
 import datetime
 import random
+
+from collections import Counter
 from colorama import Fore, Back, Style, init
 from typing import Union, List
 import re
@@ -140,15 +142,20 @@ def get_color_for_item(item):
     return color_map.get(item, Fore.RESET)
 
 def print_colored_sequence(sequence):
-    """彩色打印序列"""
+    """彩色打印序列中的 Counter 项"""
     for item in sequence:
         if isinstance(item, list):
-            # 处理嵌套列表
             print('[', end='')
             for subitem in item:
                 color = get_color_for_item(subitem)
                 print(f"{color}'{subitem}'{Fore.RESET}, ", end='')
             print(']', end=' ')
+        elif isinstance(item, Counter):
+            print('{', end='')
+            for k, v in item.items():
+                color = get_color_for_item(k)
+                print(f"{color}'{k}':{v}{Fore.RESET}, ", end='')
+            print('}', end=' ')
         else:
             color = get_color_for_item(item)
             print(f"{color}'{item}'{Fore.RESET}", end=' ')

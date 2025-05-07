@@ -53,10 +53,13 @@ observation_dict = {
     'u': ['2', '3', '4', '6'],
 }
 
+# TODO, 注意这里输入的ctrl_obs_dict是一个tuple, 所以需要单独生成一个team_ctrl_obs_dict
 # control_observable_dict = {
-#     'a' : False,
-#     'b' : False,
-#     'c' : False
+#     ('a', 'a') : False,
+#     ('a', 'b') : False,
+#     ('b', 'a') : False,
+#     ('b', 'b') : False
+#     ...
 #
 # }
 control_observable_dict = None

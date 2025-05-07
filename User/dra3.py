@@ -227,7 +227,7 @@ class product_mdp3(Product_Dra):
                         if ctrl_obs_dict == None and u_pi != u_gamma:
                             continue
                         # 如果考虑可观性
-                        elif u_pi != u_gamma and ctrl_obs_dict[str(u_pi)] == False and ctrl_obs_dict[u_gamma] == False:
+                        elif u_pi != u_gamma and ctrl_obs_dict[u_pi] == True and ctrl_obs_dict[u_gamma] == True:
                             continue
                     except (StopIteration, KeyError):
                         continue  # 如果没有动作则跳过
@@ -420,8 +420,7 @@ class product_mdp3(Product_Dra):
                         if ctrl_obs_dict == None and u_pi != u_gamma:
                             continue
                         # 如果考虑可观性
-                        elif u_pi != u_gamma and ctrl_obs_dict[str(u_pi)] == False and ctrl_obs_dict[
-                            u_gamma] == False:
+                        elif u_pi != u_gamma and ctrl_obs_dict[u_pi] == True and ctrl_obs_dict[u_gamma] == True:
                             continue
                     except (StopIteration, KeyError):
                         continue  # 如果没有动作则跳过
@@ -600,7 +599,7 @@ class product_mdp3(Product_Dra):
                         if ctrl_obs_dict == None and u_pi != u_gamma:
                             continue
                         # 如果考虑可观性
-                        elif u_pi != u_gamma and ctrl_obs_dict[str(u_pi)] == False and ctrl_obs_dict[u_gamma] == False:
+                        elif u_pi != u_gamma and ctrl_obs_dict[u_pi] == True and ctrl_obs_dict[u_gamma] == True:
                             continue
                     except (StopIteration, KeyError):
                         continue  # 如果没有动作则跳过

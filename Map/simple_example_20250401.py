@@ -17,9 +17,28 @@ observation_dict = {
     'w': ['2', '3'],
 }
 
+'''
+    # 这个东西在lp_x.py是这么用的
+    try:
+        u_pi = next(iter(edge_t_pi[2]['prop'].keys()))
+        u_gamma = next(iter(edge_t_gamma[2]['prop'].keys()))
+        if isinstance(u_pi, tuple):
+            u_pi = u_pi[0]
+        if isinstance(u_gamma, tuple):
+            u_gamma = u_gamma[0]
+
+        # 如果不考虑可观性
+        if ctrl_obs_dict == None and u_pi != u_gamma:
+            continue
+        # 如果考虑可观性
+        elif u_pi != u_gamma and ctrl_obs_dict[u_pi] == True and ctrl_obs_dict[u_gamma] == True:
+            continue
+    except (StopIteration, KeyError):
+        continue  # 如果没有动作则跳过
+'''
 # control_observable_dict = {
 #     'a' : False,
-#     'b' : False,
+#     'b' : True,
 #     'c' : False
 #
 # }

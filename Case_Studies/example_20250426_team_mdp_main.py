@@ -14,7 +14,8 @@ from MDP_TG.dra import Dra
 from MDP_TG.lp  import syn_full_plan_rex
 from User.team_dra3 import product_team_mdp3
 from User.team_lp3  import synthesize_full_plan_w_opacity3
-from User.vis2 import print_c, print_highlighted_sequences
+from User.grid_utils import sort_team_numerical_states
+from User.vis2 import print_c, print_colored_sequence, print_highlighted_sequences
 
 # for debugging
 # import random
@@ -61,6 +62,27 @@ def obtain_all_aps_from_team_mdp(mdp:Motion_MDP, is_convert_to_str=True, is_remo
     ap_list.sort()
     return ap_list
 
+def print_best_all_plan(best_all_plan):
+    # Added
+    # for printing policies
+    if best_all_plan.__len__() >= 4 and best_all_plan[3].__len__():
+        print_c("optimal AP: %s" % (best_all_plan[3][0], ), color=47)
+    print_c("state action: probabilities")
+    print_c("Prefix", color=42)
+    #
+    state_in_prefix = [ state_t for state_t in best_all_plan[0][0] ]
+    state_in_prefix.sort(key=cmp_to_key(sort_team_numerical_states))
+    #for state_t in best_all_plan[0][0]:
+    for state_t in state_in_prefix:
+        print_c("%s, %s: %s" % (str(state_t), str(best_all_plan[0][0][state_t][0]), str(best_all_plan[0][0][state_t][1]), ), color=42)
+    #
+    print_c("Suffix", color=45)
+    state_in_suffix = [ state_t for state_t in best_all_plan[1][0] ]
+    state_in_suffix.sort(key=cmp_to_key(sort_team_numerical_states))
+    #for state_t in best_all_plan[1][0]:
+    for state_t in state_in_suffix:
+        print_c("%s, %s: %s" % (str(state_t), str(best_all_plan[1][0][state_t][0]), str(best_all_plan[1][0][state_t][1]), ), color=45)
+
 def execute_example_4_product_mdp3(N, total_T, prod_dra, best_all_plan, state_seq, label_seq, opt_prop, ap_gamma, attr='opaque'):
     XX  = []
     LL  = []
@@ -104,11 +126,11 @@ def execute_example_4_product_mdp3(N, total_T, prod_dra, best_all_plan, state_se
         # print_c("[cost / achieved_index] " + str(cost_cycle), color=color_init)
         # color_init += 1
         #
-        # print_colored_sequence(X_U)
-        # print_colored_sequence(Y)
-        # print_colored_sequence(X_INV)
-        # print_colored_sequence(AP_INV)
-        # print_c("[cost / achieved_index] " + str(cost_cycle), color=color_init)
+        print_colored_sequence(X_U)
+        print_colored_sequence(Y)
+        print_colored_sequence(X_INV)
+        print_colored_sequence(AP_INV)
+        print_c("[cost / achieved_index] " + str(cost_cycle), color=color_init)
         #
         print_highlighted_sequences(X_U, Y, X_INV, AP_INV, marker1=opt_prop, marker2=ap_gamma, attr=attr)
     # fig = visualize_run_sequence(XX, LL, UU, MM, 'surv_result', is_visuaize=False)
@@ -158,11 +180,11 @@ def execute_example_in_origin_product_mdp(N, total_T, prod_dra, best_all_plan, s
         # print_c("[cost / achieved_index] " + str(cost_cycle), color=color_init)
         # color_init += 1
         #
-        # print_colored_sequence(X_U)
-        # print_colored_sequence(Y)
-        # print_colored_sequence(X_INV)
-        # print_colored_sequence(AP_INV)
-        # print_c("[cost / achieved_index] " + str(cost_cycle), color=color_init)
+        print_colored_sequence(X_U)
+        print_colored_sequence(Y)
+        print_colored_sequence(X_INV)
+        print_colored_sequence(AP_INV)
+        print_c("[cost / achieved_index] " + str(cost_cycle), color=color_init)
         #
         print_highlighted_sequences(X_U, Y, X_INV, AP_INV, marker1=opt_prop, marker2=ap_gamma, attr=attr)
     # fig = visualize_run_sequence(XX, LL, UU, MM, 'surv_result', is_visuaize=False)
@@ -229,8 +251,8 @@ if __name__ == "__main__":
             print_c("No best plan synthesized, try re-run this program", color=33)
 
     #
-    # print_c("\n\nFOR COMPARASION, NON_OPAQUE SYNTHESIS: \n", color=46)
-    # print_best_all_plan(best_all_plan_p)
+    print_c("\n\nFOR COMPARASION, NON_OPAQUE SYNTHESIS: \n", color=46)
+    print_best_all_plan(best_all_plan_p)
 
     #
     # Non-opaque runs
@@ -260,5 +282,3 @@ if __name__ == "__main__":
     #
     #
     plt.show()
-
-    print(233)

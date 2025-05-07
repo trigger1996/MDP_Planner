@@ -16,13 +16,13 @@ from collections import defaultdict
 
 # ----------------------------
 # 保留原始观测和控制逻辑
-observation_dict = {
-    'p': ['0', '5'],
-    'q': ['1'],
-    'u': ['2', '3', '4', '6'],
+
+special_grids_in_map = {
+    (1, 1) : { frozenset({'upload'})   : 1.0 }
+
 }
 
-control_observable_dict = None
+control_observable_dict = None                      # 不设计这个
 
 def generate_grid_graph(x, y, d=1, diagonal=False):
     """生成x*y的栅格图（可选对角线移动）"""

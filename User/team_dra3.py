@@ -319,7 +319,8 @@ class product_team_mdp3(product_mdp3):
                         if ctrl_obs_dict == None and u_pi != u_gamma:
                             continue
                         # 如果考虑可观性
-                        elif u_pi != u_gamma and ctrl_obs_dict[str(u_pi)] == False and ctrl_obs_dict[u_gamma] == False:
+                        # TODO, 注意这里输入的ctrl_obs_dict是一个tuple, 所以需要单独生成一个team_ctrl_obs_dict
+                        elif u_pi != u_gamma and ctrl_obs_dict[u_pi] == True and ctrl_obs_dict[u_gamma] == True:
                             continue
                     except (StopIteration, KeyError):
                         continue  # 如果没有动作则跳过
@@ -452,16 +453,19 @@ class product_team_mdp3(product_mdp3):
                     try:
                         u_pi = next(iter(edge_t_pi[2]['prop'].keys()))
                         u_gamma = next(iter(edge_t_gamma[2]['prop'].keys()))
-                        if isinstance(u_pi, tuple):
-                            u_pi = u_pi[0]
-                        if isinstance(u_gamma, tuple):
-                            u_gamma = u_gamma[0]
+                        #
+                        # Added, Removed
+                        # if isinstance(u_pi, tuple):
+                        #     u_pi = u_pi[0]
+                        # if isinstance(u_gamma, tuple):
+                        #     u_gamma = u_gamma[0]
 
                         # 如果不考虑可观性
                         if ctrl_obs_dict == None and u_pi != u_gamma:
                             continue
                         # 如果考虑可观性
-                        elif u_pi != u_gamma and ctrl_obs_dict[str(u_pi)] == False and ctrl_obs_dict[u_gamma] == False:
+                        # TODO, 注意这里输入的ctrl_obs_dict是一个tuple, 所以需要单独生成一个team_ctrl_obs_dict
+                        elif u_pi != u_gamma and ctrl_obs_dict[u_pi] == True and ctrl_obs_dict[u_gamma] == True:
                             continue
                     except (StopIteration, KeyError):
                         continue  # 如果没有动作则跳过
@@ -681,17 +685,19 @@ class product_team_mdp3(product_mdp3):
                     try:
                         u_pi = next(iter(edge_t_pi[2]['prop'].keys()))
                         u_gamma = next(iter(edge_t_gamma[2]['prop'].keys()))
-                        if isinstance(u_pi, tuple):
-                            u_pi = u_pi[0]
-                        if isinstance(u_gamma, tuple):
-                            u_gamma = u_gamma[0]
+
+                        # Added, Removed
+                        # if isinstance(u_pi, tuple):
+                        #     u_pi = u_pi[0]
+                        # if isinstance(u_gamma, tuple):
+                        #     u_gamma = u_gamma[0]
 
                         # 如果不考虑可观性
                         if ctrl_obs_dict == None and u_pi != u_gamma:
                             continue
                         # 如果考虑可观性
-                        elif u_pi != u_gamma and ctrl_obs_dict[str(u_pi)] == False and ctrl_obs_dict[
-                            u_gamma] == False:
+                        # TODO, 注意这里输入的ctrl_obs_dict是一个tuple, 所以需要单独生成一个team_ctrl_obs_dict
+                        elif u_pi != u_gamma and ctrl_obs_dict[u_pi] == True and ctrl_obs_dict[u_gamma] == True:
                             continue
                     except (StopIteration, KeyError):
                         continue  # 如果没有动作则跳过

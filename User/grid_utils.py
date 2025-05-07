@@ -67,3 +67,33 @@ def sort_numerical_states(state, state_p):
         # else return identical
         else:
             return 0
+
+def sort_team_numerical_states(a, b):
+    state_a, label_a, num_a = a
+    state_b, label_b, num_b = b
+
+    # 比较状态元组，逐位按整数大小比较
+    for sa, sb in zip(state_a, state_b):
+        if int(sa) < int(sb):
+            return -1
+        elif int(sa) > int(sb):
+            return 1
+    # 若长度不同，较短的优先
+    if len(state_a) < len(state_b):
+        return -1
+    elif len(state_a) > len(state_b):
+        return 1
+
+    # 比较标签（按字典序）
+    if label_a < label_b:
+        return -1
+    elif label_a > label_b:
+        return 1
+
+    # 比较数值
+    if num_a < num_b:
+        return -1
+    elif num_a > num_b:
+        return 1
+
+    return 0
