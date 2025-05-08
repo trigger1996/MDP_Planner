@@ -7,10 +7,12 @@ import textwrap
 from collections import Counter, deque
 from networkx import DiGraph
 from networkx import strongly_connected_components_recursive
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from MDP_TG.dra import Product_Dra
 from User.dra3 import product_mdp3
 from User.dra3 import obtain_differential_expected_cost, is_state_satisfy_ap, is_ap_satisfy_opacity
 from User.utils import print_c
+
 
 def find_MECs(mdp, Sneg):
     # ----implementation of Alg.47 P866 of Baier08----
@@ -99,6 +101,7 @@ def find_SCCs(mdp, Sneg):
         SCC.add(frozenset(scc))
     return SCC, A
 
+
 class product_team_mdp3(product_mdp3):
     def __init__(self, mdp=None, dra=None):
         product_mdp3.__init__(self, mdp, dra)
@@ -116,8 +119,8 @@ class product_team_mdp3(product_mdp3):
                 # TODO 1
                 f_mdp_label.append(next(iter(f_mdp_label_t)))
             f_mdp_label = list(set(f_mdp_label))
-            if f_mdp_label.__len__() > 1 and str('') in f_mdp_label:        # TODO, 整合为一个函数
-                f_mdp_label.remove(str(''))                                 # TODO, 其他类型空
+            if f_mdp_label.__len__() > 1 and str('') in f_mdp_label:  # TODO, 整合为一个函数
+                f_mdp_label.remove(str(''))  # TODO, 其他类型空
             f_mdp_label.sort()
             f_mdp_label = tuple(f_mdp_label)
             # 遍历所有 DRA 节点
@@ -136,8 +139,8 @@ class product_team_mdp3(product_mdp3):
                         # TODO 2
                         t_mdp_label.append(next(iter(t_mdp_label_t)))
                     t_mdp_label = list(set(t_mdp_label))
-                    if t_mdp_label.__len__() > 1 and str('') in t_mdp_label:    # TODO, 整合为一个函数
-                        t_mdp_label.remove(str(''))                             # TODO, 其他类型空, 比如frozenset, 而且现在这边是写死了, 为了frozenset -> set
+                    if t_mdp_label.__len__() > 1 and str('') in t_mdp_label:  # TODO, 整合为一个函数
+                        t_mdp_label.remove(str(''))  # TODO, 其他类型空, 比如frozenset, 而且现在这边是写死了, 为了frozenset -> set
                     t_mdp_label.sort()
                     t_mdp_label = tuple(t_mdp_label)
                     # 遍历 DRA 中当前 DRA 状态的所有后继 DRA 状态
@@ -207,8 +210,8 @@ class product_team_mdp3(product_mdp3):
 
             # 如果该节点是起始状态（即 MDP 初始节点、标签正确、且 DRA 初始状态包含该 DRA 节点）
             if ((mdp_node == self.graph['mdp'].graph['init_state']) and
-                #(mdp_label == self.graph['mdp'].graph['init_label']) and       # ADDED， REMOVED
-                (dra_node in self.graph['dra'].graph['initial'])):
+                    # (mdp_label == self.graph['mdp'].graph['init_label']) and       # ADDED， REMOVED
+                    (dra_node in self.graph['dra'].graph['initial'])):
                 # 将其加入乘积初始状态集合
                 self.graph['initial'].add(prod_node)
 
@@ -217,7 +220,7 @@ class product_team_mdp3(product_mdp3):
     def compute_S_f(self):
         # ----find all accepting End components----
         S = set(self.nodes())
-        acc_pairs = self.graph['accept']        # TODO
+        acc_pairs = self.graph['accept']  # TODO
         S_f = []
         k = 1
         for pair in acc_pairs:
@@ -242,7 +245,7 @@ class product_team_mdp3(product_mdp3):
                     if len(T) == 1:  # self-loop
                         common_cp = common.copy()
                         s = common_cp.pop()
-                        if self.has_edge(s, s):                             # Added
+                        if self.has_edge(s, s):  # Added
                             loop_act_set = set(self[s][s]['prop'].keys())
                             loop_act = dict()
                             loop_act[s] = loop_act_set
@@ -255,22 +258,171 @@ class product_team_mdp3(product_mdp3):
         self.Sf = S_f
         if S_f:
             print("-------Accepting MEC for Prod DRA Computed-------")
-            print("acc_pair number: %s" % str(k-1))
+            print("acc_pair number: %s" % str(k - 1))
             print("Sf AMEC number: %s" % len(S_f))
         else:
             print("No accepting ECs found!")
             print("Check your MDP and Task formulation")
             print("Or try the relaxed plan")
 
-    def re_synthesize_sync_amec(self, ap_pi, ap_gamma, MEC_pi, MEC_gamma, product_mdp_gamma:Product_Dra, observation_func, ctrl_obs_dict, is_re_compute_Sf=True):
+    '''
+
+    --------------------------------------------------------------------------------------------------------------------
+    re_synthesize_sync_amec(self, ap_pi, ap_gamma, MEC_pi, MEC_gamma, product_mdp_gamma:Product_Dra, observation_func, ctrl_obs_dict, is_re_compute_Sf=True):
+
+    '''
+
+    def process_state_pair_in_re_synthesize_sync_amec(self, args):
+        state_pi_t, state_gamma_t, ap_pi, ap_gamma = args
+        ap_state_pi = set(state_pi_t[1])
+        ap_state_gamma = set(state_gamma_t[1])
+        if ap_pi in ap_state_pi and ap_gamma in ap_state_gamma:
+            return (state_pi_t, state_gamma_t,)
+        return None
+
+    def process_edge_pair_in_re_synthesize_sync_amec(self, args):
+        (current_state, edge_t_pi, edge_t_gamma,
+         mec_state_set_pi, mec_state_set_gamma,
+         ap_pi, ap_gamma,
+         observation_func, ctrl_obs_dict) = args
+
+        current_state_pi, current_state_gamma = current_state
+        next_state_pi = edge_t_pi[1]
+        next_state_gamma = edge_t_gamma[1]
+        next_sync_state = (next_state_pi, next_state_gamma)
+
+        if next_state_pi not in mec_state_set_pi or next_state_gamma not in mec_state_set_gamma:
+            return None
+
+        try:
+            u_pi = next(iter(edge_t_pi[2]['prop'].keys()))
+            u_gamma = next(iter(edge_t_gamma[2]['prop'].keys()))
+
+            # 如果不考虑可观性
+            if ctrl_obs_dict == None and u_pi != u_gamma:
+                return None
+            # 如果考虑可观性
+            # TODO, 注意这里输入的ctrl_obs_dict是一个tuple, 所以需要单独生成一个team_ctrl_obs_dict
+            elif u_pi != u_gamma and ctrl_obs_dict[u_pi] == True and ctrl_obs_dict[u_gamma] == True:
+                return None
+        except (StopIteration, KeyError):
+            return None  # 如果没有动作则跳过
+
+        if observation_func(next_state_pi[0]) != observation_func(next_state_gamma[0]):
+            return None
+
+        if not is_ap_satisfy_opacity(next_state_pi, next_state_gamma, ap_pi, ap_gamma):
+            return None
+
+        is_satisfy_opacity = is_ap_satisfy_opacity(next_state_pi, next_state_gamma, ap_pi, ap_gamma)
+
+        trans_pr_cost_list = {}
+        diff_expected_cost_list = {}
+        for action, (prob, cost) in edge_t_pi[2]['prop'].items():
+            diff_cost = obtain_differential_expected_cost(action, edge_t_pi, edge_t_gamma)
+            trans_pr_cost_list[action] = (prob, cost)
+            diff_expected_cost_list[action] = diff_cost
+
+        return current_state, next_sync_state, trans_pr_cost_list, diff_expected_cost_list, is_satisfy_opacity
+
+    def re_synthesize_sync_amec(self, ap_pi, ap_gamma, MEC_pi, MEC_gamma, product_mdp_gamma: Product_Dra,
+                                observation_func, ctrl_obs_dict, use_parallel=True):
+        mec_state_set_pi = MEC_pi[0]
+        mec_state_set_gamma = MEC_gamma[0]
+
+        stack_t = deque()
+        stack_visited = set()
+        visited = set()
+        sync_mec_t = DiGraph()
+
+        # 初始化 stack
+        for state_pi_t in mec_state_set_pi:
+            for state_gamma_t in mec_state_set_gamma:
+                ap_state_pi = set(state_pi_t[1])
+                ap_state_gamma = set(state_gamma_t[1])
+                if ap_pi in ap_state_pi and ap_gamma in ap_state_gamma:
+                    stack_t.append((state_pi_t, state_gamma_t))
+                    stack_visited.add((state_pi_t, state_gamma_t))
+
+        while stack_t:
+            current_state = stack_t.pop()
+            if current_state in visited:
+                continue
+            visited.add(current_state)
+
+            current_state_pi, current_state_gamma = current_state
+            next_state_list_pi = list(self.out_edges(current_state_pi, data=True))
+            next_state_list_gamma = list(product_mdp_gamma.out_edges(current_state_gamma, data=True))
+
+            edge_pair_args = [
+                (current_state, edge_t_pi, edge_t_gamma,
+                 mec_state_set_pi, mec_state_set_gamma,
+                 ap_pi, ap_gamma,
+                 observation_func, ctrl_obs_dict)
+                for edge_t_pi in next_state_list_pi
+                for edge_t_gamma in next_state_list_gamma
+            ]
+
+            if use_parallel:
+                with ProcessPoolExecutor() as executor:
+                    results = executor.map(self.process_edge_pair_in_re_synthesize_sync_amec, edge_pair_args)
+            else:
+                results = map(self.process_edge_pair_in_re_synthesize_sync_amec, edge_pair_args)
+
+            for result in results:
+                if result is None:
+                    continue
+                src, dst, prop, diff, is_opacity_satisfied = result
+                if is_opacity_satisfied:
+                    sync_mec_t.add_edge(src, dst, prop=prop, diff_exp=diff)
+                    if dst not in visited and dst not in stack_visited:
+                        stack_t.append(dst)
+                        stack_visited.add(dst)
+
+        # 完成后处理
+        print_c(
+            f"[synthesize_w_opacity] DFS completed, states: {len(sync_mec_t.nodes)}, edges: {len(sync_mec_t.edges)}",
+            color=33)
+
+        if sync_mec_t.edges:
+            # 检查强连通分量并保留最大的SCC
+            scc_list = list(nx.strongly_connected_components(sync_mec_t))
+            scc_list.sort(key=lambda x: len(x), reverse=True)
+
+            if not scc_list:
+                print_c("[synthesize_w_opacity] NO SCCs found...", color=33)
+            else:
+                # 移除非最大SCC的节点
+                largest_scc = scc_list[0]
+                nodes_to_remove = [node for scc in scc_list[1:] for node in scc]
+                num_removed = 0
+
+                for node in nodes_to_remove:
+                    if node in sync_mec_t:
+                        sync_mec_t.remove_node(node)
+                        num_removed += 1
+                        print_c(f"[synthesize_w_opacity] removing node: {node}", color=35)
+
+                print_c(f"[synthesize_w_opacity] number of states removed: {num_removed}", color=33)
+
+            # 保存结果
+            self.sync_amec_set.append(sync_mec_t)
+            self.current_sync_amec_index = len(self.sync_amec_set) - 1
+
+        return sync_mec_t
+
+    #
+    # for comparasion
+    def re_synthesize_sync_amec_in_single_core(self, ap_pi, ap_gamma, MEC_pi, MEC_gamma, product_mdp_gamma: Product_Dra,
+                                               observation_func, ctrl_obs_dict, is_re_compute_Sf=True):
         #
         # 想了一下这个还是沿用旧的
         # sync_amec的最大问题在于它的初始状态只凭借两个集合是很难确定的
         mec_state_set_pi = MEC_pi[0]
         mec_state_set_gamma = MEC_gamma[0]
 
-        stack_t = deque()                                   # Added
-        stack_visited = set()                               # Added 表示当前状态是否在stack内, 用于减少stack_t = list(set(stack_t))的计算
+        stack_t = deque()  # Added
+        stack_visited = set()  # Added 表示当前状态是否在stack内, 用于减少stack_t = list(set(stack_t))的计算
         for state_pi_t in mec_state_set_pi:
             for state_gamma_t in mec_state_set_gamma:
                 ap_state_pi = set(state_pi_t[1])
@@ -392,15 +544,256 @@ class product_team_mdp3(product_mdp3):
             self.sync_amec_set.append(sync_mec_t)
             self.current_sync_amec_index = len(self.sync_amec_set) - 1
 
-        print_c(f"[synthesize_w_opacity] Generated sync_amec, states: {len(sync_mec_t.nodes)}, edges: {len(sync_mec_t.edges)}")
+        print_c(
+            f"[synthesize_w_opacity] Generated sync_amec, states: {len(sync_mec_t.nodes)}, edges: {len(sync_mec_t.edges)}")
+
+    '''
+
+    --------------------------------------------------------------------------------------------------------------------
+    construct_opaque_subgraph_2_amec(self, product_mdp_gamma:Product_Dra, sync_amec_3, sync_amec_graph, mec_pi_3, mec_gamma_3, ap_pi, ap_gamma, observation_func, ctrl_obs_dict):
+
+    '''
+
+    def process_edge_pair_in_construction_opaque_graph(self, edge_t_pi_data, edge_t_gamma_data, ap_pi, ap_gamma,
+                                                       ctrl_obs_dict, observation_func):
+        edge_t_pi, next_state_pi = edge_t_pi_data
+        edge_t_gamma, next_state_gamma = edge_t_gamma_data
+        next_observed_states = []
+        next_states_3 = []
+        diff_expected_cost_list = {}
+
+        # 1. 控制同步检查
+        try:
+            u_pi = next(iter(edge_t_pi[2]['prop'].keys()))
+            u_gamma = next(iter(edge_t_gamma[2]['prop'].keys()))
+            if ctrl_obs_dict is None and u_pi != u_gamma:
+                return None
+            elif u_pi != u_gamma and ctrl_obs_dict[u_pi] and ctrl_obs_dict[u_gamma]:
+                return None
+        except (StopIteration, KeyError):
+            return None
+
+        # 2. 观测同步检查
+        if observation_func(next_state_pi[0]) != observation_func(next_state_gamma[0]):
+            return None
+
+        # 3. 同步状态处理
+        if is_state_satisfy_ap(next_state_pi, ap_pi):
+            if is_state_satisfy_ap(next_state_gamma, ap_gamma) or next_state_gamma == next_state_pi:
+                next_observed_states.append(next_state_gamma)
+            else:
+                next_states_3.append(next_state_gamma)
+        else:
+            next_observed_states.append(next_state_gamma)
+
+        for action, (prob, cost) in edge_t_pi[2]['prop'].items():
+            diff_cost = obtain_differential_expected_cost(action, edge_t_pi, edge_t_gamma)
+            if action not in diff_expected_cost_list:
+                diff_expected_cost_list[action] = {next_state_gamma: diff_cost}
+            else:
+                diff_expected_cost_list[action][next_state_gamma] = diff_cost
+
+        return next_observed_states, next_states_3, diff_expected_cost_list
+
+    # 并行主体函数（略去头部不变部分）
+    def construct_opaque_subgraph_2_amec(self, product_mdp_gamma, sync_amec_3, sync_amec_graph,
+                                         mec_pi_3, mec_gamma_3, ap_pi, ap_gamma, observation_func, ctrl_obs_dict, use_parallel=True):
+        ip = sync_amec_3[1]
+        ip_pi = [state_t[0] for state_t in ip]
+        initial_sync_state = [
+            (state_pi, tuple(product_mdp_gamma.graph['initial']), tuple())
+            for state_pi in self.graph['initial']
+        ]
+        stack_t = deque(initial_sync_state)
+        stack_visited = set(stack_t)
+        visited = set()
+        subgraph_2_amec_t = DiGraph()
+        subgraph_2_amec_t.graph['initial'] = initial_sync_state
+
+        while stack_t:
+            current_state = stack_t.pop()
+            if current_state in visited:
+                continue
+            visited.add(current_state)
+
+            current_state_pi, current_state_gamma, state_list_3 = current_state
+            next_state_list_pi = list(self.out_edges(current_state_pi, data=True))
+            next_state_list_gamma = []
+            for state_gamma_t in set(current_state_gamma).union(state_list_3):
+                next_state_list_gamma += list(product_mdp_gamma.out_edges(state_gamma_t, data=True))
+
+            for edge_t_pi in next_state_list_pi:
+                next_state_pi = edge_t_pi[1]
+                next_observed_states = []
+                next_states_3 = []
+                diff_expected_cost_list = {}
+                trans_pr_cost_list = {action: (prob, cost) for action, (prob, cost) in edge_t_pi[2]['prop'].items()}
+
+                edge_t_pi_data = (edge_t_pi, next_state_pi)
+                edge_gamma_inputs = [(edge_t_gamma, edge_t_gamma[1]) for edge_t_gamma in next_state_list_gamma]
+
+                if use_parallel:
+                # 并行处理每个 edge_t_gamma
+                    with ProcessPoolExecutor() as executor:
+                        futures = [
+                            executor.submit(
+                                self.process_edge_pair_in_construction_opaque_graph,
+                                edge_t_pi_data,
+                                edge_t_gamma_data,
+                                ap_pi,
+                                ap_gamma,
+                                ctrl_obs_dict,
+                                observation_func
+                            )
+                            for edge_t_gamma_data in edge_gamma_inputs
+                        ]
+                        for future in as_completed(futures):
+                            result = future.result()
+                            if result is None:
+                                continue
+                            ob_states, st_3, diff_exp_dict = result
+                            next_observed_states.extend(ob_states)
+                            next_states_3.extend(st_3)
+                            for action, new_costs in diff_exp_dict.items():
+                                if action not in diff_expected_cost_list:
+                                    diff_expected_cost_list[action] = dict(new_costs)
+                                else:
+                                    diff_expected_cost_list[action].update(new_costs)
+                else:
+                    for edge_t_gamma_data in edge_gamma_inputs:
+                        result = self.process_edge_pair_in_construction_opaque_graph(
+                            edge_t_pi_data,
+                            edge_t_gamma_data,
+                            ap_pi,
+                            ap_gamma,
+                            ctrl_obs_dict,
+                            observation_func
+                        )
+                        if result is None:
+                            continue
+                        ob_states, st_3, diff_exp_dict = result
+                        next_observed_states.extend(ob_states)
+                        next_states_3.extend(st_3)
+                        for action, new_costs in diff_exp_dict.items():
+                            if action not in diff_expected_cost_list:
+                                diff_expected_cost_list[action] = dict(new_costs)
+                            else:
+                                diff_expected_cost_list[action].update(new_costs)
+
+                next_observed_states = tuple(set(sorted(next_observed_states)))
+                next_states_3 = tuple(set(sorted(next_states_3)))
+                next_sync_state = (next_state_pi, next_observed_states, next_states_3)
+
+                mapping_t = {}
+                for observed_state_t in subgraph_2_amec_t.nodes():
+                    #
+                    # 几点思考
+                    # 1 相同MDP状态, 不同DRA状态的乘积状态能否合并？
+                    #       不能, 因为表示不同任务状态, 且状态转移关系主要依靠同步深度搜索, 即符合原prod_mdp_pi的状态转移关系
+                    # 2 观测相同的点可以合并吗, 如果可以合并, 其历史状态如何表述?
+                    #       可以, 在从prod_mdp_gamma搜索观测状态时, 满足o(x, u) = o(x', u'), x, u为prod_mdp_pi的状态和动作, x', u'为prod_mdp_gamma的状态和动作
+                    #       这里只有观测相同才会被同步(现有工作主要和u无关, 以后观测可以加上u), 这里的u可以用于表示和区分不同的历史动作
+                    #       同时, 观测器的状态转移关系可以表示系统的历史的evolution, 所以不用担心系统的历史不被表示
+                    # Some Thoughts
+                    #
+                    # 1. Can product states with the same MDP state but different DRA states be merged?
+                    #    No, because they represent different task states, and the state transition
+                    #    relationships mainly rely on synchronized deep search, meaning they must follow
+                    #    the transition structure of the original `prod_mdp_pi`.
+                    #
+                    # 2. Can points with the same observation be merged? If so, how should their historical
+                    #    states be represented?
+                    #    Yes, when searching for observation states from `prod_mdp_gamma`, the condition
+                    #    o(x, u) = o(x', u') must be satisfied, where x, u are the state and action from
+                    #    `prod_mdp_pi`, and x', u' are from `prod_mdp_gamma`.
+                    #    Here, only identical observations will be synchronized (in current work, this is
+                    #    mostly independent of u, but in the future, the observation could include u).
+                    #    The action u can help indicate and differentiate different historical actions.
+                    #    Moreover, the transition structure of the observer can capture the historical
+                    #    evolution of the system, so there's no need to worry that the system's history
+                    #    won't be represented.
+                    if observed_state_t[0] == next_state_pi:
+                        next_observed_states = list(next_observed_states)
+                        next_observed_states = next_observed_states + list(observed_state_t[1])
+                        #
+                        next_states_3 = list()
+                        next_states_3 = next_states_3 + list(observed_state_t[2])
+                        #
+                        next_observed_states = tuple(set(next_observed_states))
+                        next_states_3 = tuple(set(next_states_3))
+                        next_sync_state = (next_state_pi, next_observed_states, next_states_3,)
+                        #
+                        mapping_t[observed_state_t] = next_sync_state
+                        break
+                if mapping_t.__len__():
+                    #
+                    # 更新点
+                    nx.relabel_nodes(subgraph_2_amec_t, mapping_t, copy=False)
+                    #
+                    # 更新exp_cost
+                    for u, v, attr in subgraph_2_amec_t.edges(data=True):
+                        diff_exp_dict_old = attr['diff_exp']
+                        diff_exp_dict_new = {}
+
+                        for action, cost_dict in diff_exp_dict_old.items():
+                            new_cost_dict = {}
+                            for next_state_gamma, diff_cost in cost_dict.items():
+                                # 替换成新的 sync state（如果有被 relabel）
+                                if next_state_gamma in mapping_t:
+                                    updated_state = mapping_t[next_state_gamma]
+                                else:
+                                    updated_state = next_state_gamma
+                                new_cost_dict[updated_state] = diff_cost
+                            diff_exp_dict_new[action] = new_cost_dict
+
+                        # 更新属性
+                        attr['diff_exp'] = diff_exp_dict_new
+                    #
+                    # 更新当前点
+                    if current_state in mapping_t.keys():
+                        current_state = mapping_t[current_state]
+                    #
+                    # 更新未加入的点
+                    stack_t = self.replace_deque_items_inplace(stack_t, mapping_t)
+                    stack_visited.add(mapping_t)
+
+                is_next_state_in_ip = next_state_pi in ip_pi
+                is_opacity = self.is_state_opacity_in_observer_graph(next_sync_state, mec_pi_3, mec_gamma_3, ap_pi,
+                                                                     ap_gamma)
+
+                if subgraph_2_amec_t.has_edge(current_state, next_sync_state):
+                    old_attr = subgraph_2_amec_t[current_state][next_sync_state]
+                    old_diff_exp = old_attr.get('diff_exp', {})
+                    for action, new_cost_dict in diff_expected_cost_list.items():
+                        if action not in old_diff_exp:
+                            old_diff_exp[action] = dict(new_cost_dict)
+                        else:
+                            old_diff_exp[action].update(new_cost_dict)
+                    subgraph_2_amec_t[current_state][next_sync_state]['diff_exp'] = old_diff_exp
+                else:
+                    subgraph_2_amec_t.add_edge(
+                        current_state,
+                        next_sync_state,
+                        prop=trans_pr_cost_list,
+                        diff_exp=diff_expected_cost_list,
+                        is_opacity=is_opacity
+                    )
+
+                if not is_next_state_in_ip and next_sync_state not in visited and next_sync_state not in stack_visited:
+                    stack_t.append(next_sync_state)
+                    stack_visited.add(next_sync_state)
+
+        return subgraph_2_amec_t, initial_sync_state
 
     #
-    # Seems identical to the function for individual system
-    def construct_opaque_subgraph_2_amec(self, product_mdp_gamma:Product_Dra, sync_amec_3, sync_amec_graph, mec_pi_3, mec_gamma_3, ap_pi, ap_gamma, observation_func, ctrl_obs_dict):
+    # for comparasion
+    def construct_opaque_subgraph_2_amec_in_single_core(self, product_mdp_gamma: Product_Dra, sync_amec_3,
+                                                        sync_amec_graph, mec_pi_3, mec_gamma_3, ap_pi, ap_gamma,
+                                                        observation_func, ctrl_obs_dict):
         #
         # 目标是生成从初始状态到达sync_amec的通路
         ip = sync_amec_3[1]
-        ip_pi = [ state_t[0] for state_t in ip ]
+        ip_pi = [state_t[0] for state_t in ip]
         # (current_pi_state, [observed_state_list], [])
         # if current sync state is a pi state
         # then element 2 will only be states that satisfies ap gamma, and element 3 will be the rest of observed state
@@ -412,8 +805,8 @@ class product_team_mdp3(product_mdp3):
             for state_gamma in product_mdp_gamma.graph['initial']:
                 observed_state_list.append(state_gamma)
             initial_sync_state.append((state_pi, tuple(observed_state_list), tuple()))
-        stack_t = [state_t for state_t in initial_sync_state]       # make a copy
-        stack_t = deque(stack_t)                                    # TODO
+        stack_t = [state_t for state_t in initial_sync_state]  # make a copy
+        stack_t = deque(stack_t)  # TODO
         stack_visited = set(stack_t)
         visited = set()
         subgraph_2_amec_t = DiGraph()
@@ -433,11 +826,11 @@ class product_team_mdp3(product_mdp3):
                 next_state_list_gamma += list(product_mdp_gamma.out_edges(state_gamma_t, data=True))
 
             for edge_t_pi in next_state_list_pi:
-                next_state_pi        = edge_t_pi[1]
+                next_state_pi = edge_t_pi[1]
                 next_observed_states = []
-                next_states_3        = []
+                next_states_3 = []
                 #
-                is_current_pi_state = is_state_satisfy_ap(next_state_pi, ap_pi)         # whether current state satisfy ap pi
+                is_current_pi_state = is_state_satisfy_ap(next_state_pi, ap_pi)  # whether current state satisfy ap pi
                 #
                 trans_pr_cost_list = {}
                 diff_expected_cost_list = {}
@@ -501,7 +894,7 @@ class product_team_mdp3(product_mdp3):
                         diff_cost = obtain_differential_expected_cost(action, edge_t_pi, edge_t_gamma)
                         #
                         if action not in diff_expected_cost_list.keys():
-                            diff_expected_cost_list[action] = {next_state_gamma : diff_cost}
+                            diff_expected_cost_list[action] = {next_state_gamma: diff_cost}
                         else:
                             diff_expected_cost_list[action][next_state_gamma] = diff_cost
 
@@ -509,7 +902,7 @@ class product_team_mdp3(product_mdp3):
                 next_states_3.sort()
 
                 for action, (prob, cost) in edge_t_pi[2]['prop'].items():
-                    trans_pr_cost_list[action] = (prob, cost)                                                 # it is evident that this only corresponds to state_pi
+                    trans_pr_cost_list[action] = (prob, cost)  # it is evident that this only corresponds to state_pi
 
                 # for debugging
                 if next_state_pi == ('0', frozenset({'upload'}), 1):
@@ -517,8 +910,8 @@ class product_team_mdp3(product_mdp3):
 
                 # 添加转移
                 next_observed_states = tuple(set(next_observed_states))
-                next_states_3        = tuple(set(next_states_3))
-                next_sync_state = (next_state_pi, next_observed_states, next_states_3, )
+                next_states_3 = tuple(set(next_states_3))
+                next_sync_state = (next_state_pi, next_observed_states, next_states_3,)
                 #
                 mapping_t = {}
                 for observed_state_t in subgraph_2_amec_t.nodes():
@@ -593,18 +986,20 @@ class product_team_mdp3(product_mdp3):
                         current_state = mapping_t[current_state]
                     #
                     # 更新未加入的点
-                    stack_t = self.replace_list_items(stack_t, mapping_t)
+                    stack_t = self.replace_deque_items_inplace(stack_t, mapping_t)
 
-                if current_state == (('0', frozenset({'upload'}), 1), (('0', frozenset({'upload'}), 1),), ()) or next_sync_state == (('0', frozenset({'upload'}), 1), (('0', frozenset({'upload'}), 1),), ()):
+                if current_state == (
+                ('0', frozenset({'upload'}), 1), (('0', frozenset({'upload'}), 1),), ()) or next_sync_state == (
+                ('0', frozenset({'upload'}), 1), (('0', frozenset({'upload'}), 1),), ()):
                     debug_var = 3
 
                 if (('0', frozenset({'upload'}), 1), (('0', frozenset({'upload'}), 1),), ()) in stack_t:
                     debug_var = 4
 
-
                 is_next_state_in_ip = next_state_pi in ip_pi
                 #
-                is_opacity = self.is_state_opacity_in_observer_graph(next_sync_state, mec_pi_3, mec_gamma_3, ap_pi, ap_gamma)
+                is_opacity = self.is_state_opacity_in_observer_graph(next_sync_state, mec_pi_3, mec_gamma_3, ap_pi,
+                                                                     ap_gamma)
 
                 # for debugging
                 if is_next_state_in_ip:
@@ -656,9 +1051,17 @@ class product_team_mdp3(product_mdp3):
 
         return subgraph_2_amec_t, initial_sync_state
 
+    '''
+
+    --------------------------------------------------------------------------------------------------------------------
+    construct_fullgraph_4_amec(self, initial_subgraph, product_mdp_gamma: Product_Dra, sync_amec_graph, mec_pi_3, mec_gamma_3, ap_pi, ap_gamma, observation_func, ctrl_obs_dict):
+
+    '''
+
     #
     # Seems identical to the function for individual system
-    def construct_fullgraph_4_amec(self, initial_subgraph, product_mdp_gamma: Product_Dra, sync_amec_graph, mec_pi_3, mec_gamma_3, ap_pi, ap_gamma, observation_func, ctrl_obs_dict):
+    def construct_fullgraph_4_amec(self, initial_subgraph, product_mdp_gamma: Product_Dra, sync_amec_graph,
+                                          mec_pi_3, mec_gamma_3, ap_pi, ap_gamma, observation_func, ctrl_obs_dict):
         #
         # 目标是生成从初始状态到达sync_amec的通路
         stack_t = [state_t for state_t in initial_subgraph.nodes()]  # make a copy
@@ -795,9 +1198,10 @@ class product_team_mdp3(product_mdp3):
                     if current_state in mapping_t.keys():
                         current_state = mapping_t[current_state]
                     #
-                    stack_t = self.replace_list_items(stack_t, mapping_t)
+                    stack_t = self.replace_deque_items_inplace(stack_t, mapping_t)
 
-                is_opacity = self.is_state_opacity_in_observer_graph(next_sync_state, mec_pi_3, mec_gamma_3, ap_pi, ap_gamma)
+                is_opacity = self.is_state_opacity_in_observer_graph(next_sync_state, mec_pi_3, mec_gamma_3, ap_pi,
+                                                                     ap_gamma)
 
                 #
                 # 有些时候点都有但边没有
@@ -822,9 +1226,9 @@ class product_team_mdp3(product_mdp3):
                     fullgraph_t[current_state][next_sync_state]['diff_exp'] = old_diff_exp
                 else:
                     fullgraph_t.add_edge(current_state, next_sync_state,
-                                               prop=trans_pr_cost_list,
-                                               diff_exp=diff_expected_cost_list,
-                                               is_opacity=is_opacity)
+                                         prop=trans_pr_cost_list,
+                                         diff_exp=diff_expected_cost_list,
+                                         is_opacity=is_opacity)
 
                 #
                 # 其实这里解出来以后因为ip点毕竟是少数, 而且MEC强连通
@@ -881,3 +1285,7 @@ class product_team_mdp3(product_mdp3):
             actions, probs = plan_suffix[state_t]
             line = format_policy_entry(state_t, actions, probs)
             print_c(line, color='blue')
+
+    def replace_deque_items_inplace(self, dq, mapping):
+        for i in range(len(dq)):
+            dq[i] = mapping.get(dq[i], dq[i])

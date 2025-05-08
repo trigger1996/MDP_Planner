@@ -352,6 +352,8 @@ class product_mdp2(Product_Dra):
                         #     stack_t.append(next_sync_state)
                         if not is_next_state_in_ip:
                             stack_t.append(next_sync_state)
+                            stack_t = list(set(stack_t))
+                            stack_t.sort()
 
         return subgraph_2_amec_t, initial_sync_state
 
@@ -443,6 +445,8 @@ class product_mdp2(Product_Dra):
                                                        is_opacity=is_opacity)
 
                             stack_t.append(next_sync_state)
+                            stack_t = list(set(stack_t))
+                            stack_t.sort()
 
             return fullgraph_t
 
@@ -517,6 +521,8 @@ class product_mdp2(Product_Dra):
                             #
                             sync_mec_t.add_edge(current_state, next_sync_state, prop=trans_pr_cost_list, diff_exp=diff_expected_cost_list)
                             stack_t.append(next_sync_state)
+                            stack_t = list(set(stack_t))
+                            stack_t.sort()
         #
         print_c("[synthesize_w_opacity] DFS completed, states: %d, edges: %d" % (sync_mec_t.nodes.__len__(), sync_mec_t.edges.__len__(),), color=33)
         if sync_mec_t.edges().__len__():
@@ -642,7 +648,9 @@ class product_mdp2(Product_Dra):
                             sync_mec_t.add_edge(current_state, next_sync_state,
                                                 prop=trans_pr_cost_list,
                                                 diff_exp=diff_expected_cost_list)
-                        stack_t.append(next_sync_state)
+                            stack_t.append(next_sync_state)
+                            stack_t = list(set(stack_t))
+                            stack_t.sort()                            
 
         # 完成后处理
         print_c(f"[synthesize_w_opacity] DFS completed, states: {len(sync_mec_t.nodes)}, edges: {len(sync_mec_t.edges)}",
@@ -735,6 +743,8 @@ class product_mdp2(Product_Dra):
                                         prop=trans_pr_cost_list,
                                         diff_exp=diff_expected_cost_list)
                     stack_t.append(next_sync_state)
+                    stack_t = list(set(stack_t))
+                    stack_t.sort()
 
 
         if mec_observer_t.edges:
@@ -982,6 +992,8 @@ class product_mdp2(Product_Dra):
                             #
                             sync_mec_t.add_edge(current_state, next_sync_state, prop=trans_pr_cost_list, diff_exp=diff_expected_cost_list)
                             stack_t.append(next_sync_state)
+                            stack_t = list(set(stack_t))
+                            stack_t.sort()
         #
         print_c("[synthesize_w_opacity] DFS completed, states: %d, edges: %d" % (sync_mec_t.nodes.__len__(), sync_mec_t.edges.__len__(),), color=33)
         if sync_mec_t.edges().__len__():
@@ -1114,6 +1126,8 @@ class product_mdp2(Product_Dra):
                                         prop=trans_pr_cost_list,
                                         diff_exp=diff_expected_cost)
                     stack_t.append(next_sync_state)
+                    stack_t = list(set(stack_t))
+                    stack_t.sort()
 
 
     def project_sync_amec_back_to_mec_pi(self, sync_amec, original_mec_pi):

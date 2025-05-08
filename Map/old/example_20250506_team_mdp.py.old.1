@@ -17,18 +17,14 @@ from collections import defaultdict
 
 '''
 
-o->y
-|
-V
-x
-
 (0, 0)                                                        (0, 5)
 upload    空    recharge          recharge          空         inaccessible
 空        空    空                 空                空         inaccessible
 空        空    空                 gather            gather    空
+空        空    空                 空                空         空
 upload    空    investigate       空                空         upload
 upload    空    inaccessible      inaccessible      空         upload
-(4, 0)                                                        (4, 5)
+(5, 0)                                                        (5, 5)
 
 入侵者只知道行信息，动作和观测无关
 三个出发点，左上(0, 0)，左下（4, 0），右下(4, 5)
@@ -45,24 +41,24 @@ special_grids_in_map = {
     (0, 3): {frozenset({'recharge'}): 1.0},
     (2, 3): {frozenset({'gather'}): 1.0},
     (2, 4): {frozenset({'gather'}): 1.0},
-    (3, 0): {frozenset({'upload'}): 1.0},
-    (3, 1): {frozenset({'investigate'}): 1.0},
-    (3, 5): {frozenset({'upload'}): 1.0},
     (4, 0): {frozenset({'upload'}): 1.0},
+    (4, 1): {frozenset({'investigate'}): 1.0},
     (4, 5): {frozenset({'upload'}): 1.0},
+    (5, 0): {frozenset({'upload'}): 1.0},
+    (5, 5): {frozenset({'upload'}): 1.0},
 }
 
 # 不可达节点（将被删除）
 inaccessible_grids_in_map = [
-    (0, 5), (1, 5), (4, 2), (4, 3),
+    (0, 5), (1, 5), (5, 2), (5, 3),
 ]
 
 # 起点列表
-start_positions = [(0, 0), (3, 0), (3, 5)]
+start_positions = [(0, 0), (4, 0), (4, 5)]
 U0_dict = {
     (0, 0) : 'R',
-    (3, 0) : 'R',
-    (3, 5) : 'L'
+    (4, 0) : 'R',
+    (4, 5) : 'L'
 }
 
 observation_dict = []
@@ -98,7 +94,10 @@ def team_observation_func(x, u=None):
     #y = set(y)
     return y
 
-def team_observation_inv_func(y):
+def observation_inv_func_0426(y):
+    return observation_dict[y]
+
+def team_observation_inv_func_0426(y):
     """
     根据输入的 Counter 返回对应的状态组合。
     规则：
@@ -208,7 +207,7 @@ def observation_seq_2_inference(y_seq):
     x_inv_set_seq = []
     ap_inv_seq = []
     for i in range(0, y_seq.__len__()):
-        x_inv_t = team_observation_inv_func(y_seq[i])
+        x_inv_t = team_observation_inv_func_0426(y_seq[i])
         #
         ap_inv_t = []
         for team_state_t in x_inv_t:
@@ -355,10 +354,10 @@ def construct_team_mdp(is_visualize=False):
     # Added
     global start_positions, observation_dict
 
-    observation_dict = build_observation_dict_all_states(x_len=5, y_len=6)
+    observation_dict = build_observation_dict_all_states(x_len=6, y_len=6)
 
-    robot_nodes_w_aps_1, robot_edges_1, U_1, grid_nodes_1, start_ids_1, initial_label_1 = build_mdp_with_grid(5, 6, start_position=start_positions[0])
-    robot_nodes_w_aps_2, robot_edges_2, U_2, grid_nodes_2, start_ids_2, initial_label_2 = build_mdp_with_grid(5, 6, start_position=start_positions[1])
+    robot_nodes_w_aps_1, robot_edges_1, U_1, grid_nodes_1, start_ids_1, initial_label_1 = build_mdp_with_grid(6, 6, start_position=start_positions[0])
+    robot_nodes_w_aps_2, robot_edges_2, U_2, grid_nodes_2, start_ids_2, initial_label_2 = build_mdp_with_grid(6, 6, start_position=start_positions[1])
 
     #
     # 这里有一些斜角边因为共用动作冲突会只被保留一条
