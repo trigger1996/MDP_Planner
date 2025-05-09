@@ -105,12 +105,12 @@ def build_model(initial_state):
 
 def build_product_graph_multi(graph_list, init_state_list, is_compatible=None):
     """
-    graph_list: list of nx.DiGraph, e.g. [G1, G2, G3]
+    graph_list: list of nx.MultiDiGraph, e.g. [G1, G2, G3]
     init_state_list: list of initial states, same length as graph_list
     is_compatible: function(edge_data_list) -> bool, optional compatibility check
     """
     num_graphs = len(graph_list)
-    product_graph = nx.DiGraph()
+    product_graph = nx.MultiDiGraph()
 
     stack = [tuple(init_state_list)]
     visited = set()

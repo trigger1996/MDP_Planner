@@ -35,9 +35,10 @@ def get_action_from_successor_edge(g, s):
 
 def exp_weight(u, v, d):
     val_list = []
-    for u_t in d['prop'].keys():
-        val_t = d['prop'][u_t][0] * d['prop'][u_t][1]
-        val_list.append(val_t)
+    for key_t in d:
+        for u_t in d[key_t]['prop'].keys():
+            val_t = d[key_t]['prop'][u_t][0] * d[key_t]['prop'][u_t][1]
+            val_list.append(val_t)
     return min(val_list)
 
 def syn_plan_prefix_in_sync_amec(prod_mdp, initial_subgraph, initial_sync_state, sync_amec_graph, sync_amec_3, observer_mec_3, gamma):
@@ -143,25 +144,26 @@ def syn_plan_prefix_in_sync_amec(prod_mdp, initial_subgraph, initial_sync_state,
             obj = 0
             for s in Sr:
                 for t in initial_subgraph.successors(s):
-                    is_opacity = initial_subgraph[s][t]['is_opacity']
-                    # if not is_opacity:
-                    #     continue
-                    #
-                    # s -> t, \forall s \in Sr 相当于这里直接把图给进去了?
-                    prop = initial_subgraph[s][t]['prop'].copy()
-                    for u in prop.keys():
-                        pe = prop[u][0]
-                        ce = prop[u][1]
+                    for key_t in initial_subgraph[s][t]:
+                        is_opacity = initial_subgraph[s][t][key_t]['is_opacity']
+                        # if not is_opacity:
+                        #     continue
                         #
-                        # \mu * 状态转移概率p_E * 代价c_E
-                        # 1 如果Y[(s, u)] = 0, 是不是所有的都到最小值了?
-                        #   所以需要in_flow和out_flow的约束, 而且必须满足policy之和为1, 即所有策略必须选一个
-                        # 2 解的历史相关性
-                        #   a. 根据Principle of model checking里的结论, 历史无关的策略能做到和历史有关策略一样的最优性？
-                        #      （Lemma 10.102)
-                        #   b. 这里的Y[(s, u)]其实是对整体进行求解, 一边动了根据约束条件另一边也得动
-                        #      是不是这样也能理解为是一种memoryless policy
-                        obj += Y[(s, u)]*pe*ce
+                        # s -> t, \forall s \in Sr 相当于这里直接把图给进去了?
+                        prop = initial_subgraph[s][t][key_t]['prop'].copy()
+                        for u in prop.keys():
+                            pe = prop[u][0]
+                            ce = prop[u][1]
+                            #
+                            # \mu * 状态转移概率p_E * 代价c_E
+                            # 1 如果Y[(s, u)] = 0, 是不是所有的都到最小值了?
+                            #   所以需要in_flow和out_flow的约束, 而且必须满足policy之和为1, 即所有策略必须选一个
+                            # 2 解的历史相关性
+                            #   a. 根据Principle of model checking里的结论, 历史无关的策略能做到和历史有关策略一样的最优性？
+                            #      （Lemma 10.102)
+                            #   b. 这里的Y[(s, u)]其实是对整体进行求解, 一边动了根据约束条件另一边也得动
+                            #      是不是这样也能理解为是一种memoryless policy
+                            obj += Y[(s, u)]*pe*ce
             prefix_solver.Minimize(obj)
             print('Objective function set')
             # add constraints
@@ -170,24 +172,25 @@ def syn_plan_prefix_in_sync_amec(prod_mdp, initial_subgraph, initial_sync_state,
             y_to_sf = 0.0
             for s in Sr:
                 for t in initial_subgraph.successors(s):
-                    # is_opacity = initial_subgraph[s][t]['is_opacity']
-                    # if not is_opacity:
-                    #     continue
-                    if t in Sd:
-                        prop = initial_subgraph[s][t]['prop'].copy()
-                        for u in prop.keys():
-                            pe = prop[u][0]
-                            y_to_sd += Y[(s, u)]*pe                                 # Sd: 可由s_0到达, 但不可以到达MEC的状态集合
-                    elif t in sf:
-                        prop = initial_subgraph[s][t]['prop'].copy()
-                        for u in prop.keys():
-                            pe = prop[u][0]
-                            y_to_sf += Y[(s, u)]*pe                                 # Sf <- MEC[0]
-                    else:
-                        # TODO, critical
-                        # 如果这些状态被搞成round robin那就
-                        #print(233)
-                        pass
+                    for key_t in initial_subgraph[s][t]:
+                        # is_opacity = initial_subgraph[s][t][key_t]['is_opacity']
+                        # if not is_opacity:
+                        #     continue
+                        if t in Sd:
+                            prop = initial_subgraph[s][t][key_t]['prop'].copy()
+                            for u in prop.keys():
+                                pe = prop[u][0]
+                                y_to_sd += Y[(s, u)]*pe                                 # Sd: 可由s_0到达, 但不可以到达MEC的状态集合
+                        elif t in sf:
+                            prop = initial_subgraph[s][t][key_t]['prop'].copy()
+                            for u in prop.keys():
+                                pe = prop[u][0]
+                                y_to_sf += Y[(s, u)]*pe                                 # Sf <- MEC[0]
+                        else:
+                            # TODO, critical
+                            # 如果这些状态被搞成round robin那就
+                            #print(233)
+                            pass
             # prefix_solver.Add(y_to_sf+y_to_sd >= delta)                           # old result
             #
             # delta = 0.01, 松弛变量?
@@ -218,13 +221,14 @@ def syn_plan_prefix_in_sync_amec(prod_mdp, initial_subgraph, initial_sync_state,
                     #     node_y_out += Y[(s, u)]
                     #
                     for f in initial_subgraph.predecessors(s):
-                        if f in Sr:
-                            prop = initial_subgraph[f][s]['prop'].copy()
-                            is_opacity = initial_subgraph[f][s]['is_opacity']           # TODO, to check, 好的状态只让走满足opacity的边
-                            if not is_opacity:
-                                continue
-                            for uf in prop.keys():
-                                node_y_in += Y[(f, uf)] * prop[uf][0]
+                        for key_t in initial_subgraph[f][s]:
+                            if f in Sr:
+                                prop = initial_subgraph[f][s][key_t]['prop'].copy()
+                                is_opacity = initial_subgraph[f][s][key_t]['is_opacity']           # TODO, to check, 好的状态只让走满足opacity的边
+                                if not is_opacity:
+                                    continue
+                                for uf in prop.keys():
+                                    node_y_in += Y[(f, uf)] * prop[uf][0]
                     #
                     # 对应论文中公式 (8c)
                     # 其实可以理解为, 初始状态in_flow就是1? node_y_in = 0
@@ -251,13 +255,14 @@ def syn_plan_prefix_in_sync_amec(prod_mdp, initial_subgraph, initial_sync_state,
                     #     node_y_out += Y[(s, u)]
                     #
                     for f in initial_subgraph.predecessors(s):
-                        if f in Sr:
-                            prop = initial_subgraph[f][s]['prop'].copy()
-                            # is_opacity = initial_subgraph[f][s]['is_opacity']
-                            # if not is_opacity:
-                            #     continue
-                            for uf in prop.keys():                                          # TODO, to check, 所有坏状态的出都要回到sync_amec的对应状态
-                                node_y_in += Y[(f, uf)] * prop[uf][0]
+                        for key_t in initial_subgraph[f][s]:
+                            if f in Sr:
+                                prop = initial_subgraph[f][s][key_t]['prop'].copy()
+                                # is_opacity = initial_subgraph[f][s][key_t]['is_opacity']
+                                # if not is_opacity:
+                                #     continue
+                                for uf in prop.keys():                                          # TODO, to check, 所有坏状态的出都要回到sync_amec的对应状态
+                                    node_y_in += Y[(f, uf)] * prop[uf][0]
 
                     if (type(node_y_in) != float and type(node_y_out) != float) or (type(node_y_in) != float and node_y_out != 0.0) or (type(node_y_out) != float and node_y_in != 0.0):
                         if s == init_node:
@@ -335,15 +340,16 @@ def syn_plan_prefix_in_sync_amec(prod_mdp, initial_subgraph, initial_sync_state,
                     #
                     if len(path_t[min_dist_target]) > 1:
                         successor_state = path_t[min_dist_target][1]
-                        edge_data = initial_subgraph.edges[s, successor_state]
-                        for u_p in edge_data['prop'].keys():
-                            U.append(u_p)
-                            P.append(1.0 / len(edge_data['prop'].keys()))
-                        for u_p in U_total:
-                            if u_p in edge_data['prop'].keys():
-                                continue
-                            U.append(u_p)
-                            P.append(0.)
+                        for key_t in initial_subgraph[s][successor_state]:
+                            edge_data = initial_subgraph[s][successor_state][key_t]
+                            for u_p in edge_data['prop'].keys():
+                                U.append(u_p)
+                                P.append(1.0 / len(edge_data['prop'].keys()))
+                            for u_p in U_total:
+                                if u_p in edge_data['prop'].keys():
+                                    continue
+                                U.append(u_p)
+                                P.append(0.)
                     else:
                         # the old round_robin
                         U.append(U_total)
@@ -368,22 +374,23 @@ def syn_plan_prefix_in_sync_amec(prod_mdp, initial_subgraph, initial_sync_state,
             y_to_sf = 0.0
             for s in Sr:
                 for t in initial_subgraph.successors(s):
-                    if t in Sd:
-                        prop = initial_subgraph[s][t]['prop'].copy()
-                        for u in prop.keys():
-                            pe = prop[u][0]
-                            if type(Y[(s, u)]) != float:
-                                y_to_sd += Y[(s, u)].solution_value()*pe
-                            else:
-                                y_to_sd += 0.0
-                    elif t in sf:
-                        prop = initial_subgraph[s][t]['prop'].copy()
-                        for u in prop.keys():
-                            pe = prop[u][0]
-                            if type(Y[(s, u)]) != float:
-                                y_to_sf += Y[(s, u)].solution_value()*pe
-                            else:
-                                y_to_sd += 0.0
+                    for key_t in initial_subgraph[s][t]:
+                        if t in Sd:
+                            prop = initial_subgraph[s][t][key_t]['prop'].copy()
+                            for u in prop.keys():
+                                pe = prop[u][0]
+                                if type(Y[(s, u)]) != float:
+                                    y_to_sd += Y[(s, u)].solution_value()*pe
+                                else:
+                                    y_to_sd += 0.0
+                        elif t in sf:
+                            prop = initial_subgraph[s][t][key_t]['prop'].copy()
+                            for u in prop.keys():
+                                pe = prop[u][0]
+                                if type(Y[(s, u)]) != float:
+                                    y_to_sf += Y[(s, u)].solution_value()*pe
+                                else:
+                                    y_to_sd += 0.0
             if (y_to_sd+y_to_sf) > 0:
                 risk = y_to_sd/(y_to_sd+y_to_sf)
             print('y_to_sd: %s; y_to_sf: %s, y_to_sd+y_to_sf: %s' %
@@ -394,15 +401,16 @@ def syn_plan_prefix_in_sync_amec(prod_mdp, initial_subgraph, initial_sync_state,
             for s in Sn:
                 for t in initial_subgraph.successors(s):
                     if t in sf:
-                        prop = initial_subgraph[s][t]['prop'].copy()
-                        for u in prop.keys():
-                            if type(Y[(s, u)]) == float:
-                                continue                                        # TODO
-                            pe = prop[u][0]
-                            if t not in y_in_sf:
-                                y_in_sf[t] = Y[(s, u)].solution_value()*pe      # TODO 概率对吗, 核心在于, 此时的不可达区域除去不可到达AMEC区域的，还有一部分属于AMEC但是不属于opacity的坏状态
-                            else:
-                                y_in_sf[t] += Y[(s, u)].solution_value()*pe
+                        for key_t in initial_subgraph[s][t]:
+                            prop = initial_subgraph[s][t][key_t]['prop'].copy()
+                            for u in prop.keys():
+                                if type(Y[(s, u)]) == float:
+                                    continue                                        # TODO
+                                pe = prop[u][0]
+                                if t not in y_in_sf:
+                                    y_in_sf[t] = Y[(s, u)].solution_value()*pe      # TODO 概率对吗, 核心在于, 此时的不可达区域除去不可到达AMEC区域的，还有一部分属于AMEC但是不属于opacity的坏状态
+                                else:
+                                    y_in_sf[t] += Y[(s, u)].solution_value()*pe
             # normalize the input flow
             y_total = 0.0
             for s, y in y_in_sf.items():
@@ -459,7 +467,7 @@ def synthesize_suffix_cycle_in_sync_amec3(prod_mdp, sync_amec_graph, sync_mec_3,
             #
             # 注意这里和prefix不同的是, prefix
             # prefix -> Sr:
-            #       path = single_source_shortest_path(simple_digraph, random.sample(ip, 1)[0]), 即可以到达MEC的状态
+            #       path = single_source_shortest_path(simple_MultiDiGraph, random.sample(ip, 1)[0]), 即可以到达MEC的状态
             #       Sn: path_init.keys() 和 Sf的交集, 两变Sf定义是一样的都是MEC
             #       Sr: path.keys() 和 Sn相交, 也就是从初始状态可以到达MEC的状态
             # suffix -> Sn:
@@ -498,11 +506,12 @@ def synthesize_suffix_cycle_in_sync_amec3(prod_mdp, sync_amec_graph, sync_mec_3,
                     act_pi_list = list(set(act_pi_list))
                     for u in act_pi_list:
                         for t in opaque_full_graph.successors(s):
-                            prop = opaque_full_graph[s][t]['prop'].copy()
-                            if u in list(prop.keys()):
-                                pe = prop[u][0]
-                                ce = prop[u][1]
-                                obj += Y[(s, u)]*pe*ce
+                            for key_t in opaque_full_graph[s][t]:
+                                prop = opaque_full_graph[s][t][key_t]['prop'].copy()
+                                if u in list(prop.keys()):
+                                    pe = prop[u][0]
+                                    ce = prop[u][1]
+                                    obj += Y[(s, u)]*pe*ce
             suffix_solver.Minimize(obj)
             print('Objective added')
             # add constraints
@@ -551,34 +560,35 @@ def synthesize_suffix_cycle_in_sync_amec3(prod_mdp, sync_amec_graph, sync_mec_3,
                             # the old solution
                             #constr3 += Y[(s, u)]
                         for f in opaque_full_graph.predecessors(s):
-                            if f == (('0', frozenset({'upload'}), 2), (('0', frozenset({'upload'}), 1), ('0', frozenset({'upload'}), 2)), ()):
-                                debug_var = 3
-                            if f == (('0', frozenset({'upload'}), 1), (('0', frozenset({'upload'}), 1), ('0', frozenset({'upload'}), 2), ('0', frozenset({'upload'}), 3)), ()):
-                                debug_var = 4
-                            #
-                            # 这里也有不同
-                            # prefix
-                            #       if f in Sr:
-                            # suffix
-                            #       if f in Sn 且 s in Sn 且 s not in ip
-                            if (f in Sn_good) and (s not in ip):
-                                prop = opaque_full_graph[f][s]['prop'].copy()
-                                act_f_list = get_action_from_successor_edge(opaque_full_graph, f)
-                                for uf in act_f_list:
-                                    if uf in list(prop.keys()):
-                                        constr4 += Y[(f, uf)] * prop[uf][0]
-                                    else:
-                                        #constr4 += Y[(f, uf)] * 0.00
-                                        pass
-                            if (f in Sn_good) and (s in ip) and (f != s):
-                                prop = opaque_full_graph[f][s]['prop'].copy()
-                                act_f_list = get_action_from_successor_edge(opaque_full_graph, f)
-                                for uf in act_f_list:
-                                    if uf in list(prop.keys()):
-                                        constr4 += Y[(f, uf)] * prop[uf][0]
-                                    else:
-                                        #constr4 += Y[(f, uf)] * 0.00
-                                        pass
+                            for key_t in opaque_full_graph[f][s]:
+                                if f == (('0', frozenset({'upload'}), 2), (('0', frozenset({'upload'}), 1), ('0', frozenset({'upload'}), 2)), ()):
+                                    debug_var = 3
+                                if f == (('0', frozenset({'upload'}), 1), (('0', frozenset({'upload'}), 1), ('0', frozenset({'upload'}), 2), ('0', frozenset({'upload'}), 3)), ()):
+                                    debug_var = 4
+                                #
+                                # 这里也有不同
+                                # prefix
+                                #       if f in Sr:
+                                # suffix
+                                #       if f in Sn 且 s in Sn 且 s not in ip
+                                if (f in Sn_good) and (s not in ip):
+                                    prop = opaque_full_graph[f][s][key_t]['prop'].copy()
+                                    act_f_list = get_action_from_successor_edge(opaque_full_graph, f)
+                                    for uf in act_f_list:
+                                        if uf in list(prop.keys()):
+                                            constr4 += Y[(f, uf)] * prop[uf][0]
+                                        else:
+                                            #constr4 += Y[(f, uf)] * 0.00
+                                            pass
+                                if (f in Sn_good) and (s in ip) and (f != s):
+                                    prop = opaque_full_graph[f][s][key_t]['prop'].copy()
+                                    act_f_list = get_action_from_successor_edge(opaque_full_graph, f)
+                                    for uf in act_f_list:
+                                        if uf in list(prop.keys()):
+                                            constr4 += Y[(f, uf)] * prop[uf][0]
+                                        else:
+                                            #constr4 += Y[(f, uf)] * 0.00
+                                            pass
 
 
                         # Added for debugging
@@ -641,30 +651,31 @@ def synthesize_suffix_cycle_in_sync_amec3(prod_mdp, sync_amec_graph, sync_mec_3,
                         #     node_y_out += Y[(s, u)]
                         #
                         for f in opaque_full_graph.predecessors(s):
-                            if f == (('0', frozenset({'upload'}), 2), (('0', frozenset({'upload'}), 1), ('0', frozenset({'upload'}), 2)), ()):
-                                debug_var = 5
-                            if f == (('0', frozenset({'upload'}), 1), (('0', frozenset({'upload'}), 1), ('0', frozenset({'upload'}), 2), ('0', frozenset({'upload'}), 3)), ()):
-                                debug_var = 6
+                            for key_t in opaque_full_graph[f][s]:
+                                if f == (('0', frozenset({'upload'}), 2), (('0', frozenset({'upload'}), 1), ('0', frozenset({'upload'}), 2)), ()):
+                                    debug_var = 5
+                                if f == (('0', frozenset({'upload'}), 1), (('0', frozenset({'upload'}), 1), ('0', frozenset({'upload'}), 2), ('0', frozenset({'upload'}), 3)), ()):
+                                    debug_var = 6
 
-                            if f in Sn_good:
-                                prop = opaque_full_graph[f][s]['prop'].copy()
-                                for uf in prop.keys():
-                                    suffix_solver.Add(Y[(f, uf)] * prop[uf][0] == 0)
-                            elif f in Sn_bad:
-                                if f in Sn:
-                                    prop = opaque_full_graph[f][s]['prop'].copy()
+                                if f in Sn_good:
+                                    prop = opaque_full_graph[f][s][key_t]['prop'].copy()
                                     for uf in prop.keys():
-                                        constr4 += Y[(f, uf)] * prop[uf][0]
+                                        suffix_solver.Add(Y[(f, uf)] * prop[uf][0] == 0)
+                                elif f in Sn_bad:
+                                    if f in Sn:
+                                        prop = opaque_full_graph[f][s][key_t]['prop'].copy()
+                                        for uf in prop.keys():
+                                            constr4 += Y[(f, uf)] * prop[uf][0]
 
-                            #
-                            # the old solution
-                            # if f in Sn:
-                            #     prop = opaque_full_graph[f][s]['prop'].copy()
-                            #     # is_opacity = initial_subgraph[f][s]['is_opacity']
-                            #     # if not is_opacity:
-                            #     #     continue
-                            #     for uf in prop.keys():
-                            #         constr4 += Y[(f, uf)] * prop[uf][0]
+                                #
+                                # the old solution
+                                # if f in Sn:
+                                #     prop = opaque_full_graph[f][s][key_t]['prop'].copy()
+                                #     # is_opacity = initial_subgraph[f][s][key_t]['is_opacity']
+                                #     # if not is_opacity:
+                                #     #     continue
+                                #     for uf in prop.keys():
+                                #         constr4 += Y[(f, uf)] * prop[uf][0]
 
                         if (type(constr3) != float and type(constr4) != float) or (
                                 type(constr3) != float and constr4 != 0.0) or (
@@ -717,23 +728,24 @@ def synthesize_suffix_cycle_in_sync_amec3(prod_mdp, sync_amec_graph, sync_mec_3,
                     progress.update(task_id, advance=1, description=f"Processing ... {k + 1}/{len(Sn)}")
 
                     for t in opaque_full_graph.successors(s):
-                        act_s_list = get_action_from_successor_edge(opaque_full_graph, s)
-                        if t not in Sn:
-                            prop = opaque_full_graph[s][t]['prop'].copy()
-                            for u in prop.keys():
-                                if u in act_s_list:
-                                    pe = prop[u][0]
-                                    #
-                                    # Sn里出Sn的
-                                    y_out += Y[(s, u)]*pe
-                        elif t in ip:
-                            prop = opaque_full_graph[s][t]['prop'].copy()
-                            for u in prop.keys():
-                                if u in act_s_list:
-                                    #
-                                    # Sn里进Ip的
-                                    pe = prop[u][0]
-                                    y_to_ip += Y[(s, u)]*pe
+                        for key_t in opaque_full_graph[s][t]:
+                            act_s_list = get_action_from_successor_edge(opaque_full_graph, s)
+                            if t not in Sn:
+                                prop = opaque_full_graph[s][t][key_t]['prop'].copy()
+                                for u in prop.keys():
+                                    if u in act_s_list:
+                                        pe = prop[u][0]
+                                        #
+                                        # Sn里出Sn的
+                                        y_out += Y[(s, u)]*pe
+                            elif t in ip:
+                                prop = opaque_full_graph[s][t][key_t]['prop'].copy()
+                                for u in prop.keys():
+                                    if u in act_s_list:
+                                        #
+                                        # Sn里进Ip的
+                                        pe = prop[u][0]
+                                        y_to_ip += Y[(s, u)]*pe
             # suffix_solver.Add(y_to_ip+y_out >= delta)
             suffix_solver.Add(y_to_ip >= (1.0-gamma-delta)*(y_to_ip+y_out))
             print_c("y_2_ip:", color=35)
@@ -757,13 +769,14 @@ def synthesize_suffix_cycle_in_sync_amec3(prod_mdp, sync_amec_graph, sync_mec_3,
                     progress.update(task_id, advance=1, description=f"Processing ... {k + 1}/{len(Sn)}")
 
                     for t in opaque_full_graph.successors(s):
-                        if opaque_full_graph.has_edge(s, t):
-                            prop = opaque_full_graph[s][t]['diff_exp'].copy()
-                            for u in prop.keys():
-                                if (s, u) in Y:
-                                    max_diff_exp_cost = max(prop[u].values())                   # TODO 最小化上界?
-                                    y_t = Y[(s, u)] * max_diff_exp_cost                         # Y[(s, u)] * prop[u]
-                                    constr_opacity_lhs.append(y_t)
+                        for key_t in opaque_full_graph[s][t]:
+                            if opaque_full_graph.has_edge(s, t):
+                                prop = opaque_full_graph[s][t][key_t]['diff_exp'].copy()
+                                for u in prop.keys():
+                                    if (s, u) in Y:
+                                        max_diff_exp_cost = max(prop[u].values())                   # TODO 最小化上界?
+                                        y_t = Y[(s, u)] * max_diff_exp_cost                         # Y[(s, u)] * prop[u]
+                                        constr_opacity_lhs.append(y_t)
 
             sum_opacity_lhs = suffix_solver.Sum(constr_opacity_lhs)
             suffix_solver.Add(sum_opacity_lhs <= constr_opacity_rhs)
@@ -843,15 +856,16 @@ def synthesize_suffix_cycle_in_sync_amec3(prod_mdp, sync_amec_graph, sync_mec_3,
                         #
                         if len(path_t[min_dist_target]) > 1:
                             successor_state = path_t[min_dist_target][1]
-                            edge_data = opaque_full_graph.edges[s, successor_state]
-                            for u_p in edge_data['prop'].keys():
-                                U.append(u_p)
-                                P.append(1.0 / len(edge_data['prop'].keys()))
-                            for u_p in U_total:
-                                if u_p in edge_data['prop'].keys():
-                                    continue
-                                U.append(u_p)
-                                P.append(0.)
+                            for key_t in opaque_full_graph[s][successor_state]:
+                                edge_data = opaque_full_graph[s][successor_state][key_t]
+                                for u_p in edge_data['prop'].keys():
+                                    U.append(u_p)
+                                    P.append(1.0 / len(edge_data['prop'].keys()))
+                                for u_p in U_total:
+                                    if u_p in edge_data['prop'].keys():
+                                        continue
+                                    U.append(u_p)
+                                    P.append(0.)
                         else:
                             # the old round_robin
                             U.append(U_total)
@@ -897,18 +911,19 @@ def synthesize_suffix_cycle_in_sync_amec3(prod_mdp, sync_amec_graph, sync_mec_3,
             for s in Sn:
                 act_s_list = get_action_from_successor_edge(opaque_full_graph, s)
                 for t in opaque_full_graph.successors(s):
-                    if t not in Sn:
-                        prop = opaque_full_graph[s][t]['prop'].copy()
-                        for u in prop.keys():
-                            if u in act_s_list:
-                                pe = prop[u][0]
-                                y_out += Y[(s, u)].solution_value()*pe
-                    elif t in ip:
-                        prop = opaque_full_graph[s][t]['prop'].copy()
-                        for u in prop.keys():
-                            if u in act_s_list:
-                                pe = prop[u][0]
-                                y_to_ip += Y[(s, u)].solution_value()*pe
+                    for key_t in opaque_full_graph[s][t]:
+                        if t not in Sn:
+                            prop = opaque_full_graph[s][t][key_t]['prop'].copy()
+                            for u in prop.keys():
+                                if u in act_s_list:
+                                    pe = prop[u][0]
+                                    y_out += Y[(s, u)].solution_value()*pe
+                        elif t in ip:
+                            prop = opaque_full_graph[s][t][key_t]['prop'].copy()
+                            for u in prop.keys():
+                                if u in act_s_list:
+                                    pe = prop[u][0]
+                                    y_to_ip += Y[(s, u)].solution_value()*pe
             if (y_to_ip+y_out) > 0:
                 risk = y_out/(y_to_ip+y_out)
             print('y_out: %s; y_to_ip+y_out: %s' % (y_out, y_to_ip+y_out))

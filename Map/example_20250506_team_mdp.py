@@ -22,16 +22,16 @@ o->y
 V
 x
 
-(0, 0)                                                        (0, 5)
-upload    空    recharge          recharge          空         inaccessible
-空        空    空                 空                空         inaccessible
-空        空    空                 gather            gather    空
-upload    空    investigate       空                空         upload
-upload    空    inaccessible      inaccessible      空         upload
-(4, 0)                                                        (4, 5)
+(0, 0)                                                        (0, 4)
+upload    recharge          recharge          空         inaccessible
+空        空                 空                空         inaccessible
+空        空                 gather            gather    空
+upload    investigate       空                空         upload
+upload    inaccessible      inaccessible      空         upload
+(4, 0)                                                        (4, 4)
 
 入侵者只知道行信息，动作和观测无关
-三个出发点，左上(0, 0)，左下（4, 0），右下(4, 5)
+三个出发点，左上(0, 0)，左下（4, 0），右下(4, 4)
 
 '''
 
@@ -41,28 +41,28 @@ upload    空    inaccessible      inaccessible      空         upload
 
 special_grids_in_map = {
     (0, 0): {frozenset({'upload'}): 1.0},
+    (0, 1): {frozenset({'recharge'}): 1.0},
     (0, 2): {frozenset({'recharge'}): 1.0},
-    (0, 3): {frozenset({'recharge'}): 1.0},
+    (2, 2): {frozenset({'gather'}): 1.0},
     (2, 3): {frozenset({'gather'}): 1.0},
-    (2, 4): {frozenset({'gather'}): 1.0},
     (3, 0): {frozenset({'upload'}): 1.0},
     (3, 1): {frozenset({'investigate'}): 1.0},
-    (3, 5): {frozenset({'upload'}): 1.0},
+    (3, 4): {frozenset({'upload'}): 1.0},
     (4, 0): {frozenset({'upload'}): 1.0},
-    (4, 5): {frozenset({'upload'}): 1.0},
+    (4, 4): {frozenset({'upload'}): 1.0},
 }
 
 # 不可达节点（将被删除）
 inaccessible_grids_in_map = [
-    (0, 5), (1, 5), (4, 2), (4, 3),
+    (0, 4), (1, 4), (4, 2), (4, 3),
 ]
 
 # 起点列表
-start_positions = [(0, 0), (3, 0), (3, 5)]
+start_positions = [(0, 0), (3, 0), (3, 4)]
 U0_dict = {
     (0, 0) : 'R',
     (3, 0) : 'R',
-    (3, 5) : 'L'
+    (3, 4) : 'L'
 }
 
 observation_dict = []
@@ -126,7 +126,7 @@ def team_observation_inv_func(y):
 
 def generate_grid_graph(x, y, d=1, diagonal=False):
     """生成x*y的栅格图（可选对角线移动）"""
-    G = nx.grid_2d_graph(x, y, create_using=nx.DiGraph)
+    G = nx.grid_2d_graph(x, y, create_using=nx.MultiDiGraph)
 
     if diagonal:  # 添加对角线边
         for u in list(G.nodes()):
@@ -238,7 +238,7 @@ def visualize_grids_in_networkx(robot_nodes_w_aps, robot_edges, grid_nodes, star
     import matplotlib.pyplot as plt
     import networkx as nx
 
-    G = nx.DiGraph()
+    G = nx.MultiDiGraph()
 
     # 添加节点和位置
     for node, attrs in grid_nodes.items():
@@ -355,10 +355,10 @@ def construct_team_mdp(is_visualize=False):
     # Added
     global start_positions, observation_dict
 
-    observation_dict = build_observation_dict_all_states(x_len=5, y_len=6)
+    observation_dict = build_observation_dict_all_states(x_len=5, y_len=5)
 
-    robot_nodes_w_aps_1, robot_edges_1, U_1, grid_nodes_1, start_ids_1, initial_label_1 = build_mdp_with_grid(5, 6, start_position=start_positions[0])
-    robot_nodes_w_aps_2, robot_edges_2, U_2, grid_nodes_2, start_ids_2, initial_label_2 = build_mdp_with_grid(5, 6, start_position=start_positions[1])
+    robot_nodes_w_aps_1, robot_edges_1, U_1, grid_nodes_1, start_ids_1, initial_label_1 = build_mdp_with_grid(5, 5, start_position=start_positions[0])
+    robot_nodes_w_aps_2, robot_edges_2, U_2, grid_nodes_2, start_ids_2, initial_label_2 = build_mdp_with_grid(5, 5, start_position=start_positions[1])
 
     #
     # 这里有一些斜角边因为共用动作冲突会只被保留一条

@@ -6,7 +6,7 @@ import networkx as nx
 from collections import defaultdict
 from itertools import product
 from MDP_TG.mdp import Motion_MDP
-from networkx import DiGraph
+from networkx import MultiDiGraph
 from User.utils import print_c
 
 class MDP3(Motion_MDP):
@@ -15,7 +15,7 @@ class MDP3(Motion_MDP):
         if node_dict != None:
             Motion_MDP.__init__(self, node_dict, edge_dict, U, initial_node, initial_label)
         else:
-            DiGraph.__init__(self)
+            MultiDiGraph.__init__(self)
 
     def contruct_from_individual_mdps(self, mdp_list, initial_state_list, initial_label):
         assert len(mdp_list) == len(initial_state_list)
@@ -100,12 +100,12 @@ class MDP3(Motion_MDP):
                 if next_state_tuple not in visited:
                     stack.append(next_state_tuple)
 
-    def remove_edge_sequence(mdp: DiGraph, edge_sequence: list):
+    def remove_edge_sequence(mdp: MultiDiGraph, edge_sequence: list):
         """
         从 MDP 中删除指定的一组边。
 
         参数：
-            mdp: 一个 networkx.DiGraph 类型的 MDP 图。
+            mdp: 一个 networkx.MultiDiGraph 类型的 MDP 图。
             edge_sequence: 要删除的边列表，每个元素是一个三元组 (src, tgt, action)。
                            其中 action 是边上 'prop' 属性中的键。
         """
@@ -161,7 +161,7 @@ class MDP3(Motion_MDP):
             print_c(f"[MDP3] Restored state:   {self.graph['init_state']}", color='cyan')
         self.remove_state_sequence(nodes_to_remove)
 
-    def normalize_transition_probabilities(mdp: DiGraph):
+    def normalize_transition_probabilities(mdp: MultiDiGraph):
         """
         对于 MDP 中每个状态，归一化其所有出边中相同行为的转移概率之和为 1。
         修改 inplace。

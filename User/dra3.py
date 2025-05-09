@@ -3,7 +3,7 @@
 from math import fabs, sqrt
 
 import networkx as nx
-from networkx import DiGraph, is_connected
+from networkx import MultiDiGraph, is_connected
 from MDP_TG.mdp import find_MECs, find_SCCs
 from MDP_TG.dra import Product_Dra
 from User.vis2 import print_c
@@ -75,7 +75,7 @@ def project_observer_state_2_sync_state(sync_mec_3_1, observer_state_set, is_req
 
     return sync_state_set
 
-def project_sync_states_2_observer_states(observer_graph:nx.DiGraph, sync_state_set):
+def project_sync_states_2_observer_states(observer_graph:nx.MultiDiGraph, sync_state_set):
     observer_state_set = []
     for observer_state_t in observer_graph.nodes:
         for sync_state_t in sync_state_set:
@@ -88,7 +88,7 @@ def project_sync_states_2_observer_states(observer_graph:nx.DiGraph, sync_state_
     observer_state_set = list(set(observer_state_set))
     return observer_state_set
 
-def project_sync_mec_3_2_observer_mec_3(observer_graph:nx.DiGraph, sync_amec_3):
+def project_sync_mec_3_2_observer_mec_3(observer_graph:nx.MultiDiGraph, sync_amec_3):
     mec_states = sync_amec_3[0]
     ip_states  = list(sync_amec_3[1])
     act_list   = {}
@@ -178,7 +178,7 @@ class product_mdp3(Product_Dra):
             initial_sync_state.append((state_pi, tuple(observed_state_list), tuple()))
         stack_t = [state_t for state_t in initial_sync_state]       # make a copy
         visited = set()
-        subgraph_2_amec_t = DiGraph()
+        subgraph_2_amec_t = MultiDiGraph()
         subgraph_2_amec_t.graph['initial'] = initial_sync_state
 
         while stack_t:
@@ -337,19 +337,21 @@ class product_mdp3(Product_Dra):
 
                 # 如果边已经存在，需要合并 diff_expected_cost_list
                 if subgraph_2_amec_t.has_edge(current_state, next_sync_state):
-                    old_attr = subgraph_2_amec_t[current_state][next_sync_state]
-                    old_diff_exp = old_attr.get('diff_exp', {})
+                    for key_t in subgraph_2_amec_t[current_state][next_sync_state]:
+                        old_attr = subgraph_2_amec_t[current_state][next_sync_state][key_t]
+                        old_diff_exp = old_attr.get('diff_exp', {})
 
-                    # 合并新的 diff_expected_cost_list 到旧的 diff_exp
-                    for action, new_cost_dict in diff_expected_cost_list.items():
-                        if action not in old_diff_exp:
-                            old_diff_exp[action] = dict(new_cost_dict)
-                        else:
-                            for next_state_gamma, new_diff_cost in new_cost_dict.items():
-                                old_diff_exp[action][next_state_gamma] = new_diff_cost
+                        # 合并新的 diff_expected_cost_list 到旧的 diff_exp
+                        for action, new_cost_dict in diff_expected_cost_list.items():
+                            if action not in old_diff_exp:
+                                old_diff_exp[action] = dict(new_cost_dict)
+                            else:
+                                for next_state_gamma, new_diff_cost in new_cost_dict.items():
+                                    old_diff_exp[action][next_state_gamma] = new_diff_cost
 
-                    # 更新该边属性
-                    subgraph_2_amec_t[current_state][next_sync_state]['diff_exp'] = old_diff_exp
+                        # 更新该边属性
+                        #subgraph_2_amec_t[current_state][next_sync_state]['diff_exp'] = old_diff_exp
+                        subgraph_2_amec_t.edges[current_state, next_sync_state, key_t]['diff_exp'] = old_diff_exp
                 else:
                     # 否则添加新边
                     subgraph_2_amec_t.add_edge(
@@ -379,7 +381,7 @@ class product_mdp3(Product_Dra):
         # 目标是生成从初始状态到达sync_amec的通路
         stack_t = [state_t for state_t in initial_subgraph.nodes()]  # make a copy
         visited = set()
-        fullgraph_t = DiGraph(initial_subgraph)
+        fullgraph_t = MultiDiGraph(initial_subgraph)
 
         while stack_t:
             current_state = stack_t.pop()
@@ -518,19 +520,20 @@ class product_mdp3(Product_Dra):
                 #
                 # 如果边已经存在，需要合并 diff_expected_cost_list
                 if fullgraph_t.has_edge(current_state, next_sync_state):
-                    old_attr = fullgraph_t[current_state][next_sync_state]
-                    old_diff_exp = old_attr.get('diff_exp', {})
+                    for key_t in fullgraph_t[current_state][next_sync_state]:
+                        old_attr = fullgraph_t[current_state][next_sync_state][key_t]
+                        old_diff_exp = old_attr.get('diff_exp', {})
 
-                    # 合并新的 diff_expected_cost_list 到旧的 diff_exp
-                    for action, new_cost_dict in diff_expected_cost_list.items():
-                        if action not in old_diff_exp:
-                            old_diff_exp[action] = dict(new_cost_dict)
-                        else:
-                            for next_state_gamma, new_diff_cost in new_cost_dict.items():
-                                old_diff_exp[action][next_state_gamma] = new_diff_cost
+                        # 合并新的 diff_expected_cost_list 到旧的 diff_exp
+                        for action, new_cost_dict in diff_expected_cost_list.items():
+                            if action not in old_diff_exp:
+                                old_diff_exp[action] = dict(new_cost_dict)
+                            else:
+                                for next_state_gamma, new_diff_cost in new_cost_dict.items():
+                                    old_diff_exp[action][next_state_gamma] = new_diff_cost
 
-                    # 更新该边属性
-                    fullgraph_t[current_state][next_sync_state]['diff_exp'] = old_diff_exp
+                        # 更新该边属性
+                        fullgraph_t[current_state][next_sync_state][key_t]['diff_exp'] = old_diff_exp
                 else:
                     fullgraph_t.add_edge(current_state, next_sync_state,
                                                prop=trans_pr_cost_list,
@@ -570,7 +573,7 @@ class product_mdp3(Product_Dra):
         #
         stack_t = list(set(stack_t))
         visited = set()
-        sync_mec_t = DiGraph()
+        sync_mec_t = MultiDiGraph()
 
         while stack_t:
             current_state = stack_t.pop()
@@ -819,10 +822,11 @@ class product_mdp3(Product_Dra):
             S = []
             P = []
             for state_t in observer_t.successors(current_state):
-                prop = observer_t[current_state][state_t]['prop']
-                if (u in list(prop.keys())):
-                    S.append(state_t)
-                    P.append(prop[u][0])
+                for key_t in observer_t[current_state][state_t]:
+                    prop = observer_t[current_state][state_t][key_t]['prop']
+                    if (u in list(prop.keys())):
+                        S.append(state_t)
+                        P.append(prop[u][0])
 
             rdn = random.random()
             pc = 0
