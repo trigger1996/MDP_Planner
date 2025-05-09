@@ -137,34 +137,10 @@ def generate_grid_graph(x, y, d=1, diagonal=False):
 
     return G
 
-def normalize_robot_edges(robot_edges):
-    """
-    对 robot_edges 中的每个 (state, action) 组，归一化其出边概率，使概率和为 1。
-    输入:
-        robot_edges: dict, 形如 {(u, act, v): (prob, cost), ...}
-    输出:
-        修改后的 robot_edges，所有同一 (u, act) 对应的 prob 总和为 1
-    """
-    # 收集每个 (u, act) 的所有目标节点和概率
-    edge_group = defaultdict(list)
-    for (u, act, v), (prob, cost) in robot_edges.items():
-        edge_group[(u, act)].append((v, prob, cost))
-
-    # 归一化每组 (u, act) 的 prob
-    normalized_edges = {}
-    for (u, act), transitions in edge_group.items():
-        total_prob = sum(prob for _, prob, _ in transitions)
-        if total_prob == 0:
-            continue  # 避免除以 0
-        for v, prob, cost in transitions:
-            normalized_prob = prob / total_prob
-            normalized_edges[(u, act, v)] = (normalized_prob, cost)
-
-    return normalized_edges
 
 def build_mdp_with_grid(x, y, start_position=None, d=1):
     global special_grids_in_map, inaccessible_grids_in_map, U0_dict
-
+    """构建结合自定义坐标/命题/不可达点的MDP"""
     G = generate_grid_graph(x, y, d, True)
     G.remove_nodes_from(inaccessible_grids_in_map)
 
@@ -182,54 +158,29 @@ def build_mdp_with_grid(x, y, start_position=None, d=1):
         else:
             robot_nodes_w_aps[node_id] = {frozenset({''}): 1.0}
 
-
+    # 定义动作及其扰动方向与概率
     action_defs = {
-        'u': [((-1, 0), 1.0)],
-        'd': [((1, 0),  1.0)],
-        'l': [((0, -1), 1.0)],
-        'r': [((0, 1),  1.0)],
+        'u': [((-1, -1), 0.05), ((-1, 0), 0.9), ((-1, 1), 0.05)],
+        'd': [((1, -1), 0.05), ((1, 0), 0.9), ((1, 1), 0.05)],
+        'l': [((-1, -1), 0.05), ((0, -1), 0.9), ((1, -1), 0.05)],
+        'r': [((-1, 1), 0.05), ((0, 1), 0.9), ((1, 1), 0.05)],
     }
+
+    U = list(action_defs.keys())  # ['u', 'd', 'l', 'r']
 
     for (u_row, u_col) in G.nodes():
         u = str(u_row * y + u_col)
-
-        for act in action_defs.keys():
-            # 默认扰动定义
-            transitions = action_defs[act]
-
-            # 添加额外的“坑扰动”边（区域+动作触发）
-            extra_transition = None
-            extra_prob = 0.1  # 额外边的概率
-
-            if   u_row <= int(x / 2) and u_col <= int(x / 2) and act == 'r':
-                extra_transition = (1, 1)   # 右下
-            elif u_row <= int(x / 2) and u_col >= int(x / 2) and act == 'l':
-                extra_transition = (1, -1)  # 左下
-            elif u_row >= int(x / 2) and u_col <= int(x / 2) and act == 'r':
-                extra_transition = (-1, 1)  # 右上
-            elif u_row >= int(x / 2) and u_col >= int(x / 2) and act == 'l':
-                extra_transition = (-1, -1) # 左上
-
-            # 添加基础边
-            for (dr, dc), prob in transitions:                  # transitions <- action_defs[act]
+        for act, transitions in action_defs.items():
+            for (dr, dc), prob in transitions:
                 v_row, v_col = u_row + dr, u_col + dc
                 v = str(v_row * y + v_col)
                 if (v_row, v_col) in G:
                     dist = math.hypot(dc, dr) * d
                     robot_edges[(u, act, v)] = (prob, dist)
 
-            # 添加额外扰动边
-            if extra_transition is not None:
-                dr, dc = extra_transition
-                v_row, v_col = u_row + dr, u_col + dc
-                v = str(v_row * y + v_col)
-                if (v_row, v_col) in G:
-                    dist = math.hypot(dc, dr) * d
-                    # 注意：如果该边已经存在，会被覆盖，建议后续 normalize 再统一归一
-                    robot_edges[(u, act, v)] = (extra_prob, dist)
 
-    # 起点状态
-    if start_position is not None:
+    # 计算起点 ID
+    if start_position != None:
         start_ids = f"{start_position[0] * y + start_position[1]}"
     else:
         start_ids = None
@@ -238,10 +189,7 @@ def build_mdp_with_grid(x, y, start_position=None, d=1):
     if start_position in U0_dict.keys():
         U0 = U0_dict[start_position]
     else:
-        U0 = ['r']
-
-    # To normalize
-    robot_edges = normalize_robot_edges(robot_edges)
+        U0 = ['r']  # 不可观察动作
 
     return robot_nodes_w_aps, robot_edges, U0, grid_nodes, start_ids, initial_label
 
