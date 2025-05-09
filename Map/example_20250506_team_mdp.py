@@ -60,9 +60,9 @@ inaccessible_grids_in_map = [
 # 起点列表
 start_positions = [(0, 0), (3, 0), (3, 4)]
 U0_dict = {
-    (0, 0) : 'R',
-    (3, 0) : 'R',
-    (3, 4) : 'L'
+    (0, 0) : 'r',
+    (3, 0) : 'r',
+    (3, 4) : 'l'
 }
 
 observation_dict = []
@@ -201,13 +201,13 @@ def build_mdp_with_grid(x, y, start_position=None, d=1):
             extra_transition = None
             extra_prob = 0.1  # 额外边的概率
 
-            if   u_row <= int(x / 2) and u_col <= int(x / 2) and act == 'r':
+            if   u_row < int(x / 2) and u_col < int(x / 2) and act == 'r':
                 extra_transition = (1, 1)   # 右下
-            elif u_row <= int(x / 2) and u_col >= int(x / 2) and act == 'l':
+            elif u_row < int(x / 2) and u_col > int(x / 2) and act == 'l':
                 extra_transition = (1, -1)  # 左下
-            elif u_row >= int(x / 2) and u_col <= int(x / 2) and act == 'r':
+            elif u_row > int(x / 2) and u_col < int(x / 2) and act == 'r':
                 extra_transition = (-1, 1)  # 右上
-            elif u_row >= int(x / 2) and u_col >= int(x / 2) and act == 'l':
+            elif u_row > int(x / 2) and u_col > int(x / 2) and act == 'l':
                 extra_transition = (-1, -1) # 左上
 
             # 添加基础边
@@ -409,8 +409,8 @@ def construct_team_mdp(is_visualize=False):
 
     observation_dict = build_observation_dict_all_states(x_len=5, y_len=5)
 
-    robot_nodes_w_aps_1, robot_edges_1, U_1, grid_nodes_1, start_ids_1, initial_label_1 = build_mdp_with_grid(5, 5, start_position=start_positions[0])
-    robot_nodes_w_aps_2, robot_edges_2, U_2, grid_nodes_2, start_ids_2, initial_label_2 = build_mdp_with_grid(5, 5, start_position=start_positions[1])
+    robot_nodes_w_aps_1, robot_edges_1, U_1, grid_nodes_1, start_ids_1, initial_label_1 = build_mdp_with_grid(5, 5, start_position=start_positions[1])
+    robot_nodes_w_aps_2, robot_edges_2, U_2, grid_nodes_2, start_ids_2, initial_label_2 = build_mdp_with_grid(5, 5, start_position=start_positions[2])
 
     #
     # 这里有一些斜角边因为共用动作冲突会只被保留一条
