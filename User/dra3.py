@@ -160,6 +160,18 @@ class product_mdp3(Product_Dra):
             print("Check your MDP and Task formulation")
             print("Or try the relaxed plan")
 
+    def composition(self, mdp_node, mdp_label, dra_node):
+        prod_node = (mdp_node, mdp_label, dra_node)
+        if not self.has_node(prod_node):
+            Us = self.graph['mdp'].nodes[mdp_node]['act'].copy()
+            self.add_node(prod_node, mdp=mdp_node,
+                          label=mdp_label, dra=dra_node, act=Us)
+            if ((mdp_node == self.graph['mdp'].graph['init_state']) and
+                (mdp_label == self.graph['mdp'].graph['init_label'] or mdp_label in self.graph['mdp'].graph['init_label']) and      # CRITICAL
+                    (dra_node in self.graph['dra'].graph['initial'])):
+                self.graph['initial'].add(prod_node)
+        return prod_node
+
     def construct_opaque_subgraph_2_amec(self, product_mdp_gamma:Product_Dra, sync_amec_3, sync_amec_graph, mec_pi_3, mec_gamma_3, ap_pi, ap_gamma, observation_func, ctrl_obs_dict):
         #
         # 目标是生成从初始状态到达sync_amec的通路
@@ -170,6 +182,9 @@ class product_mdp3(Product_Dra):
         # then element 2 will only be states that satisfies ap gamma, and element 3 will be the rest of observed state
         # otherwise, element 2 will be full set of observed states, and element 3 wil be empty
         initial_sync_state = []
+        #
+        if ap_gamma == 'recharge':
+            debug_var = 2001
         #
         for state_pi in self.graph['initial']:
             observed_state_list = []
@@ -574,6 +589,14 @@ class product_mdp3(Product_Dra):
         stack_t = list(set(stack_t))
         visited = set()
         sync_mec_t = MultiDiGraph()
+        #
+        # Added
+        for node_t in stack_t:
+            sync_mec_t.add_node(node_t)
+
+
+        if ap_gamma == 'recharge':
+            debug_var = 2001
 
         while stack_t:
             current_state = stack_t.pop()
@@ -611,10 +634,19 @@ class product_mdp3(Product_Dra):
                     except (StopIteration, KeyError):
                         continue  # 如果没有动作则跳过
 
+                    if ap_gamma == 'recharge':
+                        debug_var = 2002
+
                     # 2. 检查状态是否在AMEC中
                     if (next_state_pi not in mec_state_set_pi or
                             next_state_gamma not in mec_state_set_gamma):
                         continue
+
+                    if ap_gamma == 'recharge':
+                        debug_var = 2003
+                        if '12' in next_state_pi:
+                            if '2' in next_state_gamma:
+                                debug_var = 2003.1                  # for breakpoints
 
                     # 3. 检查观测同步
                     if observation_func(next_state_pi[0]) != observation_func(next_state_gamma[0]):
@@ -648,6 +680,9 @@ class product_mdp3(Product_Dra):
         print_c(
             f"[synthesize_w_opacity] DFS completed, states: {len(sync_mec_t.nodes)}, edges: {len(sync_mec_t.edges)}",
             color=33)
+
+        if ap_gamma == 'recharge':
+            debug_var = 2004
 
         if sync_mec_t.edges:
             # 检查强连通分量并保留最大的SCC

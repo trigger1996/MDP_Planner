@@ -1077,7 +1077,7 @@ def synthesize_full_plan_w_opacity3(mdp, task, optimizing_ap, ap_list, risk_pr, 
                 task_gamma = task + ' & GF ' + ap_4_opacity
                 ltl_converted_gamma = ltl_convert(task_gamma)
                 dra = Dra(ltl_converted_gamma)
-                prod_dra_gamma = Product_Dra(mdp, dra)
+                prod_dra_gamma = product_mdp3(mdp, dra)
                 prod_dra_gamma.compute_S_f()  # for AMECs
 
                 #
@@ -1100,7 +1100,13 @@ def synthesize_full_plan_w_opacity3(mdp, task, optimizing_ap, ap_list, risk_pr, 
                                                                                     prod_dra_pi.sync_amec_set[prod_dra_pi.current_sync_amec_index],
                                                                                     MEC_pi, MEC_gamma,
                                                                                     optimizing_ap, ap_4_opacity, observation_func, ctrl_obs_dict)
+                        if len(initial_subgraph.nodes()) == 0:
+                            print_c("[prefix synthesis] failed to construct initial subgraph， AP: %s" % (ap_4_opacity,),
+                                    color='yellow')
+                            continue
 
+                        # TODO
+                        # 这个东西干吗的
                         observer_mec_3 = project_sync_mec_3_2_observer_mec_3(initial_subgraph, sync_mec_t)
 
                         plan_prefix, prefix_cost, prefix_risk, y_in_sf_sync, Sr, Sd = syn_plan_prefix_in_sync_amec(

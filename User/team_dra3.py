@@ -283,6 +283,10 @@ class product_team_mdp3(product_mdp3):
         # stack_t = list(set(stack_t))
         visited = set()
         sync_mec_t = MultiDiGraph()
+        #
+        # Added
+        for node_t in stack_t:
+            sync_mec_t.add_node(node_t)
 
         while stack_t:
             current_state = stack_t.pop()
