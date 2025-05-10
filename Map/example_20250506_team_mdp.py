@@ -424,10 +424,10 @@ def construct_team_mdp(is_visualize=False):
 
     # TODO
     # 1 影响系统安全性的remove, 除去开始点外处于同一点的状态
-    team_mdp.remove_unsafe_nodes()
+    # team_mdp.remove_unsafe_nodes()                        # Added
     #
     # 2 根据地图推导出来的特殊状态
-    remove_specific_states_4_team_mdp(team_mdp)
+    # remove_specific_states_4_team_mdp(team_mdp)           # Added
     #
     # 去掉点以后剩下的出边得unify
     team_mdp.normalize_transition_probabilities()
