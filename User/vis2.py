@@ -33,7 +33,7 @@ def print_c(
         color: Union[int, str] = "green",
         style: Union[str, List[str]] = None,
         bg_color: Union[int, str] = None,
-        log_file: str = None,
+        log_file: str = LOG_FILE,
         **kwargs
 ):
     """

@@ -4,6 +4,9 @@ import User.utils
 import time
 import matplotlib
 import matplotlib.pyplot as plt
+
+from Map.simple_example_20250401 import robot_nodes_w_aps
+
 matplotlib.use("TkAgg")
 
 from functools import cmp_to_key
@@ -84,7 +87,7 @@ def print_best_all_plan(best_all_plan):
     for state_t in state_in_suffix:
         print_c("%s, %s: %s" % (str(state_t), str(best_all_plan[1][0][state_t][0]), str(best_all_plan[1][0][state_t][1]), ), color=45)
 
-def execute_example_4_product_mdp3(N, total_T, prod_dra, best_all_plan, state_seq, label_seq, opt_prop, ap_gamma, attr='opaque'):
+def execute_example_4_product_mdp3(N, total_T, team_mdp, prod_dra, best_all_plan, state_seq, label_seq, opt_prop, ap_gamma, attr='opaque'):
     XX  = []
     LL  = []
     UU  = []
@@ -112,7 +115,7 @@ def execute_example_4_product_mdp3(N, total_T, prod_dra, best_all_plan, state_se
                 X_U.append(UU[i][j])
         #
         Y = run_2_observations_seqs(X_U)
-        X_INV, AP_INV = observation_seq_2_inference(Y)
+        X_INV, AP_INV = observation_seq_2_inference(Y, robot_nodes_w_ap_t=team_mdp)
         #
         cost_cycle = calculate_cost_from_runs(prod_dra, XX[i], LL[i], UU[i], opt_prop)
         cost_list_pi = cost_list_pi + cost_cycle
@@ -242,7 +245,7 @@ if __name__ == "__main__":
         # try:
         # TODO
         if True:
-            cost_list_pi, cost_list_gamma = execute_example_4_product_mdp3(N, total_T, prod_dra_pi, best_all_plan,
+            cost_list_pi, cost_list_gamma = execute_example_4_product_mdp3(N, total_T, team_mdp, prod_dra_pi, best_all_plan,
                                                                            state_seq, label_seq, opt_prop, ap_gamma,
                                                                            attr='Opaque')
 

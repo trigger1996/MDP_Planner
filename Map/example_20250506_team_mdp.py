@@ -30,7 +30,7 @@ upload    investigate       空                空         upload
 upload    inaccessible      inaccessible      空         upload
 (4, 0)                                                        (4, 4)
 
-入侵者只知道行信息，动作和观测无关
+入侵者只知道列信息，动作和观测无关
 三个出发点，左上(0, 0)，左下（4, 0），右下(4, 4)
 
 '''
@@ -38,7 +38,9 @@ upload    inaccessible      inaccessible      空         upload
 # ----------------------------
 # 保留原始观测和控制逻辑
 
-
+x_len = 5
+y_len = 5
+robot_nodes_w_aps    = {}
 special_grids_in_map = {
     (0, 0): {frozenset({'upload'}): 1.0},
     (0, 1): {frozenset({'recharge'}): 1.0},
@@ -65,17 +67,21 @@ U0_dict = {
     (3, 4) : 'l'
 }
 
-observation_dict = []
+observation_dict = {}
 
 def build_observation_dict_all_states(x_len, y_len):
     """
-    构建观测字典：将每个观测值（行号）映射到该行上的所有状态 ID。
+    构建观测字典：将每个观测值（列号）映射到该列上的所有状态 ID。
     """
     obs_dict = defaultdict(list)
     for row in range(x_len):
         for col in range(y_len):
             state_id = str(row * y_len + col)
             obs_val = observation_func(state_id, y_len)
+
+            if (row, col) in inaccessible_grids_in_map:
+                continue
+
             obs_dict[obs_val].append(state_id)
     return dict(obs_dict)
 
@@ -84,7 +90,7 @@ def obs_to_hashable(obs):
 
 
 def observation_func(state_id, y_len):
-    """入侵者的观测函数：只观测行信息"""
+    """入侵者的观测函数：只观测列信息"""
     row = int(state_id) % y_len // 2               # TODO
     return str(row)
 
@@ -168,7 +174,6 @@ def build_mdp_with_grid(x, y, start_position=None, d=1):
     G = generate_grid_graph(x, y, d, True)
     G.remove_nodes_from(inaccessible_grids_in_map)
 
-    robot_nodes_w_aps = defaultdict(dict)
     grid_nodes = {}
     robot_edges = {}
 
@@ -255,8 +260,17 @@ def run_2_observations_seqs(x_u_seqs):
         #y_seq.append(u_t)           # u is for display and NOT in actual sequences
     return y_seq
 
-def observation_seq_2_inference(y_seq):
+def observation_seq_2_inference(y_seq, robot_nodes_w_ap_t = None):
     global robot_nodes_w_aps
+    global observation_dict, x_len, y_len
+    if robot_nodes_w_ap_t != None and not robot_nodes_w_aps.__len__():
+        robot_nodes_w_aps = robot_nodes_w_ap_t
+    if robot_nodes_w_ap_t == None:
+        robot_nodes_w_ap_t, *_ = build_mdp_with_grid(x_len, y_len, start_position=(0, 0))
+
+    if not observation_dict.__len__():
+        observation_dict = build_observation_dict_all_states(x_len, y_len)          # Added for single agent system
+
     x_inv_set_seq = []
     ap_inv_seq = []
     for i in range(0, y_seq.__len__()):
@@ -267,7 +281,11 @@ def observation_seq_2_inference(y_seq):
             ap_i = []
             for state_t in team_state_t:
                 # ap_inv_t = ap_inv_t + list(robot_nodes_w_aps[state_t].keys())
-                ap_list_t = list(robot_nodes_w_aps[state_t].keys())
+                try:
+                    ap_list_t = list(robot_nodes_w_aps[state_t].keys())
+                except KeyError as e:
+                    print_c(str(e), color='yellow', style='bold')
+
                 for ap_t in ap_list_t:
                     ap_i = ap_i + list(ap_t)
             ap_i = tuple(set(ap_i))
@@ -406,11 +424,12 @@ def construct_team_mdp(is_visualize=False):
     """构建完整团队MDP"""
     # Added
     global start_positions, observation_dict
+    global x_len, y_len
 
     observation_dict = build_observation_dict_all_states(x_len=5, y_len=5)
 
-    robot_nodes_w_aps_1, robot_edges_1, U_1, grid_nodes_1, start_ids_1, initial_label_1 = build_mdp_with_grid(5, 5, start_position=start_positions[1])
-    robot_nodes_w_aps_2, robot_edges_2, U_2, grid_nodes_2, start_ids_2, initial_label_2 = build_mdp_with_grid(5, 5, start_position=start_positions[2])
+    robot_nodes_w_aps_1, robot_edges_1, U_1, grid_nodes_1, start_ids_1, initial_label_1 = build_mdp_with_grid(x_len, y_len, start_position=start_positions[1])
+    robot_nodes_w_aps_2, robot_edges_2, U_2, grid_nodes_2, start_ids_2, initial_label_2 = build_mdp_with_grid(x_len, y_len, start_position=start_positions[2])
 
     #
     # 这里有一些斜角边因为共用动作冲突会只被保留一条

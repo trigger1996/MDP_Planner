@@ -226,7 +226,7 @@ if __name__ == "__main__":
     # print_best_all_plan(best_all_plan)
     #
     # # for visualization
-    total_T = 50
+    total_T = 150
     state_seq = [initial_node, ]
     label_seq = [initial_label, ]
     N = 5
