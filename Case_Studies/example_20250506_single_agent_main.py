@@ -9,7 +9,7 @@ matplotlib.use("TkAgg")
 from functools import cmp_to_key
 from subprocess import check_output
 from Map.example_20250506_grid_single_agent import construct_single_agent_mdp, observation_func_0506, control_observable_dict
-from Map.example_20250506_team_mdp import run_2_observations_seqs, observation_seq_2_inference, calculate_cost_from_runs, plot_cost_hist    # TODO
+from Map.example_20250506_team_mdp import run_2_observations_seqs, observation_seq_2_inference, calculate_cost_from_runs    # TODO
 from MDP_TG.mdp import Motion_MDP
 from MDP_TG.dra import Dra
 from MDP_TG.lp  import syn_full_plan_rex
@@ -17,6 +17,7 @@ from User.dra3 import product_mdp3
 from User.lp3  import synthesize_full_plan_w_opacity3
 from User.grid_utils import sort_team_numerical_states
 from User.vis2 import print_c, print_colored_sequence, print_highlighted_sequences
+from User.plot import plot_cost_hist, plot_cost_hists_multi
 
 # for debugging
 # import random
@@ -193,7 +194,7 @@ def execute_example_in_origin_product_mdp(N, total_T, prod_dra, best_all_plan, s
     return cost_list_pi, cost_list_gamma
 
 if __name__ == "__main__":
-    mdp, initial_node, initial_label, node_positions = construct_single_agent_mdp()
+    mdp, initial_node, initial_label, node_positions = construct_single_agent_mdp(is_visualize=True)
     ap_list                                          = obtain_all_aps_from_team_mdp(mdp)
 
     # ltl_formula = 'GF (gather -> drop)'
@@ -246,6 +247,8 @@ if __name__ == "__main__":
                            title="Cost for Satisfaction of AP \pi in Opaque runs")
             plot_cost_hist(cost_list_gamma, bins=25, color='r', is_average=is_average,
                            title="Cost for Satisfaction of AP \gamma in Opaque runs")
+            plot_cost_hists_multi(cost_list_pi, cost_list_gamma, bins=25, colors=['r', 'magenta'], labels=['\pi', '\gamma'], is_average=is_average,
+                                  title="Cost for Satisfaction of APs in Opaque runs")
 
             # TODO
             # except:
@@ -271,6 +274,8 @@ if __name__ == "__main__":
                    title="Cost for Satisfaction of AP \pi in NON-Opaque runs")
     plot_cost_hist(cost_list_gamma_p, bins=25, color='cyan', is_average=is_average,
                    title="Cost for Satisfaction of AP \gamma in NON-Opaque runs")
+    plot_cost_hists_multi(cost_list_pi_p, cost_list_gamma_p, bins=25, colors=['b', 'cyan'], labels=['\pi', '\gamma'], is_average=is_average,
+                          title="Cost for Satisfaction of APs in Opaque runs")
 
     # TODO 对比实验
     # 我的问题是, 入侵者到底拿到的是什么数据

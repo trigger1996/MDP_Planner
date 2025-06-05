@@ -3,7 +3,7 @@
 import time
 from subprocess import check_output
 from Map.example_20250425 import (build_model, observation_func_0425, control_observable_dict, run_2_observations_seqs,
-                                  observation_seq_2_inference, calculate_cost_from_runs, plot_cost_hist)
+                                  observation_seq_2_inference, calculate_cost_from_runs)
 from MDP_TG.mdp import Motion_MDP
 from MDP_TG.dra import Dra, Product_Dra
 from User.dra3  import product_mdp3
@@ -16,6 +16,7 @@ from User.lp3 import synthesize_full_plan_w_opacity3
 
 from functools import cmp_to_key
 from User.grid_utils import sort_numerical_states
+from User.plot import plot_cost_hist, plot_cost_hists_multi
 
 import matplotlib
 import matplotlib.pyplot as plt
@@ -259,6 +260,8 @@ def room_example_main_w_opacity():
 
             plot_cost_hist(cost_list_pi, bins=25, is_average=is_average, title="Cost for Satisfaction of AP \pi in Opaque runs")
             plot_cost_hist(cost_list_gamma, bins=25, color='r', is_average=is_average, title="Cost for Satisfaction of AP \gamma in Opaque runs")
+            #
+            plot_cost_hists_multi([cost_list_pi, cost_list_gamma], bins=25, colors=['r', 'magenta'], is_average=is_average, title="Cost for Satisfaction for NON-Opaque runs")
 
         # TODO
         #except:
@@ -280,6 +283,8 @@ def room_example_main_w_opacity():
     #is_average = True
     plot_cost_hist(cost_list_pi_p, bins=25, color='b', is_average=is_average, title= "Cost for Satisfaction of AP \pi in NON-Opaque runs")
     plot_cost_hist(cost_list_gamma_p, bins=25, color='cyan', is_average=is_average, title= "Cost for Satisfaction of AP \gamma in NON-Opaque runs")
+    #
+    plot_cost_hists_multi([cost_list_pi_p, cost_list_gamma_p], bins=25, colors=['b', 'cyan'], is_average=is_average, title= "Cost for Satisfaction for NON-Opaque runs")
 
     # TODO 对比实验
     # 我的问题是, 入侵者到底拿到的是什么数据
