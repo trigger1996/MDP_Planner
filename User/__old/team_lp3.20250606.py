@@ -9,9 +9,12 @@ from collections import defaultdict
 from ortools.linear_solver import pywraplp
 
 from MDP_TG.dra import Dra, Product_Dra
-from User.dra3  import product_mdp3, project_sync_states_2_observer_states, project_observer_state_2_sync_state, project_sync_mec_3_2_observer_mec_3
+from User.dra3  import project_sync_states_2_observer_states, project_observer_state_2_sync_state, project_sync_mec_3_2_observer_mec_3
+from User.lp3 import find_states_satisfying_opt_prop, find_scc_with_known_states, print_analyze_constraints_matrix_form
+from User.team_dra3 import product_team_mdp3
 from User.utils import ltl_convert
 from User.vis2  import print_c
+
 
 from rich.progress import Progress, track
 
@@ -21,46 +24,6 @@ sys.setrecursionlimit(stack_size_t)         # change stack size to guarantee run
 print_c("stack size changed %d ..." % (stack_size_t, ))
 #
 sys.setrecursionlimit(100000)               # 设置递归深度为100000
-
-def find_states_satisfying_opt_prop(opt_prop, Se):
-    S_pi = []
-    for s in Se:
-        if opt_prop in s[1]:
-            S_pi.append(s)
-    return S_pi
-
-
-def find_scc_with_known_states(
-        G: nx.MultiDiGraph,
-        known_states: set,
-        match_type: str = "partial"
-) -> list:
-    """
-    查找图中包含指定状态集合的强连通分量。
-
-    参数:
-        G: 有向图 (nx.MultiDiGraph)
-        known_states: 已知状态集合（节点名集合）
-        match_type: 匹配类型，可选：
-            - "partial": 至少包含 known_states 中一个节点（默认）
-            - "full": 包含所有 known_states 中的节点
-            - "exact": 分量和 known_states 完全一致
-
-    返回:
-        list[set]：满足条件的强连通分量列表，每个分量是一个节点集合
-    """
-    sccs = list(nx.strongly_connected_components(G))
-
-    if match_type == "partial":
-        matched = [scc for scc in sccs if known_states & scc]
-    elif match_type == "full":
-        matched = [scc for scc in sccs if known_states <= scc]
-    elif match_type == "exact":
-        matched = [scc for scc in sccs if known_states == scc]
-    else:
-        raise ValueError(f"未知匹配类型: {match_type}，应为 'partial'、'full' 或 'exact'")
-
-    return matched
 
 def get_action_from_successor_edge(g, s):
     act_list = []
@@ -77,62 +40,6 @@ def exp_weight(u, v, d):
             val_t = d[key_t]['prop'][u_t][0] * d[key_t]['prop'][u_t][1]
             val_list.append(val_t)
     return min(val_list)
-
-def print_analyze_constraints_matrix_form(solver):
-    variables = solver.variables()
-    constraints = solver.constraints()
-
-    # 创建 A 和 b 的零矩阵
-    num_vars = len(variables)
-    num_constraints = len(constraints)
-
-    A = np.zeros((num_constraints, num_vars))
-    b = np.zeros(num_constraints)
-
-    print("\n=== 变量顺序（列）：===")
-    for idx, var in enumerate(variables):
-        print(f"  x[{idx}] = {var.name()}")
-
-    print("\n=== 等式约束形式 Ax = b：===")
-
-    for i, ct in enumerate(constraints):
-        coeffs = []
-        for j, var in enumerate(variables):
-            coeff = ct.GetCoefficient(var)
-            coeffs.append(coeff)
-            A[i, j] = coeff  # 填充 A 矩阵
-        rhs = ct.ub()  # 等式约束中 ub = lb = b
-        b[i] = rhs  # 填充 b 向量
-        equation = " + ".join(
-            [f"{coeff:.3g}*x[{j}]" for j, coeff in enumerate(coeffs) if coeff != 0]
-        )
-        print(f"  Row {i}: {equation} = {rhs}")
-
-    # 输出 A 和 b 的矩阵
-    print("\n=== 约束矩阵 A 和常数向量 b：===")
-    print("A = ")
-
-    # 遍历 A 矩阵的每一行，并逐行输出，每个数字对齐
-    for row in A:
-        print("[" + ", ".join([f"{val:>8.3f}" for val in row]) + "]")
-
-    print("\nb = ")
-    # 输出 b 向量，每个数字对齐
-    print("[" + ", ".join([f"{val:>8.3f}" for val in b]) + "]")
-
-    # 计算矩阵 A 的秩
-    rank_A = np.linalg.matrix_rank(A)
-    print_c(f"\n矩阵 A 的秩为：{rank_A}", color='bg_cyan', style='bold')
-
-    try:
-        # 计算 A 的伪逆
-        A_pseudo_inv = np.linalg.pinv(A)
-
-        # 使用伪逆计算 x
-        x = np.dot(A_pseudo_inv, b)
-        print(x)
-    except:
-        print_c("Balance constraints may not be feasible ...", color='red')
 
 def syn_plan_prefix_in_sync_amec(prod_mdp, initial_subgraph, initial_sync_state, sync_amec_graph, sync_amec_3, observer_mec_3, gamma):
     # ----Synthesize optimal plan prefix to reach accepting MEC or SCC----
@@ -900,19 +807,6 @@ def synthesize_suffix_cycle_in_sync_amec3(prod_mdp, sync_amec_graph, sync_mec_3,
             Y_val = dict()
             for s_u in Y.keys():
                 Y_val[s_u] = Y[s_u].solution_value()
-
-            # Reverse the graph for backward path planning
-            reversed_graph = opaque_full_graph.reverse(copy=True)
-
-            # Precompute shortest paths from all sf nodes (sync_amec)
-            # Returns: target -> path list (i.e. from sf to s)
-            #
-            # 这个用于后面的策略分配计算, 使用最小期望作为代价函数以尽可能替代round robin
-            # 用于搜索s -> sf的路径
-            # 用反向图的目的是: 这里因为sf少, s多, 所以从sf遍历s比s遍历sf快非常多
-            sf_p = set(sf).intersection(set(reversed_graph.nodes()))
-            backward_lengths, backward_paths = nx.multi_source_dijkstra(reversed_graph, sources=sf_p, weight=exp_weight)
-
             #
             # compute optimal plan suffix given the LP solution
             plan_suffix = dict()
@@ -949,67 +843,34 @@ def synthesize_suffix_cycle_in_sync_amec3(prod_mdp, sync_amec_graph, sync_mec_3,
                         if type(Y[(s, u)]) != float:
                             P.append(Y[(s, u)].solution_value() / norm)
                 else:
-                    # For COMPARASION
-                    # if s not in sf:
-                    #     # 当s不在sync_amec内时, 引导s到达sync_amec
-                    #     path_t = nx.single_source_shortest_path(opaque_full_graph, s)
-                    #     reachable_set_t = set(path_t).intersection(set(sf))
-                    #     dist_val_dict = {}
-                    #     for tgt_t in reachable_set_t:
-                    #         dist_val_dict[tgt_t] = nx.shortest_path_length(opaque_full_graph, s, tgt_t,
-                    #                                                              weight=exp_weight)
-                    #     #
-                    #     min_dist_target = min(dist_val_dict, key=dist_val_dict.get)
-                    #     #
-                    #     if len(path_t[min_dist_target]) > 1:
-                    #         successor_state = path_t[min_dist_target][1]
-                    #         for key_t in opaque_full_graph[s][successor_state]:
-                    #             edge_data = opaque_full_graph[s][successor_state][key_t]
-                    #             for u_p in edge_data['prop'].keys():
-                    #                 U.append(u_p)
-                    #                 P.append(1.0 / len(edge_data['prop'].keys()))
-                    #             for u_p in U_total:
-                    #                 if u_p in edge_data['prop'].keys():
-                    #                     continue
-                    #                 U.append(u_p)
-                    #                 P.append(0.)
                     if s not in sf:
-                        sf_2_s = []
-
-                        for sf_t, path in backward_paths.items():
-                            if path[-1] == s and len(path) > 1:
-                                sf_2_s.append(sf_t)
-
-                        if len(sf_2_s) > 0:
-                            # 选一个 sf 到 s 的最短路径（也可以进一步选最小代价）
-                            # best_sf = sf_2_s[0]  # 你可以根据 backward_lengths 决定挑哪个 sf_t 更优
-                            best_sf = min(sf_2_s, key=lambda sf_t: backward_lengths.get(sf_t, float('inf')))
-                            path = backward_paths[best_sf]
-                            successor_state = path[-2]
-
-                            try:
-                                for key_t in opaque_full_graph[s][successor_state]:
-                                    edge_data = opaque_full_graph[s][successor_state][key_t]
-
-                                    prop_keys = list(edge_data['prop'].keys())
-                                    for u_p in prop_keys:
-                                        U.append(u_p)
-                                        P.append(1.0 / len(prop_keys))
-
-                                    for u_p in U_total:
-                                        if u_p not in prop_keys:
-                                            U.append(u_p)
-                                            P.append(0.)
-                            except KeyError:
-                                # fallback: successor_state 不存在边（罕见）
-                                for u in U_total:
-                                    U.append(u)
-                                    P.append(1.0 / len(U_total)) if len(U_total) > 0 else None
+                        # 当s不在sync_amec内时, 引导s到达sync_amec
+                        path_t = nx.single_source_shortest_path(opaque_full_graph, s)
+                        reachable_set_t = set(path_t).intersection(set(sf))
+                        dist_val_dict = {}
+                        for tgt_t in reachable_set_t:
+                            dist_val_dict[tgt_t] = nx.shortest_path_length(opaque_full_graph, s, tgt_t,
+                                                                                 weight=exp_weight)
+                        #
+                        min_dist_target = min(dist_val_dict, key=dist_val_dict.get)
+                        #
+                        if len(path_t[min_dist_target]) > 1:
+                            successor_state = path_t[min_dist_target][1]
+                            for key_t in opaque_full_graph[s][successor_state]:
+                                edge_data = opaque_full_graph[s][successor_state][key_t]
+                                for u_p in edge_data['prop'].keys():
+                                    U.append(u_p)
+                                    P.append(1.0 / len(edge_data['prop'].keys()))
+                                for u_p in U_total:
+                                    if u_p in edge_data['prop'].keys():
+                                        continue
+                                    U.append(u_p)
+                                    P.append(0.)
                         else:
-                            # fallback: round robin
+                            # the old round_robin
+                            U.append(U_total)
                             for u in U_total:
-                                U.append(u)
-                                P.append(1.0 / len(U_total) if len(U_total) > 0 else 0.)
+                                P.append(1.0 / len(U_total))        # modified the number of P
                     else:
                         # 当在amec内
                         U_total_p_good = list()
@@ -1097,7 +958,7 @@ def synthesize_full_plan_w_opacity3(mdp, task, optimizing_ap, ap_list, risk_pr, 
     print('DRA done, time: %s' % str(t3 - t2))
 
     # ----
-    prod_dra_pi = product_mdp3(mdp, dra)
+    prod_dra_pi = product_team_mdp3(mdp, dra)
     prod_dra_pi.compute_S_f()  # for AMECs, finished in building
     # prod_dra.dotify()
     t41 = time.time()
@@ -1123,12 +984,15 @@ def synthesize_full_plan_w_opacity3(mdp, task, optimizing_ap, ap_list, risk_pr, 
                 task_gamma = task + ' & GF ' + ap_4_opacity
                 ltl_converted_gamma = ltl_convert(task_gamma)
                 dra = Dra(ltl_converted_gamma)
-                prod_dra_gamma = product_mdp3(mdp, dra)
+                prod_dra_gamma = product_team_mdp3(mdp, dra)
                 prod_dra_gamma.compute_S_f()  # for AMECs
 
                 #
                 for p, S_fi_gamma in enumerate(prod_dra_gamma.Sf):
                     for q, MEC_gamma in enumerate(S_fi_gamma):
+                        if ap_4_opacity == 'recharge':
+                            debug_var = 1
+
                         prod_dra_pi.re_synthesize_sync_amec(optimizing_ap, ap_4_opacity, MEC_pi, MEC_gamma,
                                                              prod_dra_gamma, observation_func=observation_func,
                                                              ctrl_obs_dict=ctrl_obs_dict)
@@ -1146,13 +1010,7 @@ def synthesize_full_plan_w_opacity3(mdp, task, optimizing_ap, ap_list, risk_pr, 
                                                                                     prod_dra_pi.sync_amec_set[prod_dra_pi.current_sync_amec_index],
                                                                                     MEC_pi, MEC_gamma,
                                                                                     optimizing_ap, ap_4_opacity, observation_func, ctrl_obs_dict)
-                        if len(initial_subgraph.nodes()) == 0:
-                            print_c("[prefix synthesis] failed to construct initial subgraph， AP: %s" % (ap_4_opacity,),
-                                    color='yellow')
-                            continue
 
-                        # TODO
-                        # 这个东西干吗的
                         observer_mec_3 = project_sync_mec_3_2_observer_mec_3(initial_subgraph, sync_mec_t)
 
                         plan_prefix, prefix_cost, prefix_risk, y_in_sf_sync, Sr, Sd = syn_plan_prefix_in_sync_amec(
@@ -1160,17 +1018,13 @@ def synthesize_full_plan_w_opacity3(mdp, task, optimizing_ap, ap_list, risk_pr, 
                                                                                     prod_dra_pi.sync_amec_set[prod_dra_pi.current_sync_amec_index],
                                                                                     sync_mec_t, observer_mec_3, risk_pr)
 
-                        if plan_prefix == None:
-                            print_c("[prefix synthesis] failed to synthesize prefix plan， AP: %s" % (ap_4_opacity,),
-                                    color='yellow')
-                            continue
-
                         opaque_full_graph = prod_dra_pi.construct_fullgraph_4_amec(initial_subgraph,
                                                                                     prod_dra_gamma,
                                                                                     prod_dra_pi.sync_amec_set[prod_dra_pi.current_sync_amec_index],
                                                                                     MEC_pi, MEC_gamma,
                                                                                     optimizing_ap, ap_4_opacity,
                                                                                     observation_func, ctrl_obs_dict)
+
                         # TODO
                         # To get rid of mec_observer
                         plan_suffix, suffix_cost, suffix_risk, suffix_opacity_threshold = synthesize_suffix_cycle_in_sync_amec3(
@@ -1194,10 +1048,8 @@ def synthesize_full_plan_w_opacity3(mdp, task, optimizing_ap, ap_list, risk_pr, 
         print("=========================")
         print(" || Final compilation  ||")
         print("=========================")
-        # best_all_plan = min(plan, key=lambda p: p[0][1] + alpha * p[1][1])
         valid_plans = [p for p in plan if p[0][1] is not None and p[1][1] is not None]
         best_all_plan = min(valid_plans, key=lambda p: p[0][1] + alpha * p[1][1])
-        #
         prod_dra_pi.update_best_all_plan(best_all_plan, is_print_policy=True)
         # print('Best plan prefix obtained for %s states in Sr' %
         #       str(len(best_all_plan[0][0])))
@@ -1217,4 +1069,3 @@ def synthesize_full_plan_w_opacity3(mdp, task, optimizing_ap, ap_list, risk_pr, 
     else:
         print("No valid plan found")
         return None
-
