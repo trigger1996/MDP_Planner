@@ -1114,13 +1114,17 @@ def synthesize_full_plan_w_opacity3(mdp, task, optimizing_ap, ap_list, risk_pr, 
                                                                                     prod_dra_pi.sync_amec_set[prod_dra_pi.current_sync_amec_index],
                                                                                     sync_mec_t, observer_mec_3, risk_pr)
 
+                        if plan_prefix == None:
+                            print_c("[prefix synthesis] failed to synthesize prefix plan， AP: %s" % (ap_4_opacity,),
+                                    color='yellow')
+                            continue
+
                         opaque_full_graph = prod_dra_pi.construct_fullgraph_4_amec(initial_subgraph,
                                                                                     prod_dra_gamma,
                                                                                     prod_dra_pi.sync_amec_set[prod_dra_pi.current_sync_amec_index],
                                                                                     MEC_pi, MEC_gamma,
                                                                                     optimizing_ap, ap_4_opacity,
                                                                                     observation_func, ctrl_obs_dict)
-
                         # TODO
                         # To get rid of mec_observer
                         plan_suffix, suffix_cost, suffix_risk, suffix_opacity_threshold = synthesize_suffix_cycle_in_sync_amec3(

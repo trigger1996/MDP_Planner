@@ -206,13 +206,13 @@ def build_mdp_with_grid(x, y, start_position=None, d=1):
             extra_transition = None
             extra_prob = 0.1  # 额外边的概率
 
-            if   u_row < int(x / 2) and u_col < int(x / 2) and act == 'r':
-                extra_transition = (1, 1)   # 右下
-            elif u_row < int(x / 2) and u_col > int(x / 2) and act == 'l':
+            if   u_row < math.floor(x / 2) and u_col < math.floor(x / 2) and act == 'r':
+                extra_transition = (1, 1)   # 右下, element 1: 上下, element 2: 左右
+            elif u_row < math.floor(x / 2) and u_col > math.ceil(x / 2)  and act == 'l':
                 extra_transition = (1, -1)  # 左下
-            elif u_row > int(x / 2) and u_col < int(x / 2) and act == 'r':
+            elif u_row > math.ceil(x / 2)  and u_col < math.floor(x / 2) and act == 'r':
                 extra_transition = (-1, 1)  # 右上
-            elif u_row > int(x / 2) and u_col > int(x / 2) and act == 'l':
+            elif u_row > math.ceil (x / 2) and u_col > math.ceil(x / 2)  and act == 'l':
                 extra_transition = (-1, -1) # 左上
 
             # 添加基础边
