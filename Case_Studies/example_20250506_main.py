@@ -11,7 +11,7 @@ matplotlib.use("TkAgg")
 
 from functools import cmp_to_key
 from subprocess import check_output
-from Map.example_20250506_team_mdp import construct_team_mdp, team_observation_func, run_2_observations_seqs, observation_seq_2_inference, calculate_cost_from_runs, plot_cost_hist
+from Map.example_20250506_team_mdp import construct_team_mdp, team_observation_func, run_2_observations_seqs, observation_seq_2_inference, calculate_cost_from_runs
 from Map.example_20250426_team_mdp import control_observable_dict
 from MDP_TG.mdp import Motion_MDP
 from MDP_TG.dra import Dra
@@ -20,6 +20,7 @@ from User.team_dra3 import product_team_mdp3
 from User.team_lp3  import synthesize_full_plan_w_opacity3
 from User.grid_utils import sort_team_numerical_states
 from User.vis2 import print_c, print_colored_sequence, print_highlighted_sequences
+from User.plot import plot_cost_hist, plot_cost_hists_multi
 
 # for debugging
 # import random
@@ -253,6 +254,10 @@ if __name__ == "__main__":
                            title="Cost for Satisfaction of AP \pi in Opaque runs")
             plot_cost_hist(cost_list_gamma, bins=25, color='r', is_average=is_average,
                            title="Cost for Satisfaction of AP \gamma in Opaque runs")
+            plot_cost_hists_multi(cost_list_pi, cost_list_gamma, bins=25, colors=['r', 'magenta'],
+                                  labels=['\pi', '\gamma'],
+                                  is_average=is_average,
+                                  title="Cost for Satisfaction of APs in Opaque runs")
 
             # TODO
             # except:
@@ -278,6 +283,9 @@ if __name__ == "__main__":
                    title="Cost for Satisfaction of AP \pi in NON-Opaque runs")
     plot_cost_hist(cost_list_gamma_p, bins=25, color='cyan', is_average=is_average,
                    title="Cost for Satisfaction of AP \gamma in NON-Opaque runs")
+    plot_cost_hists_multi(cost_list_pi_p, cost_list_gamma_p, bins=25, colors=['g', 'cyan'], labels=['\pi', '\gamma'],
+                          is_average=is_average,
+                          title="Cost for Satisfaction of APs in NON-Opaque runs")
 
     # TODO 对比实验
     # 我的问题是, 入侵者到底拿到的是什么数据

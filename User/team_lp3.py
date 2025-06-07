@@ -301,6 +301,9 @@ def syn_plan_prefix_in_sync_amec(prod_mdp, initial_subgraph, initial_sync_state,
             #
             # 这后面是输出了应该
             #
+            reversed_graph = initial_subgraph.reverse(copy=True)
+            sf_p = set(sf).intersection(set(reversed_graph.nodes()))
+            backward_lengths, backward_paths = nx.multi_source_dijkstra(reversed_graph, sources=sf_p, weight=exp_weight)
             # plan
             plan_prefix = dict()
             for s in Sr:
@@ -329,27 +332,59 @@ def syn_plan_prefix_in_sync_amec(prod_mdp, initial_subgraph, initial_sync_state,
                         if type(Y[(s, u)]) != float:
                             P.append(Y[(s, u)].solution_value()/norm)
                 else:
-                    path_t = nx.single_source_shortest_path(initial_subgraph, s)
-                    reachable_set_t = set(path_t).intersection(set(sf))
-                    dist_val_dict = {}
-                    for tgt_t in reachable_set_t:
-                        dist_val_dict[tgt_t] = nx.shortest_path_length(initial_subgraph, s, tgt_t,
-                                                                             weight=exp_weight)
-                    #
-                    min_dist_target = min(dist_val_dict, key=dist_val_dict.get)
-                    #
-                    if len(path_t[min_dist_target]) > 1:
-                        successor_state = path_t[min_dist_target][1]
-                        for key_t in initial_subgraph[s][successor_state]:
-                            edge_data = initial_subgraph[s][successor_state][key_t]
-                            for u_p in edge_data['prop'].keys():
-                                U.append(u_p)
-                                P.append(1.0 / len(edge_data['prop'].keys()))
-                            for u_p in U_total:
-                                if u_p in edge_data['prop'].keys():
-                                    continue
-                                U.append(u_p)
-                                P.append(0.)
+                    # path_t = nx.single_source_shortest_path(initial_subgraph, s)
+                    # reachable_set_t = set(path_t).intersection(set(sf))
+                    # dist_val_dict = {}
+                    # for tgt_t in reachable_set_t:
+                    #     dist_val_dict[tgt_t] = nx.shortest_path_length(initial_subgraph, s, tgt_t,
+                    #                                                          weight=exp_weight)
+                    # #
+                    # min_dist_target = min(dist_val_dict, key=dist_val_dict.get)
+                    # #
+                    # if len(path_t[min_dist_target]) > 1:
+                    #     successor_state = path_t[min_dist_target][1]
+                    #     for key_t in initial_subgraph[s][successor_state]:
+                    #         edge_data = initial_subgraph[s][successor_state][key_t]
+                    #         for u_p in edge_data['prop'].keys():
+                    #             U.append(u_p)
+                    #             P.append(1.0 / len(edge_data['prop'].keys()))
+                    #         for u_p in U_total:
+                    #             if u_p in edge_data['prop'].keys():
+                    #                 continue
+                    #             U.append(u_p)
+                    #             P.append(0.)
+                    sf_2_s = []
+
+                    for sf_t, path in backward_paths.items():
+                        if path[-1] == s and len(path) > 1:
+                            sf_2_s.append(sf_t)
+
+                    if len(sf_2_s) > 0:
+                        # 选一个 sf 到 s 的最短路径（也可以进一步选最小代价）
+                        # best_sf = sf_2_s[0]  # 你可以根据 backward_lengths 决定挑哪个 sf_t 更优
+                        best_sf = min(sf_2_s, key=lambda sf_t: backward_lengths.get(sf_t, float('inf')))
+                        path = backward_paths[best_sf]
+                        successor_state = path[-2]
+
+                        try:
+                            for key_t in initial_subgraph[s][successor_state]:
+                                edge_data = initial_subgraph[s][successor_state][key_t]
+
+                                prop_keys = list(edge_data['prop'].keys())
+                                for u_p in prop_keys:
+                                    U.append(u_p)
+                                    P.append(1.0 / len(prop_keys))
+
+                                for u_p in U_total:
+                                    if u_p not in prop_keys:
+                                        U.append(u_p)
+                                        P.append(0.)
+                        except KeyError:
+                            # fallback: successor_state 不存在边（罕见）
+                            for u in U_total:
+                                U.append(u)
+                                P.append(1.0 / len(U_total)) if len(U_total) > 0 else None
+
                     else:
                         # the old round_robin
                         U.append(U_total)
