@@ -33,7 +33,7 @@ def convert_edges_to_yaml_format(robot_edges):
     return edges
 
 
-def generate_full_yaml(x_len=5, y_len=5, output_path='./yaml/map_with_edges.yaml'):
+def generate_full_yaml(x_len=5, y_len=5, output_path='./yaml/20250506_map_w_edges.yaml'):
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     robot_nodes_w_aps, robot_edges, _, grid_nodes, _, _ = build_mdp_with_grid(5, 5, start_position=(0, 0))
 
