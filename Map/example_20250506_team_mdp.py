@@ -94,7 +94,7 @@ def obs_to_hashable(obs):
 
 def observation_func(state_id, y_len):
     """入侵者的观测函数：只观测列信息"""
-    row = int(state_id) % y_len // 2               # TODO
+    row = int(state_id) % y_len / 2               # TODO
     return str(row)
 
 def team_observation_func(x, u=None):

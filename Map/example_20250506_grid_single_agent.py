@@ -23,7 +23,9 @@ from Map.example_20250506_team_mdp import build_observation_dict_all_states, bui
 control_observable_dict = None
 
 def observation_func_0506(state_id, y_len=5):
-    return observation_func(state_id, y_len)
+    #return observation_func(state_id, y_len)
+    row = int(state_id) % y_len // 2               # TODO Modifiied, different observation function
+    return str(row)
 
 def construct_single_agent_mdp(is_visualize=False):
     """构建完整团队MDP"""
