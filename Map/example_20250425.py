@@ -1,3 +1,8 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+import os, sys
+sys.path.append(os.path.join(os.path.dirname(__file__), '../../MDP_Planner'))
+
 from MDP_TG.mdp import Motion_MDP
 import matplotlib.pyplot as plt
 import networkx as nx

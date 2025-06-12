@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+import os, sys
+sys.path.append(os.path.join(os.path.dirname(__file__), '../../MDP_Planner'))
+
 from collections import Counter
 from MDP_TG.mdp import Motion_MDP
 from Map.simple_example_20250401 import initial_label

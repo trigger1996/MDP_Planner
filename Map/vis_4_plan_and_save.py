@@ -1,5 +1,9 @@
-import math
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+import os, sys
+sys.path.append(os.path.join(os.path.dirname(__file__), '../../MDP_Planner'))
 
+import math
 import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
