@@ -11,8 +11,8 @@ matplotlib.use("TkAgg")
 
 from functools import cmp_to_key
 from subprocess import check_output
-from Map.example_20250506_team_mdp import construct_team_mdp, team_observation_func, run_2_observations_seqs, observation_seq_2_inference, calculate_cost_from_runs
-from Map.example_20250426_team_mdp import control_observable_dict
+from Map.example_20250615_team_mdp import construct_team_mdp, team_observation_func, run_2_observations_seqs, observation_seq_2_inference, calculate_cost_from_runs
+from Map.example_20250615_team_mdp import control_observable_dict
 from MDP_TG.mdp import Motion_MDP
 from MDP_TG.dra import Dra
 from MDP_TG.lp  import syn_full_plan_rex
@@ -234,10 +234,10 @@ if __name__ == "__main__":
     # print_best_all_plan(best_all_plan)
     #
     # # for visualization
-    total_T = 500
+    total_T = 50
     state_seq = [initial_node, ]
     label_seq = [initial_label, ]
-    N = 50
+    N = 5
     is_average = True
     #
     # #
