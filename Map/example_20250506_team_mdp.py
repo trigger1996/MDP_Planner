@@ -42,7 +42,6 @@ upload    inaccessible      inaccessible      空         upload
 
 x_len = 5
 y_len = 5
-robot_nodes_w_aps    = {}
 special_grids_in_map = {
     (0, 0): {frozenset({'upload'}): 1.0},
     (0, 1): {frozenset({'recharge'}): 1.0},
@@ -184,6 +183,7 @@ def build_mdp_with_grid(x, y, start_position=None, d=1):
     grid_nodes = {}
     robot_edges = {}
 
+    robot_nodes_w_aps = dict()
     for (row, col) in sorted(G.nodes()):
         node_id = f"{row * y + col}"
         pos = (col * d, (x - 1 - row) * d)

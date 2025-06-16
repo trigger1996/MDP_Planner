@@ -199,6 +199,7 @@ def build_mdp_with_grid(x, y, start_position=None, d=1):
     grid_nodes = {}
     robot_edges = {}
 
+    robot_nodes_w_aps = dict()
     for (row, col) in sorted(G.nodes()):
         node_id = f"{row * y + col}"
         pos = (col * d, (x - 1 - row) * d)
@@ -464,7 +465,7 @@ def construct_team_mdp(is_visualize=False):
     start_ids   = None
     for i in range(1, robot_count + 1):
         robot_nodes, robot_edges, U, grid_nodes, start_ids, initial_label = build_mdp_with_grid(
-            x_len, y_len, start_position=start_positions[i]
+            x_len, y_len, start_position=start_positions[i - 1]
         )
         mdp = Motion_MDP(robot_nodes, robot_edges, U, start_ids, initial_label)
         mdp_list.append(mdp)
