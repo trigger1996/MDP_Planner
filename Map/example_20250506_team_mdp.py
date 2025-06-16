@@ -42,6 +42,7 @@ upload    inaccessible      inaccessible      空         upload
 
 x_len = 5
 y_len = 5
+robot_count = 2
 special_grids_in_map = {
     (0, 0): {frozenset({'upload'}): 1.0},
     (0, 1): {frozenset({'recharge'}): 1.0},
@@ -61,13 +62,15 @@ inaccessible_grids_in_map = [
 ]
 
 # 起点列表
-start_positions = [(0, 0), (3, 0), (3, 4)]
+start_positions = [(0, 0), (3, 0), (3, 4), (2, 4)]
 U0_dict = {
     (0, 0) : 'r',
     (3, 0) : 'r',
-    (3, 4) : 'l'
+    (3, 4) : 'l',
+    (2, 4) : 'l'
 }
 
+robot_nodes_w_aps = {}
 observation_dict = {}
 control_observable_dict = None
 
@@ -176,6 +179,7 @@ def normalize_robot_edges(robot_edges):
 
 def build_mdp_with_grid(x, y, start_position=None, d=1):
     global special_grids_in_map, inaccessible_grids_in_map, U0_dict
+    global robot_nodes_w_aps
 
     G = generate_grid_graph(x, y, d, True)
     G.remove_nodes_from(inaccessible_grids_in_map)
@@ -183,7 +187,6 @@ def build_mdp_with_grid(x, y, start_position=None, d=1):
     grid_nodes = {}
     robot_edges = {}
 
-    robot_nodes_w_aps = dict()
     for (row, col) in sorted(G.nodes()):
         node_id = f"{row * y + col}"
         pos = (col * d, (x - 1 - row) * d)
@@ -435,21 +438,35 @@ def construct_team_mdp(is_visualize=False):
     # Added
     global start_positions, observation_dict
     global x_len, y_len
+    global robot_count
 
     observation_dict = build_observation_dict_all_states(x_len=x_len, y_len=y_len)
 
-    robot_nodes_w_aps_1, robot_edges_1, U_1, grid_nodes_1, start_ids_1, initial_label_1 = build_mdp_with_grid(x_len, y_len, start_position=start_positions[1])
-    robot_nodes_w_aps_2, robot_edges_2, U_2, grid_nodes_2, start_ids_2, initial_label_2 = build_mdp_with_grid(x_len, y_len, start_position=start_positions[2])
+    mdp_list = []
+    initial_node_list = []
+    initial_label_list = []
 
-    #
-    # 这里有一些斜角边因为共用动作冲突会只被保留一条
-    mdp_r1 = Motion_MDP(robot_nodes_w_aps_1, robot_edges_1, U_1, start_ids_1, initial_label_1)
-    mdp_r2 = Motion_MDP(robot_nodes_w_aps_2, robot_edges_2, U_2, start_ids_2, initial_label_2)
-    #
-    initial_node_list  = [start_ids_1, start_ids_2]
-    initial_label_list = [initial_label_1, initial_label_2]
+    robot_nodes = None
+    robot_edges = None
+    grid_nodes  = None
+    start_ids   = None
+    for i in range(1, robot_count + 1):
+        robot_nodes, robot_edges, U, grid_nodes, start_ids, initial_label = build_mdp_with_grid(
+            x_len, y_len, start_position=start_positions[i - 1]
+        )
+        mdp = Motion_MDP(robot_nodes, robot_edges, U, start_ids, initial_label)
+        mdp_list.append(mdp)
+        initial_node_list.append(start_ids)
+        initial_label_list.append(initial_label)
+
+        if is_visualize:
+            if i == robot_count:
+                visualize_grids_in_networkx(robot_nodes, robot_edges, grid_nodes, start_ids)
+
+    # 构建 team MDP
     team_mdp = MDP3()
-    team_mdp.contruct_from_individual_mdps([mdp_r1, mdp_r2], initial_node_list, initial_label_list)
+    team_mdp.contruct_from_individual_mdps(mdp_list, initial_node_list, initial_label_list)
+    team_mdp.normalize_transition_probabilities()
 
     # TODO
     # 1 影响系统安全性的remove, 除去开始点外处于同一点的状态
@@ -463,10 +480,10 @@ def construct_team_mdp(is_visualize=False):
 
     # Added
     initial_node = tuple(initial_node_list)
-    initial_label = tuple([initial_label_1, initial_label_2])
+    initial_label = tuple(initial_label_list)
 
     if is_visualize:
-        visualize_grids_in_networkx(robot_nodes_w_aps_1, robot_edges_1, grid_nodes_1, start_ids_1)
+        visualize_grids_in_networkx(robot_nodes, robot_edges, grid_nodes, start_ids)
 
-    return team_mdp, initial_node, initial_label, grid_nodes_1
+    return team_mdp, initial_node, initial_label, grid_nodes
 
