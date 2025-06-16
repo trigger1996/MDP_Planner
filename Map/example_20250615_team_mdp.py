@@ -40,52 +40,53 @@ upload    inaccessible      inaccessible      空         upload
 # ----------------------------
 # 保留原始观测和控制逻辑
 
-x_len = 12
-y_len = 12
-robot_count = 6
+x_len = 8
+y_len = 8
+robot_count = 3
 
-# 特殊功能点 2x2 区域布局
-def expand_area(center_x, center_y):
-    return [
-        (center_x + dx, center_y + dy)
-        for dx in range(2)
-        for dy in range(2)
-        if 0 <= center_x + dx < x_len and 0 <= center_y + dy < y_len
-    ]
+special_grids_in_map = {
+    # Upload 区域（任务提交点）
+    (0, 0): {frozenset({'upload'}): 1.0},
+    (2, 7): {frozenset({'upload'}): 1.0},
+    (5, 0): {frozenset({'upload'}): 1.0},
+    (7, 7): {frozenset({'upload'}): 1.0},
 
-special_grids_in_map = {}
-# 定义多个功能点中心
-special_points = {
-    (0, 0): 'upload',
-    (0, 3): 'recharge',
-    (4, 4): 'gather',
-    (8, 0): 'investigate',
-    (11, 11): 'upload'
+    # Recharge 区域（充电站）
+    (1, 1): {frozenset({'recharge'}): 1.0},
+    (1, 6): {frozenset({'recharge'}): 1.0},
+    (6, 1): {frozenset({'recharge'}): 1.0},
+    (6, 6): {frozenset({'recharge'}): 1.0},
+
+    # Gather 区域（资源收集点）
+    (0, 3): {frozenset({'gather'}): 1.0},
+    (3, 0): {frozenset({'gather'}): 1.0},
+    (3, 7): {frozenset({'gather'}): 1.0},
+    (7, 4): {frozenset({'gather'}): 1.0},
+
+    # Investigate 区域（调查点）
+    (2, 2): {frozenset({'investigate'}): 1.0},
+    (2, 5): {frozenset({'investigate'}): 1.0},
+    (5, 2): {frozenset({'investigate'}): 1.0},
+    (5, 5): {frozenset({'investigate'}): 1.0},
 }
-# 扩展为 2x2 区域
-for (x, y), label in special_points.items():
-    for pos in expand_area(x, y):
-        special_grids_in_map[pos] = {frozenset({label}): 1.0}
 
-# 设置不可达格子（障碍）
+# 不可达节点（障碍物/墙壁）
 inaccessible_grids_in_map = [
-    (5, 5), (5, 6), (6, 5), (6, 6),   # 中心障碍
-    (11, 0), (10, 0), (0, 11), (0, 10)
+    (0, 4), (1, 4), (4, 0), (4, 1),
+    (4, 6), (4, 7), (7, 1), (7, 2)
 ]
 
-# 起点列表
-start_positions = [(0, 0), (0, 5), (9, 0), (9, 11), (4, 0), (5, 11)]
+# 4个机器人的起点和初始方向
+start_positions = [(0, 0), (0, 7), (7, 0), (7, 7)]
 U0_dict = {
-    (0, 0)  : 'r',
-    (0, 5)  : 'd',
-    (9, 0)  : 'r',
-    (9, 11) : 'l',
-    (4, 0)  : 'r',
-    (5, 11) : 'l'
+    (0, 0): 'r',  # 右
+    (0, 7): 'd',  # 下
+    (7, 0): 'u',  # 上
+    (7, 7): 'l'  # 左
 }
-
 observation_dict = {}
 control_observable_dict = None
+
 
 def build_observation_dict_all_states(x_len, y_len):
     """
@@ -499,4 +500,3 @@ def construct_team_mdp(is_visualize=False):
         visualize_grids_in_networkx(robot_nodes, robot_edges, grid_nodes, start_ids)
 
     return team_mdp, initial_node, initial_label, grid_nodes
-
