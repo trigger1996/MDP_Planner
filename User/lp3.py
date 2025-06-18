@@ -1188,6 +1188,8 @@ def synthesize_full_plan_w_opacity3(mdp, task, optimizing_ap, ap_list, risk_pr, 
 
                         # TODO
                         # 这个东西干吗的
+                        # 答： 最终求解是在建立的观测器内
+                        #     observer_mec_3是原来mec在观测器下的映射, 包括[ MEC状态集合, MEC中对应的Ip(Rabin接收状态), 状态对应的控制集合 ]
                         observer_mec_3 = project_sync_mec_3_2_observer_mec_3(initial_subgraph, sync_mec_t)
 
                         plan_prefix, prefix_cost, prefix_risk, y_in_sf_sync, Sr, Sd = syn_plan_prefix_in_sync_amec(

@@ -15,14 +15,16 @@ def grid_to_world(row, col, resolution=0.4, z=1.2, yaw=0.0):
     return x, y, z, yaw
 
 
-def convert_nodes_to_waypoints(grid_nodes, transition_time=3):
+def convert_nodes_to_waypoints(grid_nodes, resolution, transition_time=0):
     waypoints = OrderedDict()
     for idx, (node_id, attr) in enumerate(grid_nodes.items(), start=1):
         x, y = attr["pos"]
-        z, yaw = 1.2, 0.0
+        z    = 1.2
+        yaw  = 90.0
+        x_w, y_w, z_w, yaw_w = grid_to_world(y, x, resolution, z, yaw)
         waypoint_id = str(idx)
         waypoints[waypoint_id] = {
-            "pos": [x, y, z, yaw],
+            "pos": [x_w, y_w, z_w, yaw_w],
             "transition": transition_time
         }
     return waypoints
@@ -39,9 +41,14 @@ def generate_full_yaml(x_len=5, y_len=5, output_path='./yaml/20250506_map_w_edge
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     robot_nodes_w_aps, robot_edges, _, grid_nodes, _, _ = build_mdp_with_grid(5, 5, start_position=(0, 0))
 
+    #
+    # Added
+    # Critical
+    resolution = 4
+
     yaml_data = OrderedDict()
     yaml_data['name'] = 'test2025'
-    yaml_data['waypoint'] = convert_nodes_to_waypoints(grid_nodes, transition_time=3)
+    yaml_data['waypoint'] = convert_nodes_to_waypoints(grid_nodes, resolution, transition_time=0)
     yaml_data['edges'] = convert_edges_to_yaml_format(robot_edges)
 
     with open(output_path, 'w') as f:

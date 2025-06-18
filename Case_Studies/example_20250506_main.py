@@ -214,10 +214,10 @@ if __name__ == "__main__":
     t42 = time.time()
 
     # ------
-    gamma = 0.5
+    gamma = 0.05
     d = 100
     risk_threshold = 0.05  # default:  0.1
-    differential_exp_cost = 15  # 1.590106
+    differential_exp_cost = 0.25  # 0.75
     is_run_opaque_synthesis = True
     if is_run_opaque_synthesis:
         best_all_plan, prod_dra_pi = synthesize_full_plan_w_opacity3(team_mdp, ltl_formula, opt_prop, ap_list,
