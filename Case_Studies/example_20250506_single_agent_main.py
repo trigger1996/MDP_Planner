@@ -68,22 +68,22 @@ def print_best_all_plan(best_all_plan):
     # Added
     # for printing policies
     if best_all_plan.__len__() >= 4 and best_all_plan[3].__len__():
-        print_c("optimal AP: %s" % (best_all_plan[3][0], ), color=47)
+        print_c("optimal AP: %s" % (best_all_plan[3][0], ),  color='white')
     print_c("state action: probabilities")
-    print_c("Prefix", color=42)
+    print_c("Prefix", color='green', style='bold')
     #
     state_in_prefix = [ state_t for state_t in best_all_plan[0][0] ]
     state_in_prefix.sort(key=cmp_to_key(sort_team_numerical_states))
     #for state_t in best_all_plan[0][0]:
     for state_t in state_in_prefix:
-        print_c("%s, %s: %s" % (str(state_t), str(best_all_plan[0][0][state_t][0]), str(best_all_plan[0][0][state_t][1]), ), color=42)
+        print_c("%s, %s: %s" % (str(state_t), str(best_all_plan[0][0][state_t][0]), str(best_all_plan[0][0][state_t][1]), ), color='green')
     #
-    print_c("Suffix", color=45)
+    print_c("Suffix", color='magenta', style='bold')
     state_in_suffix = [ state_t for state_t in best_all_plan[1][0] ]
     state_in_suffix.sort(key=cmp_to_key(sort_team_numerical_states))
     #for state_t in best_all_plan[1][0]:
     for state_t in state_in_suffix:
-        print_c("%s, %s: %s" % (str(state_t), str(best_all_plan[1][0][state_t][0]), str(best_all_plan[1][0][state_t][1]), ), color=45)
+        print_c("%s, %s: %s" % (str(state_t), str(best_all_plan[1][0][state_t][0]), str(best_all_plan[1][0][state_t][1]), ), color='magenta')
 
 def execute_example_4_product_mdp3(N, total_T, prod_dra, best_all_plan, state_seq, label_seq, opt_prop, ap_gamma, attr='opaque'):
     XX  = []
@@ -207,10 +207,10 @@ if __name__ == "__main__":
     t42 = time.time()
 
     # ------
-    gamma = 0.5
+    gamma = 0.075
     d = 100
-    risk_threshold = 0.05  # default:  0.1
-    differential_exp_cost = 15  # 1.590106
+    risk_threshold = 0.15  # default:  0.1
+    differential_exp_cost = 0.5  # 1.590106
     is_run_opaque_synthesis = True
     if is_run_opaque_synthesis:
         best_all_plan, prod_dra_pi = synthesize_full_plan_w_opacity3(mdp, ltl_formula, opt_prop, ap_list,
@@ -243,10 +243,10 @@ if __name__ == "__main__":
                                                                            state_seq, label_seq, opt_prop, ap_gamma,
                                                                            attr='Opaque')
 
-            plot_cost_hist(cost_list_pi, bins=25, is_average=is_average,
-                           title="Cost for Satisfaction of AP \pi in Opaque runs")
-            plot_cost_hist(cost_list_gamma, bins=25, color='r', is_average=is_average,
-                           title="Cost for Satisfaction of AP \gamma in Opaque runs")
+            # plot_cost_hist(cost_list_pi, bins=25, is_average=is_average,
+            #                title="Cost for Satisfaction of AP \pi in Opaque runs")
+            # plot_cost_hist(cost_list_gamma, bins=25, color='r', is_average=is_average,
+            #                title="Cost for Satisfaction of AP \gamma in Opaque runs")
             plot_cost_hists_multi(cost_list_pi, cost_list_gamma, bins=25, colors=['r', 'magenta'], labels=['\pi', '\gamma'], is_average=is_average,
                                   title="Cost for Satisfaction of APs in Opaque runs")
 
@@ -255,7 +255,7 @@ if __name__ == "__main__":
             print_c("No best plan synthesized, try re-run this program", color=33)
 
     #
-    print_c("\n\nFOR COMPARASION, NON_OPAQUE SYNTHESIS: \n", color=46)
+    print_c("\n\nFOR COMPARASION, NON_OPAQUE SYNTHESIS: \n", color='red', bg_color='cyan')
     print_best_all_plan(best_all_plan_p)
 
     #
@@ -270,12 +270,12 @@ if __name__ == "__main__":
     # except:
     #     print_c("No best plan synthesized, try re-run this program", color=33)
     # is_average = True
-    plot_cost_hist(cost_list_pi_p, bins=25, color='b', is_average=is_average,
-                   title="Cost for Satisfaction of AP \pi in NON-Opaque runs")
-    plot_cost_hist(cost_list_gamma_p, bins=25, color='cyan', is_average=is_average,
-                   title="Cost for Satisfaction of AP \gamma in NON-Opaque runs")
+    # plot_cost_hist(cost_list_pi_p, bins=25, color='b', is_average=is_average,
+    #                title="Cost for Satisfaction of AP \pi in NON-Opaque runs")
+    # plot_cost_hist(cost_list_gamma_p, bins=25, color='cyan', is_average=is_average,
+    #                title="Cost for Satisfaction of AP \gamma in NON-Opaque runs")
     plot_cost_hists_multi(cost_list_pi_p, cost_list_gamma_p, bins=25, colors=['b', 'cyan'], labels=['\pi', '\gamma'], is_average=is_average,
-                          title="Cost for Satisfaction of APs in Opaque runs")
+                          title="Cost for Satisfaction of APs in NON-Opaque runs")
 
     # TODO 对比实验
     # 我的问题是, 入侵者到底拿到的是什么数据

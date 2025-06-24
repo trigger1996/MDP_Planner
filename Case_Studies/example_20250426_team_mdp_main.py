@@ -242,10 +242,10 @@ if __name__ == "__main__":
                                                                            state_seq, label_seq, opt_prop, ap_gamma,
                                                                            attr='Opaque')
 
-            plot_cost_hist(cost_list_pi, bins=25, is_average=is_average,
-                           title="Cost for Satisfaction of AP \pi in Opaque runs")
-            plot_cost_hist(cost_list_gamma, bins=25, color='r', is_average=is_average,
-                           title="Cost for Satisfaction of AP \gamma in Opaque runs")
+            # plot_cost_hist(cost_list_pi, bins=25, is_average=is_average,
+            #                title="Cost for Satisfaction of AP \pi in Opaque runs")
+            # plot_cost_hist(cost_list_gamma, bins=25, color='r', is_average=is_average,
+            #                title="Cost for Satisfaction of AP \gamma in Opaque runs")
             plot_cost_hists_multi(cost_list_pi, cost_list_gamma, bins=25, colors=['r', 'magenta'], labels=['\pi', '\gamma'], is_average=is_average,
                            title="Cost for Satisfaction of APs in Opaque runs")
 
@@ -269,10 +269,10 @@ if __name__ == "__main__":
     # except:
     #     print_c("No best plan synthesized, try re-run this program", color=33)
     # is_average = True
-    plot_cost_hist(cost_list_pi_p, bins=25, color='b', is_average=is_average,
-                   title="Cost for Satisfaction of AP \pi in NON-Opaque runs")
-    plot_cost_hist(cost_list_gamma_p, bins=25, color='cyan', is_average=is_average,
-                   title="Cost for Satisfaction of AP \gamma in NON-Opaque runs")
+    # plot_cost_hist(cost_list_pi_p, bins=25, color='b', is_average=is_average,
+    #                title="Cost for Satisfaction of AP \pi in NON-Opaque runs")
+    # plot_cost_hist(cost_list_gamma_p, bins=25, color='cyan', is_average=is_average,
+    #                title="Cost for Satisfaction of AP \gamma in NON-Opaque runs")
     plot_cost_hists_multi(cost_list_pi_p, cost_list_gamma_p, bins=25, colors=['b', 'cyan'], labels=['\pi', '\gamma'], is_average=is_average,
                           title="Cost for Satisfaction of APs in NON-Opaque runs")
 

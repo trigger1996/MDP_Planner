@@ -327,10 +327,10 @@ def syn_plan_prefix_in_sync_amec(prod_mdp, initial_subgraph, initial_sync_state,
                     # 其实可以理解为, 初始状态in_flow就是1? node_y_in = 0
                     if s == init_node:
                         prefix_solver.Add(node_y_out == 1.0 + node_y_in)
-                        print_c("[prefix solver] Initial flow constraint added: " + str(node_y_in) + " + 1.0 == " + str(node_y_out), color='blue')
+                        print_c("[prefix solver] Initial flow constraint added: " + str(node_y_in) + " + 1.0 == " + str(node_y_out), color='blue', is_logging=False)
                     else:
                         prefix_solver.Add(node_y_out == node_y_in)
-                        print_c("[prefix solver] Middle flow constraint added: " + str(node_y_in) + " == " + str(node_y_out), color='green')
+                        print_c("[prefix solver] Middle flow constraint added: " + str(node_y_in) + " == " + str(node_y_out), color='green', is_logging=False)
                 elif s in Sr_bad:
                     act_pi_list = []
                     for sync_u, sync_v, attr in initial_subgraph.edges(s, data=True):
@@ -360,10 +360,10 @@ def syn_plan_prefix_in_sync_amec(prod_mdp, initial_subgraph, initial_sync_state,
                     if (type(node_y_in) != float and type(node_y_out) != float) or (type(node_y_in) != float and node_y_out != 0.0) or (type(node_y_out) != float and node_y_in != 0.0):
                         if s == init_node:
                             prefix_solver.Add(node_y_in == 1.0 + node_y_out)
-                            print_c("[prefix solver] Recovery constraint added: " + str(node_y_in) + " ==  1.0 + " + str(node_y_out), color='magenta')
+                            print_c("[prefix solver] Recovery constraint added: " + str(node_y_in) + " ==  1.0 + " + str(node_y_out), color='magenta', is_logging=False)
                         else:
                             prefix_solver.Add(node_y_in == node_y_out)
-                            print_c("[prefix solver] Recovery constraint added: " + str(node_y_in) + " == " + str(node_y_out), color='magenta')
+                            print_c("[prefix solver] Recovery constraint added: " + str(node_y_in) + " == " + str(node_y_out), color='magenta', is_logging=False)
             print_c('Recovery constraint added')
 
             print('Initial node flow balanced')
@@ -740,31 +740,31 @@ def synthesize_suffix_cycle_in_sync_amec3(prod_mdp, sync_amec_graph, sync_mec_3,
                             suffix_solver.Add(constr3 == constr4 + y_in_sf_sync[s])  # 可能到的了的要计算?
                             #
                             # Added, for debugging
-                            print_c("constraint: %d" % (k,), color=32)               # green / yellow
-                            print_c(constr3, color=32)
-                            print_c(constr4, color=33)
-                            print_c(y_in_sf_sync[s], color=33)
-                            print_c(" ")
+                            print_c("constraint: %d" % (k,), color=32, is_logging=False)               # green / yellow
+                            print_c(constr3, color=32, is_logging=False)
+                            print_c(constr4, color=33, is_logging=False)
+                            print_c(y_in_sf_sync[s], color=33, is_logging=False)
+                            print_c(" ", is_logging=False)
                         #
                         # 如果 s in Sf, 且上一时刻状态在Sn，且在MEC内
                         if (s in list(y_in_sf_sync.keys())) and (s in ip):
                             suffix_solver.Add(constr3 == y_in_sf_sync[s])  # 在里面的永远到的了?
                             #
                             # Added, for debugging
-                            print_c("constraint: %d" % (k,), color=34)
-                            print_c(constr3, color=34)
-                            print_c(y_in_sf_sync[s], color=35)
-                            print_c(" ")
+                            print_c("constraint: %d" % (k,), color=34, is_logging=False)
+                            print_c(constr3, color=34, is_logging=False)
+                            print_c(y_in_sf_sync[s], color=35, is_logging=False)
+                            print_c(" ", is_logging=False)
 
                         # 如果s不在Sf内且不在MEC内
                         if (s not in list(y_in_sf_sync.keys())) and (s not in ip):
                             suffix_solver.Add(constr3 == constr4)  # 到不了的永远到不了?
                             #
                             # Added, for debugging
-                            print_c("constraint: %d" % (k,), color=36)
-                            print_c(constr3, color=36)
-                            print_c(constr4, color=37)
-                            print_c(" ")                                            # cyan / gray
+                            print_c("constraint: %d" % (k,), color=36, is_logging=False)
+                            print_c(constr3, color=36, is_logging=False)
+                            print_c(constr4, color=37, is_logging=False)
+                            print_c(" ", is_logging=False)                                            # cyan / gray
                     elif s in Sn_bad:
                         # TODO
                         # to recover
@@ -812,31 +812,31 @@ def synthesize_suffix_cycle_in_sync_amec3(prod_mdp, sync_amec_graph, sync_mec_3,
                                 suffix_solver.Add(constr3 == constr4 + y_in_sf_sync[s])  # 可能到的了的要计算?
                                 #
                                 # Added, for debugging
-                                print_c("[sf bad] constraint: %d" % (k,), color=32)  # green / yellow
-                                print_c(constr3, color=32)
-                                print_c(constr4, color=33)
-                                print_c(y_in_sf_sync[s], color=33)
-                                print_c(" ")
+                                print_c("[sf bad] constraint: %d" % (k,), color=32, is_logging=False)  # green / yellow
+                                print_c(constr3, color=32, is_logging=False)
+                                print_c(constr4, color=33, is_logging=False)
+                                print_c(y_in_sf_sync[s], color=33, is_logging=False)
+                                print_c(" ", is_logging=False)
                             #
                             # 如果 s in Sf, 且上一时刻状态在Sn，且在MEC内
                             if (s in list(y_in_sf_sync.keys())) and (s in ip):
                                 suffix_solver.Add(constr3 == y_in_sf_sync[s])  # 在里面的永远到的了?
                                 #
                                 # Added, for debugging
-                                print_c("[sf bad] constraint: %d" % (k,), color=34)
-                                print_c(constr3, color=34)
-                                print_c(y_in_sf_sync[s], color=35)
-                                print_c(" ")
+                                print_c("[sf bad] constraint: %d" % (k,), color=34, is_logging=False)
+                                print_c(constr3, color=34, is_logging=False)
+                                print_c(y_in_sf_sync[s], color=35, is_logging=False)
+                                print_c(" ", is_logging=False)
 
                             # 如果s不在Sf内且不在MEC内
                             if (s not in list(y_in_sf_sync.keys())) and (s not in ip):
                                 suffix_solver.Add(constr3 == constr4)  # 到不了的永远到不了?
                                 #
                                 # Added, for debugging
-                                print_c("[sf bad] constraint: %d" % (k,), color=36)
-                                print_c(constr3, color=36)
-                                print_c(constr4, color=37)
-                                print_c(" ")
+                                print_c("[sf bad] constraint: %d" % (k,), color=36, is_logging=False)
+                                print_c(constr3, color=36, is_logging=False)
+                                print_c(constr4, color=37, is_logging=False)
+                                print_c(" ", is_logging=False)
                                 #
             print('Balance condition added')
             print('Initial sf condition added')
@@ -876,10 +876,10 @@ def synthesize_suffix_cycle_in_sync_amec3(prod_mdp, sync_amec_graph, sync_mec_3,
                                         y_to_ip += Y[(s, u)]*pe
             # suffix_solver.Add(y_to_ip+y_out >= delta)
             suffix_solver.Add(y_to_ip >= (1.0-gamma-delta)*(y_to_ip+y_out))
-            print_c("y_2_ip:", color=35)
-            print_c(y_to_ip, color=35)
-            print_c("y_out:", color=36)
-            print_c(y_out, color=36)
+            print_c("y_2_ip:", color=35, is_logging=False)
+            print_c(y_to_ip, color=35, is_logging=False)
+            print_c("y_out:", color=36, is_logging=False)
+            print_c(y_out, color=36, is_logging=False)
             print('Risk constraint added')
             #
             # TODO opacity constraint

@@ -27,12 +27,15 @@ logging.basicConfig(
     ]
 )
 
+# 初始化 colorama
+init(autoreset=True)
 
 def print_c(
         data,
         color: Union[int, str] = "green",
         style: Union[str, List[str]] = None,
         bg_color: Union[int, str] = None,
+        is_logging=True,
         log_file: str = LOG_FILE,
         **kwargs
 ):
@@ -100,7 +103,7 @@ def print_c(
     print(f"{ansi_start}{data}{ansi_end}")
 
     # 记录日志
-    if log_file:
+    if is_logging and log_file:
         logging.basicConfig(
             filename=log_file,
             level=logging.INFO,
@@ -110,9 +113,22 @@ def print_c(
         data_str = str(data)
         logging.info(data_str)
 
+def remove_ansi_escape(s):
+    return re.sub(r'\033\[[0-9;]*m', '', s)
 
-# 初始化 colorama
-init(autoreset=True)
+def print_w_log(data, is_logging=True, log_file: str = LOG_FILE, end='\n', **kwargs):
+    print(data, end=end)
+
+    # 写日志
+    if is_logging and log_file:
+        logging.basicConfig(
+            filename=log_file,
+            level=logging.INFO,
+            format='%(asctime)s - %(message)s',
+            **kwargs
+        )
+        clean_data = remove_ansi_escape(str(data))
+        logging.info(clean_data)
 
 def get_color_for_item(item):
     """为不同的字母/单词分配不同的颜色"""
@@ -141,25 +157,47 @@ def get_color_for_item(item):
     
     return color_map.get(item, Fore.RESET)
 
+# def print_colored_sequence(sequence):
+#     """彩色打印序列中的 Counter 项"""
+#     for item in sequence:
+#         if isinstance(item, list):
+#             print_w_log('[', end='')
+#             for subitem in item:
+#                 color = get_color_for_item(subitem)
+#                 print_w_log(f"{color}'{subitem}'{Fore.RESET}, ", end='')
+#             print_w_log(']', end=' ')
+#         elif isinstance(item, Counter):
+#             print_w_log('{', end='')
+#             for k, v in item.items():
+#                 color = get_color_for_item(k)
+#                 print_w_log(f"{color}'{k}':{v}{Fore.RESET}, ", end='')
+#             print_w_log('}', end=' ')
+#         else:
+#             color = get_color_for_item(item)
+#             print_w_log(f"{color}'{item}'{Fore.RESET}", end=' ')
+#     print_w_log("")
 def print_colored_sequence(sequence):
     """彩色打印序列中的 Counter 项"""
+    parts = []
     for item in sequence:
         if isinstance(item, list):
-            print('[', end='')
+            subparts = []
             for subitem in item:
                 color = get_color_for_item(subitem)
-                print(f"{color}'{subitem}'{Fore.RESET}, ", end='')
-            print(']', end=' ')
+                subparts.append(f"{color}'{subitem}'{Fore.RESET}")
+            parts.append('[' + ', '.join(subparts) + ']')
         elif isinstance(item, Counter):
-            print('{', end='')
+            subparts = []
             for k, v in item.items():
                 color = get_color_for_item(k)
-                print(f"{color}'{k}':{v}{Fore.RESET}, ", end='')
-            print('}', end=' ')
+                subparts.append(f"{color}'{k}':{v}{Fore.RESET}")
+            parts.append('{' + ', '.join(subparts) + '}')
         else:
             color = get_color_for_item(item)
-            print(f"{color}'{item}'{Fore.RESET}", end=' ')
-    print()
+            parts.append(f"{color}'{item}'{Fore.RESET}")
+
+    # 拼成一整行再一次打印，保证日志文件中对应一条干净完整的记录
+    print_w_log(' '.join(parts))
 
 def get_display_length(s):
     """计算字符串的显示长度（忽略颜色代码）"""
@@ -195,7 +233,7 @@ def print_highlighted_sequences(X_U, Y, X_INV, AP_INV, marker1='ap_pi', marker2=
                          [(pos, 2) for pos in marker2_positions])
 
     if len(all_markers) < 2:
-        print("Not enough markers found")
+        print_w_log("Not enough markers found")
         return
 
     # 2. 设置颜色方案
@@ -218,9 +256,9 @@ def print_highlighted_sequences(X_U, Y, X_INV, AP_INV, marker1='ap_pi', marker2=
               f"{pad_to_width('Y', col_widths['Y'])}"
               f"{pad_to_width('X_INV', col_widths['X_INV'])}"
               f"{pad_to_width('AP_INV', col_widths['AP_INV'])}")
-    print(attr)
-    print(header)
-    print("-" * sum(col_widths.values()))
+    print_w_log(attr)
+    print_w_log(header)
+    print_w_log("-" * sum(col_widths.values()))
 
     # 5. 打印对齐的内容
     current_marker_idx = 0
@@ -271,10 +309,10 @@ def print_highlighted_sequences(X_U, Y, X_INV, AP_INV, marker1='ap_pi', marker2=
             formatted_cols[name] = pad_to_width(display_str, col_widths[name])
 
         # 打印行
-        print(f"{formatted_cols['index']}"
+        print_w_log(f"{formatted_cols['index']}"
               f"{formatted_cols['X_U']}"
               f"{formatted_cols['Y']}"
               f"{formatted_cols['X_INV']}"
               f"{formatted_cols['AP_INV']}")
 
-    print()
+    print_w_log("")
