@@ -388,7 +388,7 @@ class product_team_mdp3(product_mdp3):
                     if node in sync_mec_t:
                         sync_mec_t.remove_node(node)
                         num_removed += 1
-                        print_c(f"[synthesize_w_opacity] removing node: {node}", color=35)
+                        print_c(f"[synthesize_w_opacity] removing node: {node}", color=35, is_logging=False)
 
                 print_c(f"[synthesize_w_opacity] number of states removed: {num_removed}", color=33)
 

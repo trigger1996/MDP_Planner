@@ -542,7 +542,7 @@ class product_mdp2(Product_Dra):
                     try:
                         sync_mec_t.remove_node(state_t)
                         num_node_removed += 1
-                        print_c("[synthesize_w_opacity] removing node: " + str(state_t), color=35)
+                        print_c("[synthesize_w_opacity] removing node: " + str(state_t), color=35, is_logging=False)
                     except:
                         pass
 
@@ -673,9 +673,9 @@ class product_mdp2(Product_Dra):
                     if node in sync_mec_t:
                         sync_mec_t.remove_node(node)
                         num_removed += 1
-                        print_c(f"[synthesize_w_opacity] removing node: {node}", color=35)
+                        print_c(f"[synthesize_w_opacity] removing node: {node}", color=35, is_logging=False)
 
-                print_c(f"[synthesize_w_opacity] number of states removed: {num_removed}", color=33)
+                print_c(f"[synthesize_w_opacity] number of states removed: {num_removed}", color=33, is_logging=False)
 
             # 保存结果
             self.sync_amec_set.append(sync_mec_t)
@@ -764,7 +764,7 @@ class product_mdp2(Product_Dra):
                     if node in mec_observer_t:
                         mec_observer_t.remove_node(node)
                         num_removed += 1
-                        print_c(f"[synthesize_w_opacity] removing node: {node}", color=36)
+                        print_c(f"[synthesize_w_opacity] removing node: {node}", color=36, is_logging=False)
 
         self.mec_observer_set.append(mec_observer_t)
         self.mec_observer_index += 1
@@ -1012,7 +1012,7 @@ class product_mdp2(Product_Dra):
                     try:
                         sync_mec_t.remove_node(state_t)
                         num_node_removed += 1
-                        print_c("[synthesize_w_opacity] removing node: " + str(state_t), color=35)
+                        print_c("[synthesize_w_opacity] removing node: " + str(state_t), color=35, is_logging=False)
                     except:
                         pass
 
@@ -1035,7 +1035,7 @@ class product_mdp2(Product_Dra):
             for node_t in node_to_remove:
                 try:
                     sync_mec_t.remove_node(node_t)
-                    print_c("[synthesize_w_opacity] removing node for inconsistent ap: " + str(node_t), color=35)
+                    print_c("[synthesize_w_opacity] removing node for inconsistent ap: " + str(node_t), color=35, is_logging=False)
                 except:
                     pass
 
