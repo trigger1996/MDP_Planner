@@ -22,7 +22,7 @@ def convert_nodes_to_waypoints(grid_nodes, resolution, transition_time=0):
         z    = 1.2
         yaw  = 90.0
         x_w, y_w, z_w, yaw_w = grid_to_world(y, x, resolution, z, yaw)
-        waypoint_id = str(idx)
+        waypoint_id = str(node_id)                  #
         waypoints[waypoint_id] = {
             "pos": [x_w, y_w, z_w, yaw_w],
             "transition": transition_time
