@@ -1,0 +1,117 @@
+!!python/object/apply:collections.OrderedDict
+- - - name
+    - 20250426_map_w_edges
+  - - initial_node
+    - '0'
+  - - waypoint
+    - !!python/object/apply:collections.OrderedDict
+      - - - '0'
+          - pos:
+            - 0.0
+            - 0.0
+            - 1.2
+            - 90.0
+            transition: 0
+        - - '1'
+          - pos:
+            - 2.0
+            - 1.5
+            - 1.2
+            - 90.0
+            transition: 0
+        - - '2'
+          - pos:
+            - 2.5
+            - 0.0
+            - 1.2
+            - 90.0
+            transition: 0
+        - - '3'
+          - pos:
+            - 1.75
+            - -1.5
+            - 1.2
+            - 90.0
+            transition: 0
+        - - '4'
+          - pos:
+            - 3.75
+            - 0.0
+            - 1.2
+            - 90.0
+            transition: 0
+        - - '5'
+          - pos:
+            - 5.75
+            - 0.0
+            - 1.2
+            - 90.0
+            transition: 0
+        - - '6'
+          - pos:
+            - 3.75
+            - 1.5
+            - 1.2
+            - 90.0
+            transition: 0
+  - - edges
+    - - - '0'
+        - '1'
+        - control: a
+          weight: 1
+      - - '1'
+        - '0'
+        - control: a
+          weight: 1
+      - - '0'
+        - '0'
+        - control: b
+          weight: 2
+      - - '0'
+        - '2'
+        - control: b
+          weight: 3
+      - - '2'
+        - '3'
+        - control: a
+          weight: 2
+      - - '0'
+        - '3'
+        - control: b
+          weight: 3
+      - - '3'
+        - '0'
+        - control: b
+          weight: 2
+      - - '3'
+        - '4'
+        - control: b
+          weight: 3
+      - - '5'
+        - '4'
+        - control: a
+          weight: 1
+      - - '5'
+        - '6'
+        - control: b
+          weight: 2
+      - - '6'
+        - '6'
+        - control: b
+          weight: 0
+      - - '6'
+        - '4'
+        - control: a
+          weight: 2
+      - - '4'
+        - '2'
+        - control: b
+          weight: 3
+      - - '4'
+        - '3'
+        - control: a
+          weight: 2
+      - - '4'
+        - '5'
+        - control: a
+          weight: 2

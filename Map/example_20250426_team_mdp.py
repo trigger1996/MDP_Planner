@@ -116,7 +116,7 @@ def build_individual_mdp(initial_node_t=None):
     U = [ 'b' ]
 
     #
-    if initial_node_t != None:
+    if initial_node_t == None:
         initial_node  = '0'
     else:
         initial_node = initial_node_t
