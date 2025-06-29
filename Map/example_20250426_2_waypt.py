@@ -16,7 +16,8 @@ def assign_fake_positions(node_ids, spacing=2.0):
     # for i, node_id in enumerate(sorted(node_ids, key=int)):
     #     # TODO
     #     pos_map[node_id] = (i * spacing, 0.0)  # 仅沿X轴分布
-    pos_map = {
+    pose_multiplier = 1.5
+    raw_pos_map = {
         '0' : (0.,    0.,   1.2, 90.),
         '1' : (2.,    1.5,  1.2, 90.),
         '2' : (2.5,   0.,   1.2, 90.),
@@ -25,7 +26,14 @@ def assign_fake_positions(node_ids, spacing=2.0):
         '5' : (5.75,  0.,   1.2, 90.),
         '6' : (3.75,  1.5,  1.2, 90.),
     }
-    return pos_map
+
+    # 对 x 和 y 乘以 pose_multiplier，z 和 yaw 保持不变
+    scaled_pos_map = {
+        node_id: (x * pose_multiplier, y * pose_multiplier, z, yaw)
+        for node_id, (x, y, z, yaw) in raw_pos_map.items()
+    }
+
+    return scaled_pos_map
 
 def convert_nodes_to_waypoints(robot_nodes_w_aps, node_positions, z=1.2, yaw=90.0, transition_time=0):
     waypoints = OrderedDict()
