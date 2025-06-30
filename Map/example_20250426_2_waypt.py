@@ -40,6 +40,7 @@ def convert_nodes_to_waypoints(robot_nodes_w_aps, node_positions, z=1.2, yaw=90.
     for node_id, (x, y, z, yaw) in node_positions.items():
         waypoints[str(node_id)] = {
             "pos": [x, y, z, yaw],
+            "ap": [str(set(ap_t)) for ap_t in list(robot_nodes_w_aps[node_id].keys())],
             "transition": transition_time
         }
     return waypoints
