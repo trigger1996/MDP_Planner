@@ -291,23 +291,46 @@ class product_mdp3(Product_Dra):
                 #
                 mapping_t = {}
                 for observed_state_t in subgraph_2_amec_t.nodes():
+                    is_observed_being_subset = False
+                    is_state_3_being_subset = False
+
+
+                    # next_observed_states = list(next_observed_states)
+                    # next_states_3 = list()
+                    if set(observed_state_t[1]).issubset(set(next_observed_states)):
+                        is_observed_being_subset = True
+                    if set(observed_state_t[2]).issubset(set(next_states_3)):
+                        is_state_3_being_subset = True
+
+                    #if observed_state_t[0] == next_state_pi and is_observed_being_subset and is_state_3_being_subset:
                     if observed_state_t[0] == next_state_pi:
-                        next_observed_states = list(next_observed_states)
-                        next_observed_states = next_observed_states + list(observed_state_t[1])
+                        next_observed_states = list(next_observed_states) + list(observed_state_t[1])
                         #
-                        next_states_3 = list()
-                        next_states_3 = next_states_3 + list(observed_state_t[2])
+                        next_states_3 = list(next_states_3) + list(observed_state_t[2])
                         #
                         next_observed_states = tuple(list(set(next_observed_states)))
                         next_states_3 = tuple(list(set(next_states_3)))
                         next_sync_state = (next_state_pi, next_observed_states, next_states_3,)
                         #
                         mapping_t[observed_state_t] = next_sync_state
+
+                        print_c("Relabel node:", color="cyan", style="bold")
+                        print_c(f"  OLD: {observed_state_t}", color="yellow")
+                        print_c(f"  NEW: {next_sync_state}", color="green", style="underline")
+
                         break
                 if mapping_t.__len__():
+                # if False:                             # TODO
                     #
                     # 更新点
+                    # TODO
+                    # 1 如果过两个点一样则不更新
+                    # 2 更新规则还在想, 还是先用包含
+                    #   因为现在的情况是包含所以可能都是子集, 正反馈一路过来, 所以看到的结果都是包含(2025.7.27)
+                    #   然后从long term角度, 其实可以试下包含, 因为一路过去(也可以prefix不用relabel, suffix要relabel,用long_term)
                     nx.relabel_nodes(subgraph_2_amec_t, mapping_t, copy=False)
+                    print_c("==> Completed node relabeling.", color="blue", style="bold")
+                    print_c(f"Mapping summary: {len(mapping_t)} node(s) relabeled", color="magenta")
                     #
                     # 更新exp_cost
                     for u, v, attr in subgraph_2_amec_t.edges(data=True):
@@ -484,22 +507,45 @@ class product_mdp3(Product_Dra):
                 #
                 mapping_t = {}
                 for observed_state_t in fullgraph_t.nodes():
+                    is_observed_being_subset = False
+                    is_state_3_being_subset = False
+
+
+                    # next_observed_states = list(next_observed_states)
+                    # next_states_3 = list()
+                    if set(observed_state_t[1]).issubset(set(next_observed_states)):
+                        is_observed_being_subset = True
+                    if set(observed_state_t[2]).issubset(set(next_states_3)):
+                        is_state_3_being_subset = True
+
+                    #if observed_state_t[0] == next_state_pi and is_observed_being_subset and is_state_3_being_subset:
                     if observed_state_t[0] == next_state_pi:
-                        next_observed_states = list(next_observed_states)
-                        next_observed_states = next_observed_states + list(observed_state_t[1])
+                        next_observed_states = list(next_observed_states) + list(observed_state_t[1])
                         #
-                        next_states_3 = list()
-                        next_states_3 = next_states_3 + list(observed_state_t[2])
+                        next_states_3 = list(next_states_3) + list(observed_state_t[2])
                         #
                         next_observed_states = tuple(list(set(next_observed_states)))
                         next_states_3 = tuple(list(set(next_states_3)))
                         next_sync_state = (next_state_pi, next_observed_states, next_states_3,)
                         #
                         mapping_t[observed_state_t] = next_sync_state
+
+                        print_c("Relabel node:", color="cyan", style="bold")
+                        print_c(f"  OLD: {observed_state_t}", color="yellow")
+                        print_c(f"  NEW: {next_sync_state}", color="green", style="underline")
+
                         break
                 if mapping_t.__len__():
-                    nx.relabel_nodes(fullgraph_t, mapping_t, copy=False)
                     #
+                    # 更新点
+                    # TODO
+                    # 1 如果过两个点一样则不更新
+                    # 2 更新规则还在想, 还是先用包含
+                    #   因为现在的情况是包含所以可能都是子集, 正反馈一路过来, 所以看到的结果都是包含(2025.7.27)
+                    #   然后从long term角度, 其实可以试下包含, 因为一路过去(也可以prefix不用relabel, suffix要relabel,用long_term)
+                    nx.relabel_nodes(fullgraph_t, mapping_t, copy=False)
+                    print_c("==> Completed node relabeling.", color="blue", style="bold")
+                    print_c(f"Mapping summary: {len(mapping_t)} node(s) relabeled", color="magenta")
                     #
                     # 更新exp_cost
                     for u, v, attr in fullgraph_t.edges(data=True):
