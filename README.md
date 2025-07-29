@@ -20,11 +20,16 @@ Installation
 -----
 
 ```
+sudo apt update
+
 pip3 install rich ortools seaborn matplotlib networkx
 
 sudo apt install python3-tk
 
 pip3 install --upgrade --force-reinstall pillow
+
+sudo apt install texlive-latex-base texlive-fonts-recommended texlive-latex-extra dvipng
+
 
 ```
 install ltl2ba-1.3.tar.gz ltl2dstar-0.5.4.tar.gz and spot in MDP_TG/
@@ -95,4 +100,4 @@ Dependence
 * Compile [libspot](https://spot.lre.epita.fr/install.html) for your OS.
 * Compile [ltl2ba executable](http://www.lsv.ens-cachan.fr/%7Egastin/ltl2ba/download.php) for your OS.
 * Compile [ltl2dstar executable](http://www.ltl2dstar.de) for your OS. 
-* [Gurobi solver](http://www.gurobi.com) for linear programs. Free for academic use. 
+* [Gurobi solver](http://www.gurobi.com) for linear programs. Free for academic use.

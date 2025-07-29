@@ -246,7 +246,7 @@ if __name__ == "__main__":
             #                title="Cost for Satisfaction of AP \pi in Opaque runs")
             # plot_cost_hist(cost_list_gamma, bins=25, color='r', is_average=is_average,
             #                title="Cost for Satisfaction of AP \gamma in Opaque runs")
-            plot_cost_hists_multi(cost_list_pi, cost_list_gamma, bins=25, colors=['r', 'magenta'], labels=['\pi', '\gamma'], is_average=is_average,
+            plot_cost_hists_multi(cost_list_pi, cost_list_gamma, bins=25, colors=["#C99E8C", "#465E65"], labels=[r"$\pi$", r"$\gamma$"], is_average=is_average,
                            title="Cost for Satisfaction of APs in Opaque runs")
 
             # TODO
@@ -273,7 +273,7 @@ if __name__ == "__main__":
     #                title="Cost for Satisfaction of AP \pi in NON-Opaque runs")
     # plot_cost_hist(cost_list_gamma_p, bins=25, color='cyan', is_average=is_average,
     #                title="Cost for Satisfaction of AP \gamma in NON-Opaque runs")
-    plot_cost_hists_multi(cost_list_pi_p, cost_list_gamma_p, bins=25, colors=['b', 'cyan'], labels=['\pi', '\gamma'], is_average=is_average,
+    plot_cost_hists_multi(cost_list_pi_p, cost_list_gamma_p, bins=25, colors=["#57C3C2", "#FE4567"], labels=[r"$\pi$", r"$\gamma$"], is_average=is_average,
                           title="Cost for Satisfaction of APs in NON-Opaque runs")
 
     # TODO 对比实验
