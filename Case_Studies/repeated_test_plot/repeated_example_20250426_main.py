@@ -26,7 +26,6 @@ sys.path.append(parent_dir)
 # 现在可以正常导入上一级模块
 from example_20250426_team_mdp_main import obtain_all_aps_from_team_mdp, ltl_convert, execute_example_in_origin_product_mdp, execute_example_4_product_mdp3, print_best_all_plan
 
-
 def run_one_param_group(team_mdp, ltl_formula_converted, ap_list, param_group, max_attempt=10):
     gamma, d, risk_threshold, differential_exp_cost = param_group
 
@@ -61,7 +60,7 @@ def run_one_param_group(team_mdp, ltl_formula_converted, ap_list, param_group, m
         else:
             print_c(f"[NON-Opaque Synthesis] NO VALID plan, retrying {i} / {max_attempt} ...", color='white', bg_color='red', style='bold')
 
-    return best_all_plan, best_all_plan_p
+    return best_all_plan, best_all_plan_p, prod_dra_pi
 
 if __name__ == "__main__":
 
@@ -72,12 +71,10 @@ if __name__ == "__main__":
     team_mdp, initial_node, initial_label = construct_team_mdp()
     ap_list                               = obtain_all_aps_from_team_mdp(team_mdp)
 
-    # ltl_formula = 'GF (gather -> drop)'
-    ltl_formula = 'GF (gather -> (!gather U drop))'  # 'GF (gather -> X(!gather U drop))'
+    ltl_formula = 'GF (gather -> (!gather U drop))'
     opt_prop = 'gather'
     ltl_formula_converted = ltl_convert(ltl_formula)
 
-    # ==== 参数组 ====
     param_groups = [
         (0.125, 100, 0.05, 5),
         (0.125, 100, 0.1, 5),
@@ -92,29 +89,26 @@ if __name__ == "__main__":
                 style='bold')
 
         try:
-            best_plan_opq, best_plan_non_opq = run_one_param_group(team_mdp, ltl_formula_converted, ap_list, param_group, max_attempt=1)
-            results.append(((param_group, best_plan_opq), (param_group, best_plan_non_opq)))
+            best_plan_opq, best_plan_non_opq, prod_dra_pi = run_one_param_group(
+                team_mdp, ltl_formula_converted, ap_list, param_group, max_attempt=1)
+            results.append(((param_group, best_plan_opq, prod_dra_pi), (param_group, best_plan_non_opq)))
         except RuntimeError as e:
             print_c(str(e), color='white', bg_color='red', style='bold')
-            results.append(((param_group, None), (param_group, None)))
+            results.append(((param_group, None, None), (param_group, None)))
 
+    all_cost_groups = []
 
-    all_cost_groups = []  # 用于存储所有参数组的成本数据，格式为[[[pi1, gamma1], [pi2, gamma2]], ...]
-
-    for (param_group, best_plan_opq), (_, best_plan_non_opq) in results:
+    for (param_group, best_plan_opq, prod_dra_pi), (_, best_plan_non_opq) in results:
         if best_plan_opq is None or best_plan_non_opq is None:
-            # 跳过无效结果
             continue
 
         dra = Dra(ltl_formula_converted)
 
-        # 运行不透明计划，获取成本
         cost_list_pi, cost_list_gamma = execute_example_4_product_mdp3(
-            N, total_T, best_plan_opq[3][1], best_plan_opq,
+            N, total_T, prod_dra_pi, best_plan_opq,
             [initial_node], [initial_label], opt_prop, best_plan_opq[3][0], attr='Opaque'
         )
 
-        # 运行非不透明计划，获取成本
         prod_dra = product_team_mdp3(team_mdp, dra)
         cost_list_pi_p, cost_list_gamma_p = execute_example_in_origin_product_mdp(
             N, total_T, prod_dra, best_plan_non_opq,
@@ -123,10 +117,10 @@ if __name__ == "__main__":
 
         all_cost_groups.append([[cost_list_pi, cost_list_gamma], [cost_list_pi_p, cost_list_gamma_p]])
 
-    # labels 和 colors 可以自定义或保持默认
     labels_pi = [[r"$\pi$ opaque", r"$\pi$ non-opaque"]] * len(all_cost_groups)
     labels_gamma = [[r"$\gamma$ opaque", r"$\gamma$ non-opaque"]] * len(all_cost_groups)
-    titles = [f"Param Group {i+1}" for i in range(len(all_cost_groups))]
+    #titles = [f"Param Group {i+1}" for i in range(len(all_cost_groups))]
+    titles = [f"" for i in range(len(all_cost_groups))]
 
     if len(param_groups) == 1:
         plot_cost_hists_together_4_comparision(
@@ -144,6 +138,8 @@ if __name__ == "__main__":
         plot_cost_hists_together_4_comparision_multi_groups(
             all_cost_groups,
             bins=25,
+            # colors_pi=["#C99E8C", "#57C3C2", "#C99E8C", "#57C3C2","#C99E8C", "#57C3C2","#C99E8C", "#57C3C2"],
+            # colors_gamma=["#465E65", "#FE4567","#465E65", "#FE4567", "#465E65", "#FE4567", "#465E65", "#FE4567"],
             labels_pi=labels_pi,
             labels_gamma=labels_gamma,
             titles=titles,

@@ -164,19 +164,23 @@ def plot_cost_hists_together_4_comparision_multi_groups(
         return [item[0] / item[2] if is_average else item[0] for item in cost_list]
 
     num_groups = len(cost_groups)
-
     if colors_pi is None:
         colors_pi = color_list[:2 * num_groups]
+        # colors_pi = ["#C99E8C", "#57C3C2"] * num_groups
     if colors_gamma is None:
         colors_gamma = color_list[8:8 + 2 * num_groups]
+        # colors_gamma = ["#465E65", "#FE4567"] * num_groups
     if labels_pi is None:
-        labels_pi = [[f"$\\pi_{{{2*i+1}}}$", f"$\\pi_{{{2*i+2}}}$"] for i in range(num_groups)]
+        labels_pi = [[f"$\\pi_{{{2 * i + 1}}}$", f"$\\pi_{{{2 * i + 2}}}$"] for i in range(num_groups)]
     if labels_gamma is None:
-        labels_gamma = [[f"$\\gamma_{{{2*i+1}}}$", f"$\\gamma_{{{2*i+2}}}$"] for i in range(num_groups)]
+        labels_gamma = [[f"$\\gamma_{{{2 * i + 1}}}$", f"$\\gamma_{{{2 * i + 2}}}$"] for i in range(num_groups)]
     if titles is None:
-        titles = [f"$\\mathbf{{Group\\ {i+1}}}$" for i in range(num_groups)]
+        titles = [f"$\\mathbf{{Group\\ {i + 1}}}$" for i in range(num_groups)]
 
     fig, axs = plt.subplots(nrows=1, ncols=num_groups, figsize=(7 * num_groups, 5), squeeze=False)
+
+    handles_all = []
+    labels_all = []
 
     for i, group in enumerate(cost_groups):
         if len(group) != 2 or any(len(pair) != 2 for pair in group):
@@ -190,20 +194,32 @@ def plot_cost_hists_together_4_comparision_multi_groups(
 
         ax = axs[0][i]
 
-        sns.histplot(data_pi1, bins=bins, kde=True, color=colors_pi[2 * i],
-                     label=labels_pi[i][0], stat="probability", alpha=0.4, ax=ax)
-        sns.histplot(data_gamma1, bins=bins, kde=True, color=colors_gamma[2 * i],
-                     label=labels_gamma[i][0], stat="probability", alpha=0.6, ax=ax)
+        h1 = sns.histplot(data_pi1, bins=bins, kde=True, color=colors_pi[2 * i], edgecolor=colors_pi[2 * i],
+                          label=labels_pi[i][0], stat="probability", alpha=0.4, ax=ax)
+        h2 = sns.histplot(data_gamma1, bins=bins, kde=True, color=colors_gamma[2 * i], edgecolor=colors_gamma[2 * i],
+                          label=labels_gamma[i][0], stat="probability", alpha=0.6, ax=ax)
+        h3 = sns.histplot(data_pi2, bins=bins, kde=True, color=colors_pi[2 * i + 1], edgecolor=colors_pi[2 * i + 1],
+                          label=labels_pi[i][1], stat="probability", alpha=0.4, ax=ax)
+        h4 = sns.histplot(data_gamma2, bins=bins, kde=True, color=colors_gamma[2 * i + 1],
+                          edgecolor=colors_gamma[2 * i + 1],
+                          label=labels_gamma[i][1], stat="probability", alpha=0.6, ax=ax)
 
-        sns.histplot(data_pi2, bins=bins, kde=True, color=colors_pi[2 * i + 1],
-                     label=labels_pi[i][1], stat="probability", alpha=0.4, ax=ax)
-        sns.histplot(data_gamma2, bins=bins, kde=True, color=colors_gamma[2 * i + 1],
-                     label=labels_gamma[i][1], stat="probability", alpha=0.6, ax=ax)
+        # 收集 legend handle 和 label
+        for h in ax.get_legend_handles_labels()[0]:
+            handles_all.append(h)
+        for l in ax.get_legend_handles_labels()[1]:
+            labels_all.append(l)
 
         ax.set_title(titles[i], fontsize=18)
         ax.set_xlabel(xlabel, fontsize=16)
-        ax.set_ylabel(ylabel, fontsize=16)
-        ax.legend(loc='best', fontsize=14)
+        if i == 0:
+            ax.set_ylabel(ylabel, fontsize=16)
+        else:
+            ax.set_ylabel("")  # 其他图清除 y-label
         ax.grid(True)
+        ax.legend().remove()  # 移除单独图例
 
-    plt.tight_layout()
+    # 设置统一 legend
+    fig.legend(handles_all, labels_all, loc='center right', fontsize=14, frameon=False)
+
+    plt.tight_layout(rect=[0, 0, 0.9, 1])  # 为 legend 留出右侧空间
