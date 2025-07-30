@@ -29,7 +29,7 @@ sudo apt install python3-tk
 pip3 install --upgrade --force-reinstall pillow
 
 sudo apt install texlive-latex-base texlive-fonts-recommended texlive-latex-extra dvipng
-
+sudo apt-get install texlive-latex-extra texlive-fonts-recommended dvipng cm-super
 ```
 
 **install ltl2ba-1.3.tar.gz ltl2dstar-0.5.4.tar.gz and spot in MDP_TG/**
