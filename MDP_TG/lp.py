@@ -201,7 +201,11 @@ def syn_full_plan_rex(prod_mdp, gamma, d, alpha=1):
         print("=========================")
         print(" || Final compilation  ||")
         print("=========================")
-        best_all_plan = min(Plan, key=lambda p: p[0][1] + alpha*p[1][1])
+        try:
+            best_all_plan = min(Plan, key=lambda p: p[0][1] + alpha*p[1][1])
+        except:
+            print("[syn_full_plan_rex] NO VALID PLAN prefix of suffix ... !")           # Added
+            return None
         print('Best plan prefix obtained for %s states in Sr' %
               str(len(best_all_plan[0][0])))
         print('cost: %s; risk: %s ' %

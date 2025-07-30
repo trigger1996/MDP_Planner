@@ -1,15 +1,24 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+import os
 import matplotlib.pyplot as plt
+from matplotlib import font_manager as fm
 import seaborn as sns
 from matplotlib import rcParams
 
-# 使用 LaTeX 字体（需本地安装 LaTeX 发行版）
-plt.rcParams.update({
-    "text.usetex": False,  # 不使用外部 LaTeX
-    "font.family": "serif",
-    "font.serif": ["Euclid Flex", "Computer Modern", "Times New Roman"],
-    "mathtext.fontset": "custom",  # 使用 LaTeX 的 Computer Modern 数学字体, default: "mathtext.fontset": "cm",
-    "axes.unicode_minus": False,
-})
+# === 手动加载 Euclid 字体 ===
+font_dir = os.path.expanduser("~/.fonts")
+
+# 选定字体文件（根据你列出的文件）
+euclid_regular_path = os.path.join(font_dir, "Euclid Extra Regular.ttf")
+euclid_italic_path = os.path.join(font_dir, "Euclid Italic.ttf")
+euclid_bold_path = os.path.join(font_dir, "Euclid Extra Bold.ttf")
+
+# 加载 FontProperties
+font_prop_regular = fm.FontProperties(family=["Euclid Math One Regular", "Euclid Math Two Regular", "Euclid Symbol", "Euclid"])
+font_prop_italic  = fm.FontProperties(family=["Euclid Symbol", "Euclid Italic", "Euclid"], style="italic")
+font_prop_bold    = fm.FontProperties(fname="Euclid")
+
 
 # 改进后的颜色列表（16色，补全逗号并合法化）
 color_list = [
@@ -30,6 +39,40 @@ color_list = [
     "#D56C9B",  # 墨粉
     "#82CFFD",  # 浅蓝
 ]
+
+def set_plot_fonts():
+
+    font_prop_regular_t = fm.FontProperties(fname=euclid_regular_path)
+    font_prop_italic_t = fm.FontProperties(fname=euclid_italic_path)
+    font_prop_bold_t = fm.FontProperties(fname=euclid_bold_path)
+
+    # 提取 font name（用于 rcParams）
+    name_regular = font_prop_regular_t.get_name()  # 如：'Euclid Extra Regular'
+    name_italic  = font_prop_italic_t.get_name()  # 如：'Euclid Italic'
+    name_bold    = font_prop_bold_t.get_name()  # 如：'Euclid Extra Bold'
+
+    # 设置 matplotlib 字体
+    plt.rcParams.update({
+        "text.usetex": False,
+        "font.family": name_regular,
+        "axes.unicode_minus": False,
+
+        # 设置 mathtext 使用 Euclid 家族
+        "mathtext.fontset": "custom",
+        "mathtext.rm": name_regular,  # 普通 math
+        "mathtext.it": name_italic,  # italic
+        "mathtext.bf": name_bold,  # bold
+        "mathtext.sf": name_regular,
+    })
+    # plt.rcParams.update({
+    #     "text.usetex": False,
+    #     "font.family": "Euclid",  # 强制字体名
+    #     "mathtext.fontset": "custom",  # 使用 LaTeX 的 Computer Modern 数学字体, default: "mathtext.fontset": "cm",
+    #     "mathtext.rm": "Euclid",
+    #     "mathtext.it": "Euclid",
+    #     "mathtext.bf": "Euclid",
+    #     "axes.unicode_minus": False,
+    # })
 
 
 def plot_cost_hist(cost_list, bins=25, color='#57C3C2', is_average=True,
@@ -87,6 +130,8 @@ def plot_cost_hists_together_4_comparision(cost_groups, bins=25,
                                            title=r"$\mathbf{Cost\ Distribution}$",
                                            xlabel=r"$\mathbf{Cost}$",
                                            ylabel=r"$\mathbf{Probability}$"):
+    set_plot_fonts()
+
     plt.figure()
 
     def extract_data(cost_list):
@@ -120,14 +165,14 @@ def plot_cost_hists_together_4_comparision(cost_groups, bins=25,
         sns.histplot(data_gamma, bins=bins, kde=True, color=colors_gamma[i],
                      label=labels_gamma[i], stat="probability", alpha=0.6, linewidth=1.5)
 
-
-    plt.title(title, fontsize=14)
-    plt.xlabel(xlabel, fontsize=12)
-    plt.ylabel(ylabel, fontsize=12)
-    plt.legend()
+    #
+    plt.title(title,   fontproperties=font_prop_regular, fontsize=14)
+    plt.xlabel(xlabel, fontproperties=font_prop_italic,  fontsize=12)
+    plt.ylabel(ylabel, fontproperties=font_prop_italic,  fontsize=12)
+    plt.legend(loc='best', prop=font_prop_italic)  # 注意这里才是 prop
     plt.grid(True)
     plt.tight_layout()
 
 def plot_cost_hists_together_4_comparision_in_one_slide():
     # TODO
-    pass
+    set_plot_fonts()

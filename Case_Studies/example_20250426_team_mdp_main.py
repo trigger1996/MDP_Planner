@@ -160,34 +160,38 @@ def execute_example_in_origin_product_mdp(N, total_T, prod_dra, best_all_plan, s
     color_init = 32
     for i in range(0, XX.__len__()):
         X_U = []
-        for j in range(0, XX[i].__len__()):
-            X_U.append(XX[i][j])
-            if j < XX[i].__len__() - 1:
-                X_U.append(UU[i][j])
-        #
-        Y = run_2_observations_seqs(X_U)
-        X_INV, AP_INV = observation_seq_2_inference(Y)
-        #
-        cost_cycle = calculate_cost_from_runs(prod_dra, XX[i], LL[i], UU[i], opt_prop)
-        cost_list_pi = cost_list_pi + cost_cycle
-        #
-        cost_cycle_p = calculate_cost_from_runs(prod_dra, XX[i], LL[i], UU[i], ap_gamma)
-        cost_list_gamma = cost_list_gamma + cost_cycle_p
-        #
-        # print_c(X_U, color=color_init)
-        # print_c(Y, color=color_init)
-        # print_c(X_INV, color=color_init)
-        # print_c(AP_INV, color=color_init)
-        # print_c("[cost / achieved_index] " + str(cost_cycle), color=color_init)
-        # color_init += 1
-        #
-        print_colored_sequence(X_U)
-        print_colored_sequence(Y)
-        print_colored_sequence(X_INV)
-        print_colored_sequence(AP_INV)
-        print_c("[cost / achieved_index] " + str(cost_cycle), color=color_init)
-        #
-        print_highlighted_sequences(X_U, Y, X_INV, AP_INV, marker1=opt_prop, marker2=ap_gamma, attr=attr)
+        try:
+            for j in range(0, XX[i].__len__()):
+                X_U.append(XX[i][j])
+                if j < XX[i].__len__() - 1:
+                    X_U.append(UU[i][j])
+            #
+            Y = run_2_observations_seqs(X_U)
+            X_INV, AP_INV = observation_seq_2_inference(Y)
+            #
+            cost_cycle = calculate_cost_from_runs(prod_dra, XX[i], LL[i], UU[i], opt_prop)
+            cost_list_pi = cost_list_pi + cost_cycle
+            #
+            cost_cycle_p = calculate_cost_from_runs(prod_dra, XX[i], LL[i], UU[i], ap_gamma)
+            cost_list_gamma = cost_list_gamma + cost_cycle_p
+            #
+            # print_c(X_U, color=color_init)
+            # print_c(Y, color=color_init)
+            # print_c(X_INV, color=color_init)
+            # print_c(AP_INV, color=color_init)
+            # print_c("[cost / achieved_index] " + str(cost_cycle), color=color_init)
+            # color_init += 1
+            #
+            print_colored_sequence(X_U)
+            print_colored_sequence(Y)
+            print_colored_sequence(X_INV)
+            print_colored_sequence(AP_INV)
+            print_c("[cost / achieved_index] " + str(cost_cycle), color=color_init)
+            #
+            print_highlighted_sequences(X_U, Y, X_INV, AP_INV, marker1=opt_prop, marker2=ap_gamma, attr=attr)
+        except:
+            # TODO
+            print(XX)
     # fig = visualize_run_sequence(XX, LL, UU, MM, 'surv_result', is_visuaize=False)
 
     return cost_list_pi, cost_list_gamma

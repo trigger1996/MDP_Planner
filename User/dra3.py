@@ -1009,7 +1009,11 @@ class product_mdp3(Product_Dra):
                     pc += p
                     if pc > rdn:
                         break
-                current_state = tuple(S[k])
+                try:
+                    current_state = tuple(S[k])
+                except IndexError:
+                    print("[dra3] policy error")
+                    return None, None, None, None, None
                 mdp_state = self.nodes[current_state]['mdp']
                 label = self.nodes[current_state]['label']
             # ----
