@@ -16,7 +16,7 @@ from User.team_dra3 import product_team_mdp3
 from User.team_lp3  import synthesize_full_plan_w_opacity3
 from User.grid_utils import sort_team_numerical_states
 from User.vis2 import print_c, print_colored_sequence, print_highlighted_sequences
-from User.plot import plot_cost_hist, plot_cost_hists_multi
+from User.plot import plot_cost_hist, plot_cost_hists_multi, plot_cost_hists_together_4_comparision
 
 # for debugging
 # import random
@@ -275,6 +275,19 @@ if __name__ == "__main__":
     #                title="Cost for Satisfaction of AP \gamma in NON-Opaque runs")
     plot_cost_hists_multi(cost_list_pi_p, cost_list_gamma_p, bins=25, colors=["#57C3C2", "#FE4567"], labels=[r"$\pi$", r"$\gamma$"], is_average=is_average,
                           title="Cost for Satisfaction of APs in NON-Opaque runs")
+
+    if is_run_opaque_synthesis:
+        plot_cost_hists_together_4_comparision(
+            [
+                [cost_list_pi, cost_list_gamma],  # 方法 1
+                [cost_list_pi_p, cost_list_gamma_p],  # 方法 2
+            ],
+            colors_pi=["#C99E8C", "#57C3C2"],
+            colors_gamma=["#465E65", "#FE4567"],
+            labels_pi=[r"$\pi$ in opaque run", r"$\pi$ in non-opaque run"],
+            labels_gamma=[r"$\gamma$ in opaque run", r"$\gamma$ in non-opaque run"],
+            title="Cost for Satisfaction of APs"
+        )
 
     # TODO 对比实验
     # 我的问题是, 入侵者到底拿到的是什么数据

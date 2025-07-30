@@ -30,10 +30,37 @@ pip3 install --upgrade --force-reinstall pillow
 
 sudo apt install texlive-latex-base texlive-fonts-recommended texlive-latex-extra dvipng
 
+```
+
+**install ltl2ba-1.3.tar.gz ltl2dstar-0.5.4.tar.gz and spot in MDP_TG/**
+
+
+
+-----
+Installation of Fonts
+-----
+
+准备字体文件
+下载字体文件，例如：EuclidFlex-Regular.ttf、EuclidFlex-Bold.ttf 等。
+
 
 ```
-install ltl2ba-1.3.tar.gz ltl2dstar-0.5.4.tar.gz and spot in MDP_TG/
+创建字体目录（如果还没有）：
 
+mkdir -p ~/.fonts
+
+复制字体文件进去：
+
+cp /path/to/your/EuclidFlex-*.ttf ~/.fonts/
+
+刷新字体缓存：
+
+fc-cache -f -v
+
+（可选）检查字体是否被系统识别：
+
+fc-list | grep -i euclid
+```
 
 -----
 Description

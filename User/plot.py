@@ -6,8 +6,8 @@ from matplotlib import rcParams
 plt.rcParams.update({
     "text.usetex": False,  # 不使用外部 LaTeX
     "font.family": "serif",
-    "font.serif": ["Computer Modern", "Times New Roman"],
-    "mathtext.fontset": "cm",  # 使用 LaTeX 的 Computer Modern 数学字体
+    "font.serif": ["Euclid Flex", "Computer Modern", "Times New Roman"],
+    "mathtext.fontset": "custom",  # 使用 LaTeX 的 Computer Modern 数学字体, default: "mathtext.fontset": "cm",
     "axes.unicode_minus": False,
 })
 
@@ -78,3 +78,56 @@ def plot_cost_hists_multi(*cost_lists, bins=25, colors=None, labels=None,
     plt.legend()
     plt.grid(True)
     plt.tight_layout()
+
+
+def plot_cost_hists_together_4_comparision(cost_groups, bins=25,
+                                           colors_pi=None, colors_gamma=None,
+                                           labels_pi=None, labels_gamma=None,
+                                           is_average=True,
+                                           title=r"$\mathbf{Cost\ Distribution}$",
+                                           xlabel=r"$\mathbf{Cost}$",
+                                           ylabel=r"$\mathbf{Probability}$"):
+    plt.figure()
+
+    def extract_data(cost_list):
+        cost_list.sort(key=lambda x: x[0])
+        return [item[0] / item[2] if is_average else item[0] for item in cost_list]
+
+    num_groups = len(cost_groups)
+
+    if colors_pi is None:
+        colors_pi = color_list[:num_groups]
+    if colors_gamma is None:
+        colors_gamma = color_list[8:8 + num_groups]
+    if labels_pi is None:
+        labels_pi = [f"$\\pi_{{{i+1}}}$" for i in range(num_groups)]
+    if labels_gamma is None:
+        labels_gamma = [f"$\\gamma_{{{i+1}}}$" for i in range(num_groups)]
+
+    for i in range(num_groups):
+        group = cost_groups[i]
+        if len(group) != 2:
+            raise ValueError(f"Group {i} does not contain exactly 2 cost lists (π and γ).")
+
+        cost_pi, cost_gamma = group
+        data_pi = extract_data(cost_pi)
+        data_gamma = extract_data(cost_gamma)
+
+        # 画pi（透明度稍低），再画 gamma（图像在上层）
+        sns.histplot(data_pi, bins=bins, kde=True, color=colors_pi[i],
+                     label=labels_pi[i], stat="probability", alpha=0.4, linewidth=1.5)
+
+        sns.histplot(data_gamma, bins=bins, kde=True, color=colors_gamma[i],
+                     label=labels_gamma[i], stat="probability", alpha=0.6, linewidth=1.5)
+
+
+    plt.title(title, fontsize=14)
+    plt.xlabel(xlabel, fontsize=12)
+    plt.ylabel(ylabel, fontsize=12)
+    plt.legend()
+    plt.grid(True)
+    plt.tight_layout()
+
+def plot_cost_hists_together_4_comparision_in_one_slide():
+    # TODO
+    pass
