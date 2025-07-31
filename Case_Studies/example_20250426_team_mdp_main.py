@@ -7,8 +7,9 @@ import matplotlib.pyplot as plt
 matplotlib.use("TkAgg")
 
 from functools import cmp_to_key
+from itertools import product
 from subprocess import check_output
-from Map.example_20250426_team_mdp import construct_team_mdp, team_observation_func_0426, control_observable_dict, run_2_observations_seqs, observation_seq_2_inference
+from Map.example_20250426_team_mdp import construct_team_mdp, team_observation_func_0426, team_observation_inv_func_0426, control_observable_dict, run_2_observations_seqs, observation_seq_2_inference
 from Map.example_20250426_team_mdp import calculate_cost_from_runs, calculate_observed_cost_from_runs, calculate_sync_observed_cost_from_runs
 from MDP_TG.mdp import Motion_MDP
 from MDP_TG.dra import Dra
@@ -85,7 +86,7 @@ def print_best_all_plan(best_all_plan):
     for state_t in state_in_suffix:
         print_c("%s, %s: %s" % (str(state_t), str(best_all_plan[1][0][state_t][0]), str(best_all_plan[1][0][state_t][1]), ), color=45)
 
-def execute_example_4_product_mdp3(N, total_T, prod_dra, best_all_plan, state_seq, label_seq, opt_prop, ap_gamma, attr='opaque'):
+def execute_example_4_product_mdp3(N, total_T, prod_dra, best_all_plan, state_seq, label_seq, opt_prop, ap_gamma, attr='Opaque'):
     XX  = []
     OO  = []
     LL  = []
@@ -151,7 +152,7 @@ def execute_example_4_product_mdp3(N, total_T, prod_dra, best_all_plan, state_se
 
     return cost_list_pi, cost_list_gamma, diff_exp_list
 
-def execute_example_in_origin_product_mdp(N, total_T, prod_dra, best_all_plan, state_seq, label_seq, opt_prop, ap_gamma, attr):
+def execute_example_in_origin_product_mdp(N, total_T, prod_dra, best_all_plan, state_seq, label_seq, opt_prop, ap_gamma, observer_func=team_observation_func_0426, observer_inv_func=team_observation_inv_func_0426, attr='Non_Opaque'):
     XX = []
     LL = []
     UU = []
@@ -165,6 +166,39 @@ def execute_example_in_origin_product_mdp(N, total_T, prod_dra, best_all_plan, s
         UU.append(U)
         MM.append(M)
         PP.append(PX)
+
+
+    # TODO
+    # product dra不好改, 那么这里利用observervation func求解O(x)和Observed label set
+    OO = []
+    OLL = []
+    OLL_SET = []
+    for n in range(0, N):
+        X = XX[n]
+        O = []
+        OL = []
+        OL_SET = []
+        for i in range(0, len(X)):
+            x = X[i]
+            x_x_inv = observer_inv_func(observer_func(x))
+            o = list(product(*x_x_inv))
+            o = list(set(o).intersection(set(prod_dra.graph['mdp'].nodes)))
+            if type(o) == tuple:
+                o = list(set([o_t for o_t in o]))
+            O.append(o)
+
+            ol_t = []
+            for o_t in o:
+                labels = list(prod_dra.graph['mdp'].nodes[o_t]['label'].keys())
+                label_str_list = [elem for fs in labels for elem in fs]  # 展开所有 frozenset
+                ol_t = ol_t + label_str_list
+
+            OL.append(ol_t)
+            OL_SET.append(set(ol_t))
+
+        OO.append(O)
+        OLL.append(OL)
+        OLL_SET.append(OL_SET)
 
     print('[Product Dra] process all done')
 
@@ -184,9 +218,20 @@ def execute_example_in_origin_product_mdp(N, total_T, prod_dra, best_all_plan, s
             #
             cost_cycle = calculate_cost_from_runs(prod_dra, XX[i], LL[i], UU[i], opt_prop)
             cost_list_pi = cost_list_pi + cost_cycle
-            #
             cost_cycle_p = calculate_cost_from_runs(prod_dra, XX[i], LL[i], UU[i], ap_gamma)
             cost_list_gamma = cost_list_gamma + cost_cycle_p
+            # TODO
+            # cost_cycle_pi_sync_t, cost_cycle_gamma_sync_t, diff_cost_cycle_sync_t = calculate_sync_observed_cost_from_runs(
+            #     prod_dra, XX[i], OO[i], LL[i], UU[i], OLL[i], OLL_SET[i], opt_prop, ap_gamma)
+            # cost_cycle_pi_t, cost_cycle_gamma_t, diff_cost_cycle_async_t = calculate_observed_cost_from_runs(prod_dra,
+            #                                                                                                  XX[i],
+            #                                                                                                  OO[i],
+            #                                                                                                  LL[i],
+            #                                                                                                  UU[i],
+            #                                                                                                  OLL[i],
+            #                                                                                                  OLL_SET[i],
+            #                                                                                                  opt_prop,
+            #                                                                                                  ap_gamma)
             #
             # print_c(X_U, color=color_init)
             # print_c(Y, color=color_init)
