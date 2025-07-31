@@ -883,16 +883,17 @@ class product_mdp3(Product_Dra):
         if best_all_plan == None:
             best_all_plan = self.best_all_plan
         # ----
-        current_state, prod_state, mdp_state, observed_state, opacity_state, current_label, observed_label = self.get_individual_state_from_observers(self.best_all_plan['initial_observer_state'][initial_state_index])
+        current_state, prod_state, mdp_state, observed_state, opacity_state, current_label, observed_label, observed_label_set  = self.get_individual_state_from_observers(self.best_all_plan['initial_observer_state'][initial_state_index])
         #
-        X     = [ mdp_state ]                      # current state list
-        OX    = [ current_state ]                  # observer state list
-        O     = [ observed_state ]                 # observed state
-        X_OPA = [ opacity_state ]
-        L     = [ current_label ]
-        OL    = [ observed_label ]
-        U     = []
-        M     = []
+        X      = [ mdp_state ]                      # current state list
+        OX     = [ current_state ]                  # observer state list
+        O      = [ observed_state ]                 # observed state
+        X_OPA  = [ opacity_state ]
+        L      = [ current_label ]
+        OL     = [ observed_label ]
+        OL_SET = [ observed_label_set ]
+        U      = []
+        M      = []
         #
         observer_t = self.best_all_plan['opaque_full_graph']
         is_now_in_suffix_cycle = False
@@ -919,7 +920,7 @@ class product_mdp3(Product_Dra):
 
             #
             # added
-            state, prod_state, mdp_state, observed_state, opacity_state, current_label, observed_label = self.get_individual_state_from_observers(next_state)
+            state, prod_state, mdp_state, observed_state, opacity_state, current_label, observed_label, observed_label_set = self.get_individual_state_from_observers(next_state)
 
             X.append(mdp_state)
             OX.append(state)
@@ -927,13 +928,14 @@ class product_mdp3(Product_Dra):
             X_OPA.append(opacity_state)
             L.append(current_label)
             OL.append(observed_label)
+            OL_SET.append(observed_label_set)
             U.append(u)
             M.append(m)
 
             current_state = next_state
             is_now_in_suffix_cycle = next_state in self.best_all_plan['mec']['observer'][0]
 
-        return X, OX, O, X_OPA, L, OL, U, M
+        return X, OX, O, X_OPA, L, OL, OL_SET, U, M
 
     def execution(self, best_all_plan, total_T, state_seq, label_seq):
         # ----plan execution with or without given observation----
@@ -1112,7 +1114,8 @@ class product_mdp3(Product_Dra):
         is_ip_state = observer_state[2].__len__() > 0
         prod_state     = observer_state[0]
         mdp_state      = prod_state[0]
-        observed_state = list(set(observer_state[1]).union(observer_state[2]))
+        #observed_state = list(set(observer_state[1]).union(set(observer_state[2])))
+        observed_state = list(set([state_t[0] for state_t in observer_state[1]]).union(set([state_t[0] for state_t in observer_state[2]])))
         if is_ip_state:
             opacity_state = list(set(observer_state[1]).difference(set(observer_state[0])))
         else:
@@ -1120,8 +1123,10 @@ class product_mdp3(Product_Dra):
         #
         current_label  = set(prod_state[1])
         observed_label = list([set(state_t[1]) for state_t in observer_state[1]]) + [ current_label ]
+        observed_label = [tuple(label_t) for label_t in observed_label]
+        observed_label_set = set(observed_label)
 
-        return observer_state, prod_state, mdp_state, observed_state, opacity_state, current_label, observed_label
+        return observer_state, prod_state, mdp_state, observed_state, opacity_state, current_label, observed_label, observed_label_set
 
 
 

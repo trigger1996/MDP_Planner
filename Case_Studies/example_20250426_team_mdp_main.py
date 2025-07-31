@@ -8,7 +8,8 @@ matplotlib.use("TkAgg")
 
 from functools import cmp_to_key
 from subprocess import check_output
-from Map.example_20250426_team_mdp import construct_team_mdp, team_observation_func_0426, control_observable_dict, run_2_observations_seqs, observation_seq_2_inference, calculate_cost_from_runs
+from Map.example_20250426_team_mdp import construct_team_mdp, team_observation_func_0426, control_observable_dict, run_2_observations_seqs, observation_seq_2_inference
+from Map.example_20250426_team_mdp import calculate_cost_from_runs, calculate_observed_cost_from_runs, calculate_sync_observed_cost_from_runs
 from MDP_TG.mdp import Motion_MDP
 from MDP_TG.dra import Dra
 from MDP_TG.lp  import syn_full_plan_rex
@@ -86,20 +87,26 @@ def print_best_all_plan(best_all_plan):
 
 def execute_example_4_product_mdp3(N, total_T, prod_dra, best_all_plan, state_seq, label_seq, opt_prop, ap_gamma, attr='opaque'):
     XX  = []
+    OO  = []
     LL  = []
     UU  = []
     MM  = []
     OXX = []
+    OLL = []
+    OLL_SET = []
     cost_list_pi = []
     cost_list_gamma = []
     for n in range(0, N):
-        X, OX, O, X_OPA, L, OL, U, M = prod_dra.execution_in_observer_graph(total_T)
+        X, OX, O, X_OPA, L, OL, OL_SET, U, M = prod_dra.execution_in_observer_graph(total_T)
 
         XX.append(X)
+        OO.append(O)
         LL.append(L)
         UU.append(U)
         MM.append(M)
         OXX.append(OX)
+        OLL.append(OL)                      # 这个顺序和observed states (OXX)是一致的
+        OLL_SET.append(OL_SET)              # 取OL的set()
 
     print('[Product Dra] process all done')
 
@@ -114,10 +121,12 @@ def execute_example_4_product_mdp3(N, total_T, prod_dra, best_all_plan, state_se
         Y = run_2_observations_seqs(X_U)
         X_INV, AP_INV = observation_seq_2_inference(Y)
         #
-        cost_cycle = calculate_cost_from_runs(prod_dra, XX[i], LL[i], UU[i], opt_prop)
+        #cost_cycle = calculate_cost_from_runs(prod_dra, XX[i], OO[i], LL[i], UU[i], OLL[i], OLL_SET[i], opt_prop)
+        cost_cycle = calculate_sync_observed_cost_from_runs(prod_dra, XX[i], OO[i], LL[i], UU[i], OLL[i], OLL_SET[i], opt_prop, ap_gamma)
+        cost_cycle_pi, cost_cycle_gamma, diff_cost_cycle_async = calculate_observed_cost_from_runs(prod_dra, XX[i], OO[i], LL[i], UU[i], OLL[i], OLL_SET[i], opt_prop, ap_gamma)
         cost_list_pi = cost_list_pi + cost_cycle
         #
-        cost_cycle_p = calculate_cost_from_runs(prod_dra, XX[i], LL[i], UU[i], ap_gamma)
+        cost_cycle_p = calculate_cost_from_runs(prod_dra, XX[i], OO[i], LL[i], UU[i], OLL[i], OLL_SET[i], opt_prop)
         cost_list_gamma = cost_list_gamma + cost_cycle_p
         #
         # print_c(X_U, color=color_init)

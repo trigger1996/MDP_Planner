@@ -3,6 +3,7 @@
 import os, sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../MDP_Planner'))
 
+import math
 from collections import Counter
 from MDP_TG.mdp import Motion_MDP
 from User.mdp3 import MDP3
@@ -260,7 +261,7 @@ def observation_seq_2_inference(y_seq):
         ap_inv_seq.append(ap_inv_t)
     return x_inv_set_seq, ap_inv_seq
 
-def calculate_cost_from_runs(product_mdp, x, l, u, opt_prop, is_remove_zeros=True):
+def calculate_cost_from_runs(product_mdp, x, o, l, u, ol, ol_set, opt_prop, is_remove_zeros=True):
     #
     # calculate the transition cost
     # if current state staifies optimizing AP
@@ -309,6 +310,276 @@ def calculate_cost_from_runs(product_mdp, x, l, u, opt_prop, is_remove_zeros=Tru
                 pass
 
     return cost_list
+
+def calculate_sync_observed_cost_from_runs(product_mdp, x, o, l, u, ol, ol_set, opt_prop, ap_gamma, is_remove_zeros=True):
+    #
+    # calculate the transition cost
+    # if current state staifies optimizing AP
+    # then zero the AP
+    cost_list = []              # [[value, current step,                        path_length], [value, current step,                     path_length], ...]
+    cost_list_gamma = []        # [[value, current step,                        path_length], [value, current step,                     path_length], ...]
+    diff_exp_list = []          # [[value, current step pi, current step gamma, path_length], [value, current step, current step gamma, path_length], ...]
+    #
+    cost_cycle_pi = 0.
+    cost_cycle_gamma = 0.
+    #
+    x_i_last = x[0]
+    for i in range(0, x.__len__()):
+        x_i = x[i]
+        x_p = None
+        ol_i = list(ol_set[i])  # l_i = list(l[i])
+        if i < x.__len__() - 1:
+            # TODO
+            u_i = u[i]
+
+        #
+        is_observed_ap_pi_gamma_found = False
+        for o_t in ol_i:
+            if ol_i.__len__() and opt_prop in o_t and ap_gamma in o_t:
+                is_observed_ap_pi_gamma_found = True
+                #break                                      # break不能加, 加了就出去了影响前后判断
+
+
+        if is_observed_ap_pi_gamma_found:
+            #
+            # Add pi
+            if cost_list.__len__():
+                path_length_pi = i - cost_list[cost_list.__len__() - 1][1]
+            else:
+                path_length_pi = i
+            #
+            cost_current_step = [cost_cycle_pi, i, path_length_pi]
+            cost_list.append(cost_current_step)
+            cost_cycle_pi = 0.
+            #
+            # Add gamma
+            if cost_list_gamma.__len__():
+                path_length_gamma = i - cost_list_gamma[cost_list_gamma.__len__() - 1][1]
+            else:
+                path_length_gamma = i
+            #
+            cost_current_step = [cost_cycle_gamma, i, path_length_gamma]
+            cost_list_gamma.append(cost_current_step)
+            cost_cycle_gamma = 0.
+        #
+        #
+        for edge_t in list(product_mdp.graph['mdp'].edges(x_i_last, data=True)):
+            if x_i == edge_t[1]:
+                #
+                event_t = list(edge_t[2]['prop'])[0]  # event_t = i_i???
+                #
+                cost_t = edge_t[2]['prop'][event_t][1]
+                cost_cycle_pi += cost_t
+                cost_cycle_gamma += cost_t
+
+    used_gamma_indices = set()
+
+    last_pi_step = 0
+    last_gamma_step = 0
+
+    for i in range(len(cost_list)):
+        step_i = cost_list[i][1]
+
+        # 在 gamma 列表中找与 step_i 最接近的 step_j，避免重复匹配
+        min_j_index = -1
+        min_step_diff = float('inf')
+        for j in range(len(cost_list_gamma)):
+            if j in used_gamma_indices:
+                continue  # 防止重复匹配
+
+            step_j = cost_list_gamma[j][1]
+            diff = abs(step_i - step_j)
+            if diff < min_step_diff:
+                min_step_diff = diff
+                min_j_index = j
+
+        # 如果找不到匹配的 gamma（极端情况），跳过
+        if min_j_index == -1:
+            continue
+
+        used_gamma_indices.add(min_j_index)
+
+        cost_pi = cost_list[i]
+        cost_gamma = cost_list_gamma[min_j_index]
+
+        diff_cost = abs(cost_pi[0] - cost_gamma[0])
+        path_length = max(cost_pi[1] - last_pi_step, cost_gamma[1] - last_gamma_step)
+
+        diff_exp_list.append([
+            diff_cost,
+            cost_pi[1],
+            cost_gamma[1],
+            path_length
+        ])
+
+        last_pi_step = cost_pi[1]
+        last_gamma_step = cost_gamma[1]
+
+    if is_remove_zeros:
+        #
+        # pi
+        cost_tuple_to_remove = []
+        for cost_tuple_t in cost_list:
+            if cost_tuple_t[0] == 0.:
+                cost_tuple_to_remove.append(cost_tuple_t)
+
+        for cost_tuple_t in cost_tuple_to_remove:
+            try:
+                cost_list.remove(cost_tuple_t)
+            except:
+                pass
+        #
+        # gamma
+        cost_tuple_to_remove = []
+        for cost_tuple_t in cost_list_gamma:
+            if cost_tuple_t[0] == 0.:
+                cost_tuple_to_remove.append(cost_tuple_t)
+
+        for cost_tuple_t in cost_tuple_to_remove:
+            try:
+                cost_list_gamma.remove(cost_tuple_t)
+            except:
+                pass
+
+
+    return cost_list, cost_list_gamma, diff_exp_list
+
+def calculate_observed_cost_from_runs(product_mdp, x, o, l, u, ol, ol_set, opt_prop, ap_gamma, is_remove_zeros=True):
+    #
+    # calculate the transition cost
+    # if current state staifies optimizing AP
+    # then zero the AP
+    cost_list = []              # [[value, current step,                        path_length], [value, current step,                     path_length], ...]
+    cost_list_gamma = []        # [[value, current step,                        path_length], [value, current step,                     path_length], ...]
+    diff_exp_list = []          # [[value, current step pi, current step gamma, path_length], [value, current step, current step gamma, path_length], ...]
+    #
+    cost_cycle_pi = 0.
+    cost_cycle_gamma = 0.
+    #
+    x_i_last = x[0]
+    for i in range(0, x.__len__()):
+        x_i = x[i]
+        x_p = None
+        ol_i = list(ol_set[i])  # l_i = list(l[i])
+        if i < x.__len__() - 1:
+            # TODO
+            u_i = u[i]
+
+        #
+        is_observed_ap_pi_found = False
+        is_observed_ap_gamma_found = False
+        for o_t in ol_i:
+            if ol_i.__len__() and opt_prop in o_t:
+                is_observed_ap_pi_found = True
+                #break                                      # break不能加, 加了就出去了影响前后判断
+            #
+            if ol_i.__len__() and ap_gamma in o_t:
+                is_observed_ap_gamma_found = True
+                #break
+
+        if is_observed_ap_pi_found:
+            if cost_list.__len__():
+                path_length_pi = i - cost_list[cost_list.__len__() - 1][1]
+            else:
+                path_length_pi = i
+            #
+            cost_current_step = [cost_cycle_pi, i, path_length_pi]
+            cost_list.append(cost_current_step)
+            cost_cycle_pi = 0.
+        if is_observed_ap_gamma_found:
+            if cost_list_gamma.__len__():
+                path_length_gamma = i - cost_list_gamma[cost_list_gamma.__len__() - 1][1]
+            else:
+                path_length_gamma = i
+            #
+            cost_current_step = [cost_cycle_gamma, i, path_length_gamma]
+            cost_list_gamma.append(cost_current_step)
+            cost_cycle_gamma = 0.
+        #
+        #
+        for edge_t in list(product_mdp.graph['mdp'].edges(x_i_last, data=True)):
+            if x_i == edge_t[1]:
+                #
+                event_t = list(edge_t[2]['prop'])[0]  # event_t = i_i???
+                #
+                cost_t = edge_t[2]['prop'][event_t][1]
+                cost_cycle_pi += cost_t
+                cost_cycle_gamma += cost_t
+
+    #
+    # 先全部算
+    # 这个不同步的算法不准确, 但是能用
+    used_gamma_indices = set()
+
+    last_pi_step = 0
+    last_gamma_step = 0
+
+    for i in range(len(cost_list)):
+        step_i = cost_list[i][1]
+
+        # 在 gamma 列表中找与 step_i 最接近的 step_j，避免重复匹配
+        min_j_index = -1
+        min_step_diff = float('inf')
+        for j in range(len(cost_list_gamma)):
+            if j in used_gamma_indices:
+                continue  # 防止重复匹配
+
+            step_j = cost_list_gamma[j][1]
+            diff = abs(step_i - step_j)
+            if diff < min_step_diff:
+                min_step_diff = diff
+                min_j_index = j
+
+        # 如果找不到匹配的 gamma（极端情况），跳过
+        if min_j_index == -1:
+            continue
+
+        used_gamma_indices.add(min_j_index)
+
+        cost_pi = cost_list[i]
+        cost_gamma = cost_list_gamma[min_j_index]
+
+        diff_cost = abs(cost_pi[0] - cost_gamma[0])
+        path_length = max(cost_pi[1] - last_pi_step, cost_gamma[1] - last_gamma_step)
+
+        diff_exp_list.append([
+            diff_cost,
+            cost_pi[1],
+            cost_gamma[1],
+            path_length
+        ])
+
+        last_pi_step = cost_pi[1]
+        last_gamma_step = cost_gamma[1]
+
+    if is_remove_zeros:
+        #
+        # pi
+        cost_tuple_to_remove = []
+        for cost_tuple_t in cost_list:
+            if cost_tuple_t[0] == 0.:
+                cost_tuple_to_remove.append(cost_tuple_t)
+
+        for cost_tuple_t in cost_tuple_to_remove:
+            try:
+                cost_list.remove(cost_tuple_t)
+            except:
+                pass
+        #
+        # gamma
+        cost_tuple_to_remove = []
+        for cost_tuple_t in cost_list_gamma:
+            if cost_tuple_t[0] == 0.:
+                cost_tuple_to_remove.append(cost_tuple_t)
+
+        for cost_tuple_t in cost_tuple_to_remove:
+            try:
+                cost_list_gamma.remove(cost_tuple_t)
+            except:
+                pass
+
+
+    return cost_list, cost_list_gamma, diff_exp_list
 
 def plot_cost_hist(cost_list, bins=25, color='g', is_average=True, title="Cost Distribution", xlabel="Cost", ylabel="Probability"):
     plt.figure()
