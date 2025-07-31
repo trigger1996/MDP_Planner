@@ -270,7 +270,7 @@ def calculate_cost_from_runs(product_mdp, x, o, l, u, ol, ol_set, opt_prop, is_r
     cost_cycle = 0.
     #
     x_i_last = x[0]
-    for i in range(0, x.__len__()):
+    for i in range(1, x.__len__()):
         x_i = x[i]
         x_p = None
         l_i = list(l[i])
@@ -324,9 +324,11 @@ def calculate_sync_observed_cost_from_runs(product_mdp, x, o, l, u, ol, ol_set, 
     cost_cycle_gamma = 0.
     #
     x_i_last = x[0]
-    for i in range(0, x.__len__()):
+    for i in range(1, x.__len__()):
+        x_i_last = x[i - 1]
+        o_i_last = o[i - 1]
         x_i = x[i]
-        x_p = None
+        o_i = o[i]
         ol_i = list(ol_set[i])  # l_i = list(l[i])
         if i < x.__len__() - 1:
             # TODO
@@ -363,14 +365,38 @@ def calculate_sync_observed_cost_from_runs(product_mdp, x, o, l, u, ol, ol_set, 
             cost_cycle_gamma = 0.
         #
         #
-        for edge_t in list(product_mdp.graph['mdp'].edges(x_i_last, data=True)):
-            if x_i == edge_t[1]:
-                #
-                event_t = list(edge_t[2]['prop'])[0]  # event_t = i_i???
-                #
-                cost_t = edge_t[2]['prop'][event_t][1]
-                cost_cycle_pi += cost_t
-                cost_cycle_gamma += cost_t
+        available_event_cost_dict_pi = {}
+        available_event_cost_dict_gamma = {}
+        for o_last_t in o_i_last:
+            for o_t in o_i:
+                for edge_t in list(product_mdp.graph['mdp'].edges(o_last_t, data=True)):
+                    if o_t == edge_t[1]:
+                        label_o_t = list(product_mdp.graph['mdp'].nodes[o_t]['label'].keys())
+                        label_o_t = [list(fs)[0] for fs in label_o_t if isinstance(fs, frozenset)]
+                        #
+                        event_t = list(edge_t[2]['prop'])[0]  # event_t = i_i???
+                        cost_t = edge_t[2]['prop'][event_t][1]
+                        #
+                        if opt_prop in label_o_t:
+                            available_event_cost_dict_pi[event_t] = cost_t
+                        if ap_gamma in label_o_t:
+                            available_event_cost_dict_gamma[event_t] = cost_t
+        if available_event_cost_dict_pi.__len__():
+            min_event = min(available_event_cost_dict_pi, key=lambda e: available_event_cost_dict_pi[e])
+            min_cost = available_event_cost_dict_pi[min_event]
+
+            cost_cycle_pi += min_cost
+        if available_event_cost_dict_gamma.__len__():
+            min_event = min(available_event_cost_dict_gamma, key=lambda e: available_event_cost_dict_gamma[e])
+            min_cost = available_event_cost_dict_gamma[min_event]
+
+            cost_cycle_gamma += min_cost
+
+        else:
+            #
+            # TODO
+            # 用x代替?
+            print_c("warning ...")
 
     used_gamma_indices = set()
 
@@ -455,11 +481,11 @@ def calculate_observed_cost_from_runs(product_mdp, x, o, l, u, ol, ol_set, opt_p
     #
     cost_cycle_pi = 0.
     cost_cycle_gamma = 0.
-    #
-    x_i_last = x[0]
-    for i in range(0, x.__len__()):
+    for i in range(1, o.__len__()):
+        x_i_last = x[i - 1]
+        o_i_last = o[i - 1]
         x_i = x[i]
-        x_p = None
+        o_i = o[i]
         ol_i = list(ol_set[i])  # l_i = list(l[i])
         if i < x.__len__() - 1:
             # TODO
@@ -497,14 +523,39 @@ def calculate_observed_cost_from_runs(product_mdp, x, o, l, u, ol, ol_set, opt_p
             cost_cycle_gamma = 0.
         #
         #
-        for edge_t in list(product_mdp.graph['mdp'].edges(x_i_last, data=True)):
-            if x_i == edge_t[1]:
-                #
-                event_t = list(edge_t[2]['prop'])[0]  # event_t = i_i???
-                #
-                cost_t = edge_t[2]['prop'][event_t][1]
-                cost_cycle_pi += cost_t
-                cost_cycle_gamma += cost_t
+        available_event_cost_dict_pi = {}
+        available_event_cost_dict_gamma = {}
+        for o_last_t in o_i_last:
+            for o_t in o_i:
+                for edge_t in list(product_mdp.graph['mdp'].edges(o_last_t, data=True)):
+                    if o_t == edge_t[1]:
+                        label_o_t = list(product_mdp.graph['mdp'].nodes[o_t]['label'].keys())
+                        label_o_t = [list(fs)[0] for fs in label_o_t if isinstance(fs, frozenset)]
+                        #
+                        event_t = list(edge_t[2]['prop'])[0]  # event_t = i_i???
+                        cost_t = edge_t[2]['prop'][event_t][1]
+                        #
+                        if opt_prop in label_o_t:
+                            available_event_cost_dict_pi[event_t] = cost_t
+                        if ap_gamma in label_o_t:
+                            available_event_cost_dict_gamma[event_t] = cost_t
+        if available_event_cost_dict_pi.__len__():
+            min_event = min(available_event_cost_dict_pi, key=lambda e: available_event_cost_dict_pi[e])
+            min_cost = available_event_cost_dict_pi[min_event]
+
+            cost_cycle_pi    += min_cost
+        if available_event_cost_dict_gamma.__len__():
+            min_event = min(available_event_cost_dict_gamma, key=lambda e: available_event_cost_dict_gamma[e])
+            min_cost = available_event_cost_dict_gamma[min_event]
+
+            cost_cycle_gamma += min_cost
+
+        else:
+            #
+            # TODO
+            # 用x代替?
+            print_c("warning ...")
+
 
     #
     # 先全部算

@@ -96,6 +96,7 @@ def execute_example_4_product_mdp3(N, total_T, prod_dra, best_all_plan, state_se
     OLL_SET = []
     cost_list_pi = []
     cost_list_gamma = []
+    diff_exp_list   = []
     for n in range(0, N):
         X, OX, O, X_OPA, L, OL, OL_SET, U, M = prod_dra.execution_in_observer_graph(total_T)
 
@@ -122,12 +123,15 @@ def execute_example_4_product_mdp3(N, total_T, prod_dra, best_all_plan, state_se
         X_INV, AP_INV = observation_seq_2_inference(Y)
         #
         #cost_cycle = calculate_cost_from_runs(prod_dra, XX[i], OO[i], LL[i], UU[i], OLL[i], OLL_SET[i], opt_prop)
-        cost_cycle = calculate_sync_observed_cost_from_runs(prod_dra, XX[i], OO[i], LL[i], UU[i], OLL[i], OLL_SET[i], opt_prop, ap_gamma)
-        cost_cycle_pi, cost_cycle_gamma, diff_cost_cycle_async = calculate_observed_cost_from_runs(prod_dra, XX[i], OO[i], LL[i], UU[i], OLL[i], OLL_SET[i], opt_prop, ap_gamma)
-        cost_list_pi = cost_list_pi + cost_cycle
+        #cost_list_pi = cost_list_pi + cost_cycle
+        #cost_cycle_p = calculate_cost_from_runs(prod_dra, XX[i], OO[i], LL[i], UU[i], OLL[i], OLL_SET[i], opt_prop)
+        #cost_list_gamma = cost_list_gamma + cost_cycle_p
         #
-        cost_cycle_p = calculate_cost_from_runs(prod_dra, XX[i], OO[i], LL[i], UU[i], OLL[i], OLL_SET[i], opt_prop)
-        cost_list_gamma = cost_list_gamma + cost_cycle_p
+        cost_cycle_pi_sync_t, cost_cycle_gamma_sync_t, diff_cost_cycle_sync_t  = calculate_sync_observed_cost_from_runs(prod_dra, XX[i], OO[i], LL[i], UU[i], OLL[i], OLL_SET[i], opt_prop, ap_gamma)
+        cost_cycle_pi_t,      cost_cycle_gamma_t,      diff_cost_cycle_async_t = calculate_observed_cost_from_runs(prod_dra,      XX[i], OO[i], LL[i], UU[i], OLL[i], OLL_SET[i], opt_prop, ap_gamma)
+        cost_list_pi    = cost_list_pi    + cost_cycle_pi_t
+        cost_list_gamma = cost_list_gamma + cost_cycle_gamma_t
+        diff_exp_list   = diff_exp_list + diff_cost_cycle_async_t
         #
         # print_c(X_U, color=color_init)
         # print_c(Y, color=color_init)
@@ -140,12 +144,12 @@ def execute_example_4_product_mdp3(N, total_T, prod_dra, best_all_plan, state_se
         print_colored_sequence(Y)
         print_colored_sequence(X_INV)
         print_colored_sequence(AP_INV)
-        print_c("[cost / achieved_index] " + str(cost_cycle), color=color_init)
+        print_c("[cost / achieved_index] " + str(cost_cycle_pi_t), color=color_init)
         #
         print_highlighted_sequences(X_U, Y, X_INV, AP_INV, marker1=opt_prop, marker2=ap_gamma, attr=attr)
     # fig = visualize_run_sequence(XX, LL, UU, MM, 'surv_result', is_visuaize=False)
 
-    return cost_list_pi, cost_list_gamma
+    return cost_list_pi, cost_list_gamma, diff_exp_list
 
 def execute_example_in_origin_product_mdp(N, total_T, prod_dra, best_all_plan, state_seq, label_seq, opt_prop, ap_gamma, attr):
     XX = []
@@ -251,7 +255,7 @@ if __name__ == "__main__":
         # try:
         # TODO
         if True:
-            cost_list_pi, cost_list_gamma = execute_example_4_product_mdp3(N, total_T, prod_dra_pi, best_all_plan,
+            cost_list_pi, cost_list_gamma, diff_exp_list = execute_example_4_product_mdp3(N, total_T, prod_dra_pi, best_all_plan,
                                                                            state_seq, label_seq, opt_prop, ap_gamma,
                                                                            attr='Opaque')
 
