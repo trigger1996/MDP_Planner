@@ -190,8 +190,8 @@ def execute_example_in_origin_product_mdp(N, total_T, prod_dra, best_all_plan, s
             ol_t = []
             for o_t in o:
                 labels = list(prod_dra.graph['mdp'].nodes[o_t]['label'].keys())
-                label_str_list = [elem for fs in labels for elem in fs]  # 展开所有 frozenset
-                ol_t = ol_t + label_str_list
+                label_str_list = tuple([elem for fs in labels for elem in fs])  # 展开所有 frozenset
+                ol_t = ol_t + [ label_str_list ]
 
             OL.append(ol_t)
             OL_SET.append(set(ol_t))
@@ -202,8 +202,9 @@ def execute_example_in_origin_product_mdp(N, total_T, prod_dra, best_all_plan, s
 
     print('[Product Dra] process all done')
 
-    cost_list_pi = []
+    cost_list_pi    = []
     cost_list_gamma = []
+    diff_exp_list   = []
     color_init = 32
     for i in range(0, XX.__len__()):
         X_U = []
@@ -216,22 +217,16 @@ def execute_example_in_origin_product_mdp(N, total_T, prod_dra, best_all_plan, s
             Y = run_2_observations_seqs(X_U)
             X_INV, AP_INV = observation_seq_2_inference(Y)
             #
-            cost_cycle = calculate_cost_from_runs(prod_dra, XX[i], LL[i], UU[i], opt_prop)
-            cost_list_pi = cost_list_pi + cost_cycle
-            cost_cycle_p = calculate_cost_from_runs(prod_dra, XX[i], LL[i], UU[i], ap_gamma)
-            cost_list_gamma = cost_list_gamma + cost_cycle_p
+            # cost_cycle = calculate_cost_from_runs(prod_dra, XX[i], LL[i], UU[i], opt_prop)
+            # cost_list_pi = cost_list_pi + cost_cycle
+            # cost_cycle_p = calculate_cost_from_runs(prod_dra, XX[i], LL[i], UU[i], ap_gamma)
+            # cost_list_gamma = cost_list_gamma + cost_cycle_p
             # TODO
-            # cost_cycle_pi_sync_t, cost_cycle_gamma_sync_t, diff_cost_cycle_sync_t = calculate_sync_observed_cost_from_runs(
-            #     prod_dra, XX[i], OO[i], LL[i], UU[i], OLL[i], OLL_SET[i], opt_prop, ap_gamma)
-            # cost_cycle_pi_t, cost_cycle_gamma_t, diff_cost_cycle_async_t = calculate_observed_cost_from_runs(prod_dra,
-            #                                                                                                  XX[i],
-            #                                                                                                  OO[i],
-            #                                                                                                  LL[i],
-            #                                                                                                  UU[i],
-            #                                                                                                  OLL[i],
-            #                                                                                                  OLL_SET[i],
-            #                                                                                                  opt_prop,
-            #                                                                                                  ap_gamma)
+            cost_cycle_pi_sync_t, cost_cycle_gamma_sync_t, diff_cost_cycle_sync_t = calculate_sync_observed_cost_from_runs(prod_dra, XX[i], OO[i], LL[i], UU[i], OLL[i], OLL_SET[i], opt_prop, ap_gamma)
+            cost_cycle_pi_t, cost_cycle_gamma_t, diff_cost_cycle_async_t = calculate_observed_cost_from_runs(prod_dra, XX[i], OO[i], LL[i], UU[i], OLL[i], OLL_SET[i], opt_prop, ap_gamma)
+            cost_list_pi = cost_list_pi + cost_cycle_pi_t
+            cost_list_gamma = cost_list_gamma + cost_cycle_gamma_t
+            diff_exp_list = diff_exp_list + diff_cost_cycle_async_t
             #
             # print_c(X_U, color=color_init)
             # print_c(Y, color=color_init)
