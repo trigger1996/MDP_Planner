@@ -1,0 +1,10 @@
+    # gamma = 0.125
+    # d = 100                                   # for rex
+    # risk_threshold = 0.05  # default:  0.1
+    # differential_exp_cost = 5  # 1.590106
+    param_groups = [
+        (0.125, 50,  0.05, 5),
+        (0.125, 50,  0.1,  5),
+        (0.25,  100, 0.25, 7),
+        (0.5,   100, 0.5, 15),
+    ]

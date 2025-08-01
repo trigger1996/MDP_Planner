@@ -7,12 +7,14 @@ import matplotlib.pyplot as plt
 matplotlib.use("TkAgg")
 
 from functools import cmp_to_key
+from itertools import product
 from subprocess import check_output
-from Map.example_20250506_grid_single_agent import construct_single_agent_mdp, observation_func_0506, control_observable_dict
-from Map.example_20250506_team_mdp import run_2_observations_seqs, observation_seq_2_inference, calculate_cost_from_runs    # TODO
+from Map.example_20250506_grid_single_agent import construct_single_agent_mdp, observation_func_0506, observation_inv_function_0506, control_observable_dict
+from Map.example_20250506_team_mdp import run_2_observations_seqs, observation_seq_2_inference
 from MDP_TG.mdp import Motion_MDP
 from MDP_TG.dra import Dra
 from MDP_TG.lp  import syn_full_plan_rex
+from User.evaluation_team_ts import calculate_cost_from_runs, calculate_observed_cost_from_runs, calculate_sync_observed_cost_from_runs    # TODO
 from User.dra3 import product_mdp3
 from User.lp3  import synthesize_full_plan_w_opacity3
 from User.grid_utils import sort_team_numerical_states
@@ -87,20 +89,27 @@ def print_best_all_plan(best_all_plan):
 
 def execute_example_4_product_mdp3(N, total_T, prod_dra, best_all_plan, state_seq, label_seq, opt_prop, ap_gamma, attr='opaque'):
     XX  = []
+    OO  = []
     LL  = []
     UU  = []
     MM  = []
     OXX = []
+    OLL = []
+    OLL_SET = []
     cost_list_pi = []
     cost_list_gamma = []
+    diff_exp_list   = []
     for n in range(0, N):
-        X, OX, O, X_OPA, L, OL, U, M = prod_dra.execution_in_observer_graph(total_T)
+        X, OX, O, X_OPA, L, OL, OL_SET, U, M = prod_dra.execution_in_observer_graph(total_T)
 
         XX.append(X)
+        OO.append(O)
         LL.append(L)
         UU.append(U)
         MM.append(M)
         OXX.append(OX)
+        OLL.append(OL)                      # 这个顺序和observed states (OXX)是一致的
+        OLL_SET.append(OL_SET)              # 取OL的set()
 
     print('[Product Dra] process all done')
 
@@ -115,11 +124,16 @@ def execute_example_4_product_mdp3(N, total_T, prod_dra, best_all_plan, state_se
         Y = run_2_observations_seqs(X_U)
         X_INV, AP_INV = observation_seq_2_inference(Y)
         #
-        cost_cycle = calculate_cost_from_runs(prod_dra, XX[i], LL[i], UU[i], opt_prop)
-        cost_list_pi = cost_list_pi + cost_cycle
+        #cost_cycle = calculate_cost_from_runs(prod_dra, XX[i], OO[i], LL[i], UU[i], OLL[i], OLL_SET[i], opt_prop)
+        #cost_list_pi = cost_list_pi + cost_cycle
+        #cost_cycle_p = calculate_cost_from_runs(prod_dra, XX[i], OO[i], LL[i], UU[i], OLL[i], OLL_SET[i], opt_prop)
+        #cost_list_gamma = cost_list_gamma + cost_cycle_p
         #
-        cost_cycle_p = calculate_cost_from_runs(prod_dra, XX[i], LL[i], UU[i], ap_gamma)
-        cost_list_gamma = cost_list_gamma + cost_cycle_p
+        cost_cycle_pi_sync_t, cost_cycle_gamma_sync_t, diff_cost_cycle_sync_t  = calculate_sync_observed_cost_from_runs(prod_dra, XX[i], OO[i], LL[i], UU[i], OLL[i], OLL_SET[i], opt_prop, ap_gamma)
+        cost_cycle_pi_t,      cost_cycle_gamma_t,      diff_cost_cycle_async_t = calculate_observed_cost_from_runs(prod_dra,      XX[i], OO[i], LL[i], UU[i], OLL[i], OLL_SET[i], opt_prop, ap_gamma)
+        cost_list_pi    = cost_list_pi    + cost_cycle_pi_t
+        cost_list_gamma = cost_list_gamma + cost_cycle_gamma_t
+        diff_exp_list   = diff_exp_list + diff_cost_cycle_async_t
         #
         # print_c(X_U, color=color_init)
         # print_c(Y, color=color_init)
@@ -132,14 +146,14 @@ def execute_example_4_product_mdp3(N, total_T, prod_dra, best_all_plan, state_se
         print_colored_sequence(Y)
         print_colored_sequence(X_INV)
         print_colored_sequence(AP_INV)
-        print_c("[cost / achieved_index] " + str(cost_cycle), color=color_init)
+        print_c("[cost / achieved_index] " + str(cost_cycle_pi_t), color=color_init)
         #
         print_highlighted_sequences(X_U, Y, X_INV, AP_INV, marker1=opt_prop, marker2=ap_gamma, attr=attr)
     # fig = visualize_run_sequence(XX, LL, UU, MM, 'surv_result', is_visuaize=False)
 
-    return cost_list_pi, cost_list_gamma
+    return cost_list_pi, cost_list_gamma, diff_exp_list
 
-def execute_example_in_origin_product_mdp(N, total_T, prod_dra, best_all_plan, state_seq, label_seq, opt_prop, ap_gamma, attr):
+def execute_example_in_origin_product_mdp(N, total_T, prod_dra, best_all_plan, state_seq, label_seq, opt_prop, ap_gamma, observer_func=observation_func_0506, observer_inv_func=observation_inv_function_0506, attr='Non_Opaque'):
     XX = []
     LL = []
     UU = []
@@ -154,41 +168,88 @@ def execute_example_in_origin_product_mdp(N, total_T, prod_dra, best_all_plan, s
         MM.append(M)
         PP.append(PX)
 
+
+    # TODO
+    # product dra不好改, 那么这里利用observervation func求解O(x)和Observed label set
+    OO = []
+    OLL = []
+    OLL_SET = []
+    for n in range(0, N):
+        X = XX[n]
+        O = []
+        OL = []
+        OL_SET = []
+        try:
+            for i in range(0, len(X)):
+                x = X[i]
+                x_x_inv = observer_inv_func(observer_func(x))
+                o = list(product(*x_x_inv))
+                o = list(set(o).intersection(set(prod_dra.graph['mdp'].nodes)))
+                if type(o) == tuple:
+                    o = list(set([o_t for o_t in o]))
+                O.append(o)
+
+                ol_t = []
+                for o_t in o:
+                    labels = list(prod_dra.graph['mdp'].nodes[o_t]['label'].keys())
+                    label_str_list = tuple([elem for fs in labels for elem in fs])  # 展开所有 frozenset
+                    ol_t = ol_t + [ label_str_list ]
+
+                OL.append(ol_t)
+                OL_SET.append(set(ol_t))
+        except TypeError:
+            #print("23333333")
+            print("invalid runs, pass ....")
+
+        OO.append(O)
+        OLL.append(OL)
+        OLL_SET.append(OL_SET)
+
     print('[Product Dra] process all done')
 
-    cost_list_pi = []
+    cost_list_pi    = []
     cost_list_gamma = []
+    diff_exp_list   = []
     color_init = 32
     for i in range(0, XX.__len__()):
         X_U = []
-        for j in range(0, XX[i].__len__()):
-            X_U.append(XX[i][j])
-            if j < XX[i].__len__() - 1:
-                X_U.append(UU[i][j])
-        #
-        Y = run_2_observations_seqs(X_U)
-        X_INV, AP_INV = observation_seq_2_inference(Y)
-        #
-        cost_cycle = calculate_cost_from_runs(prod_dra, XX[i], LL[i], UU[i], opt_prop)
-        cost_list_pi = cost_list_pi + cost_cycle
-        #
-        cost_cycle_p = calculate_cost_from_runs(prod_dra, XX[i], LL[i], UU[i], ap_gamma)
-        cost_list_gamma = cost_list_gamma + cost_cycle_p
-        #
-        # print_c(X_U, color=color_init)
-        # print_c(Y, color=color_init)
-        # print_c(X_INV, color=color_init)
-        # print_c(AP_INV, color=color_init)
-        # print_c("[cost / achieved_index] " + str(cost_cycle), color=color_init)
-        # color_init += 1
-        #
-        print_colored_sequence(X_U)
-        print_colored_sequence(Y)
-        print_colored_sequence(X_INV)
-        print_colored_sequence(AP_INV)
-        print_c("[cost / achieved_index] " + str(cost_cycle), color=color_init)
-        #
-        print_highlighted_sequences(X_U, Y, X_INV, AP_INV, marker1=opt_prop, marker2=ap_gamma, attr=attr)
+        try:
+            for j in range(0, XX[i].__len__()):
+                X_U.append(XX[i][j])
+                if j < XX[i].__len__() - 1:
+                    X_U.append(UU[i][j])
+            #
+            Y = run_2_observations_seqs(X_U)
+            X_INV, AP_INV = observation_seq_2_inference(Y)
+            #
+            # cost_cycle = calculate_cost_from_runs(prod_dra, XX[i], LL[i], UU[i], opt_prop)
+            # cost_list_pi = cost_list_pi + cost_cycle
+            # cost_cycle_p = calculate_cost_from_runs(prod_dra, XX[i], LL[i], UU[i], ap_gamma)
+            # cost_list_gamma = cost_list_gamma + cost_cycle_p
+            # TODO
+            cost_cycle_pi_sync_t, cost_cycle_gamma_sync_t, diff_cost_cycle_sync_t = calculate_sync_observed_cost_from_runs(prod_dra, XX[i], OO[i], LL[i], UU[i], OLL[i], OLL_SET[i], opt_prop, ap_gamma)
+            cost_cycle_pi_t, cost_cycle_gamma_t, diff_cost_cycle_async_t = calculate_observed_cost_from_runs(prod_dra, XX[i], OO[i], LL[i], UU[i], OLL[i], OLL_SET[i], opt_prop, ap_gamma)
+            cost_list_pi = cost_list_pi + cost_cycle_pi_t
+            cost_list_gamma = cost_list_gamma + cost_cycle_gamma_t
+            diff_exp_list = diff_exp_list + diff_cost_cycle_async_t
+            #
+            # print_c(X_U, color=color_init)
+            # print_c(Y, color=color_init)
+            # print_c(X_INV, color=color_init)
+            # print_c(AP_INV, color=color_init)
+            # print_c("[cost / achieved_index] " + str(cost_cycle), color=color_init)
+            # color_init += 1
+            #
+            print_colored_sequence(X_U)
+            print_colored_sequence(Y)
+            print_colored_sequence(X_INV)
+            print_colored_sequence(AP_INV)
+            print_c("[cost / achieved_index] " + str(cost_cycle_pi_t), color=color_init)
+            #
+            print_highlighted_sequences(X_U, Y, X_INV, AP_INV, marker1=opt_prop, marker2=ap_gamma, attr=attr)
+        except:
+            # TODO
+            print(XX)
     # fig = visualize_run_sequence(XX, LL, UU, MM, 'surv_result', is_visuaize=False)
 
     return cost_list_pi, cost_list_gamma
@@ -239,7 +300,7 @@ if __name__ == "__main__":
         # try:
         # TODO
         if True:
-            cost_list_pi, cost_list_gamma = execute_example_4_product_mdp3(N, total_T, prod_dra_pi, best_all_plan,
+            cost_list_pi, cost_list_gamma, diff_exp_cost = execute_example_4_product_mdp3(N, total_T, prod_dra_pi, best_all_plan,
                                                                            state_seq, label_seq, opt_prop, ap_gamma,
                                                                            attr='Opaque')
 
@@ -247,7 +308,7 @@ if __name__ == "__main__":
             #                title="Cost for Satisfaction of AP \pi in Opaque runs")
             # plot_cost_hist(cost_list_gamma, bins=25, color='r', is_average=is_average,
             #                title="Cost for Satisfaction of AP \gamma in Opaque runs")
-            plot_cost_hists_multi(cost_list_pi, cost_list_gamma, bins=25, colors=['r', 'magenta'], labels=['\pi', '\gamma'], is_average=is_average,
+            plot_cost_hists_multi(cost_list_pi, cost_list_gamma, bins=25, colors=['r', 'magenta'], labels=[r"$\pi$", r"$\gamma$"], is_average=is_average,
                                   title="Cost for Satisfaction of APs in Opaque runs")
 
             # TODO
@@ -274,7 +335,7 @@ if __name__ == "__main__":
     #                title="Cost for Satisfaction of AP \pi in NON-Opaque runs")
     # plot_cost_hist(cost_list_gamma_p, bins=25, color='cyan', is_average=is_average,
     #                title="Cost for Satisfaction of AP \gamma in NON-Opaque runs")
-    plot_cost_hists_multi(cost_list_pi_p, cost_list_gamma_p, bins=25, colors=['b', 'cyan'], labels=['\pi', '\gamma'], is_average=is_average,
+    plot_cost_hists_multi(cost_list_pi_p, cost_list_gamma_p, bins=25, colors=['b', 'cyan'], labels=[r"$\pi$", r"$\gamma$"], is_average=is_average,
                           title="Cost for Satisfaction of APs in NON-Opaque runs")
 
     # TODO 对比实验

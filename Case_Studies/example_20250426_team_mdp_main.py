@@ -10,7 +10,7 @@ from functools import cmp_to_key
 from itertools import product
 from subprocess import check_output
 from Map.example_20250426_team_mdp import construct_team_mdp, team_observation_func_0426, team_observation_inv_func_0426, control_observable_dict, run_2_observations_seqs, observation_seq_2_inference
-from Map.example_20250426_team_mdp import calculate_cost_from_runs, calculate_observed_cost_from_runs, calculate_sync_observed_cost_from_runs
+from User.evaluation_team_ts import calculate_cost_from_runs, calculate_observed_cost_from_runs, calculate_sync_observed_cost_from_runs
 from MDP_TG.mdp import Motion_MDP
 from MDP_TG.dra import Dra
 from MDP_TG.lp  import syn_full_plan_rex
@@ -178,23 +178,27 @@ def execute_example_in_origin_product_mdp(N, total_T, prod_dra, best_all_plan, s
         O = []
         OL = []
         OL_SET = []
-        for i in range(0, len(X)):
-            x = X[i]
-            x_x_inv = observer_inv_func(observer_func(x))
-            o = list(product(*x_x_inv))
-            o = list(set(o).intersection(set(prod_dra.graph['mdp'].nodes)))
-            if type(o) == tuple:
-                o = list(set([o_t for o_t in o]))
-            O.append(o)
+        try:
+            for i in range(0, len(X)):
+                x = X[i]
+                x_x_inv = observer_inv_func(observer_func(x))
+                o = list(product(*x_x_inv))
+                o = list(set(o).intersection(set(prod_dra.graph['mdp'].nodes)))
+                if type(o) == tuple:
+                    o = list(set([o_t for o_t in o]))
+                O.append(o)
 
-            ol_t = []
-            for o_t in o:
-                labels = list(prod_dra.graph['mdp'].nodes[o_t]['label'].keys())
-                label_str_list = tuple([elem for fs in labels for elem in fs])  # 展开所有 frozenset
-                ol_t = ol_t + [ label_str_list ]
+                ol_t = []
+                for o_t in o:
+                    labels = list(prod_dra.graph['mdp'].nodes[o_t]['label'].keys())
+                    label_str_list = tuple([elem for fs in labels for elem in fs])  # 展开所有 frozenset
+                    ol_t = ol_t + [ label_str_list ]
 
-            OL.append(ol_t)
-            OL_SET.append(set(ol_t))
+                OL.append(ol_t)
+                OL_SET.append(set(ol_t))
+        except TypeError:
+            #print("23333333")
+            print("invalid runs, pass ....")
 
         OO.append(O)
         OLL.append(OL)

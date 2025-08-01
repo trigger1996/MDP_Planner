@@ -27,6 +27,28 @@ def observation_func_0506(state_id, y_len=5):
     row = int(state_id) % y_len // 2               # TODO Modifiied, different observation function
     return str(row)
 
+def observation_inv_function_0506(obs_val, observation_dict_t=observation_dict, x_len=5, y_len=5):
+    """
+    根据个体的观测值（列号）返回该观测值可能对应的所有状态ID列表。
+
+    参数:
+        obs_val: str, 观测值（如 '0', '1', '2' 等），表示列号
+        observation_dict: 可选，如果已存在观测字典就用已有的；否则会重新构建。
+
+    返回:
+        List[str] 或 Set[str]，可能的状态ID（如 ['0', '5', '10', '15', '20']）
+    """
+    #global x_len, y_len
+    #global inaccessible_grids_in_map
+
+    # 如果没有传入观测字典，就构建一个
+    if observation_dict_t is None:
+        observation_dict_t = build_observation_dict_all_states(x_len, y_len)
+
+    # 返回对应观测值的所有状态
+    return observation_dict_t.get(str(obs_val), [])
+
+
 def construct_single_agent_mdp(is_visualize=False):
     """构建完整团队MDP"""
     # Added

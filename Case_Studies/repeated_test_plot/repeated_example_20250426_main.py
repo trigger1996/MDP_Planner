@@ -75,11 +75,16 @@ if __name__ == "__main__":
     opt_prop = 'gather'
     ltl_formula_converted = ltl_convert(ltl_formula)
 
+
+    # gamma = 0.125
+    # d = 100                                   # for rex
+    # risk_threshold = 0.05  # default:  0.1
+    # differential_exp_cost = 5  # 1.590106
     param_groups = [
-        (0.125, 100, 0.05, 5),
-        (0.125, 100, 0.1, 5),
-        (0.25, 150, 0.05, 7),
-        (0.25, 150, 0.1, 7),
+        (0.125, 5,  0.05, 5),
+        (0.125, 5,  0.1,  5),
+        (0.25,  7,  0.25, 7),
+        (0.5,   15, 0.5, 15),
     ]
 
     results = []
@@ -104,7 +109,7 @@ if __name__ == "__main__":
 
         dra = Dra(ltl_formula_converted)
 
-        cost_list_pi, cost_list_gamma = execute_example_4_product_mdp3(
+        cost_list_pi, cost_list_gamma, diff_exp_list = execute_example_4_product_mdp3(
             N, total_T, prod_dra_pi, best_plan_opq,
             [initial_node], [initial_label], opt_prop, best_plan_opq[3][0], attr='Opaque'
         )
