@@ -396,7 +396,12 @@ class product_team_mdp3(product_mdp3):
             self.sync_amec_set.append(sync_mec_t)
             self.current_sync_amec_index = len(self.sync_amec_set) - 1
 
-        print_c(f"[synthesize_w_opacity] Generated sync_amec, states: {len(sync_mec_t.nodes)}, edges: {len(sync_mec_t.edges)}")
+            print_c(f"[synthesize_w_opacity] Generated sync_amec, states: {len(sync_mec_t.nodes)}, edges: {len(sync_mec_t.edges)}")
+
+            return True
+
+        print_c(f"[synthesize_w_opacity] sync_amec, NOT synthesized: {len(sync_mec_t.nodes)}, edges: {len(sync_mec_t.edges)}", color='red', style='bold')
+        return False
 
     #
     # Seems identical to the function for individual system

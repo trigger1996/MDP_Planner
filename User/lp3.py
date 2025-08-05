@@ -1164,9 +1164,12 @@ def synthesize_full_plan_w_opacity3(mdp, task, optimizing_ap, ap_list, risk_pr, 
                 #
                 for p, S_fi_gamma in enumerate(prod_dra_gamma.Sf):
                     for q, MEC_gamma in enumerate(S_fi_gamma):
-                        prod_dra_pi.re_synthesize_sync_amec(optimizing_ap, ap_4_opacity, MEC_pi, MEC_gamma,
-                                                             prod_dra_gamma, observation_func=observation_func,
-                                                             ctrl_obs_dict=ctrl_obs_dict)
+                        is_synthesized_sync_amec = prod_dra_pi.re_synthesize_sync_amec(optimizing_ap, ap_4_opacity, MEC_pi, MEC_gamma,
+                                                                      prod_dra_gamma, observation_func=observation_func,
+                                                                      ctrl_obs_dict=ctrl_obs_dict)
+
+                        if not is_synthesized_sync_amec or prod_dra_pi.sync_amec_set.__len__() == 0:        # 补丁
+                            continue
 
                         sync_mec_t = prod_dra_pi.project_sync_amec_back_to_mec_pi(
                             prod_dra_pi.sync_amec_set[prod_dra_pi.current_sync_amec_index], MEC_pi)

@@ -19,7 +19,7 @@ from User.dra3 import product_mdp3
 from User.lp3  import synthesize_full_plan_w_opacity3
 from User.grid_utils import sort_team_numerical_states
 from User.vis2 import print_c, print_colored_sequence, print_highlighted_sequences
-from User.plot import plot_cost_hist, plot_cost_hists_multi
+from User.plot import plot_cost_hist, plot_cost_hists_multi, plot_cost_hists_together_4_comparision
 
 # for debugging
 # import random
@@ -181,18 +181,21 @@ def execute_example_in_origin_product_mdp(N, total_T, prod_dra, best_all_plan, s
         try:
             for i in range(0, len(X)):
                 x = X[i]
-                x_x_inv = observer_inv_func(observer_func(x))
-                o = list(product(*x_x_inv))
-                # o = list(set(o).intersection(set(prod_dra.graph['mdp'].nodes)))                                       # TODO
-                o = [set(o_t).intersection(set(prod_dra.graph['mdp'].nodes)) for o_t in o]
+                # x_x_inv = observer_inv_func(observer_func(x))
+                # o = list(product(*x_x_inv))
+                o = observer_inv_func(observer_func(x))
+                o = list(set(o).intersection(set(prod_dra.graph['mdp'].nodes)))
+                # o = [set(o_t).intersection(set(prod_dra.graph['mdp'].nodes)) for o_t in o]
                 if type(o) == tuple:
                     o = list(set([o_t for o_t in o]))
                 O.append(o)
 
                 ol_t = []
                 for o_t in o:
-                    for state_t in o_t:
-                        labels = list(prod_dra.graph['mdp'].nodes[state_t]['label'].keys())                                 # [o_t]['label'].keys()) TODO
+                    #for state_t in o_t:
+                    if True:
+                        # labels = list(prod_dra.graph['mdp'].nodes[state_t]['label'].keys())                                 # [o_t]['label'].keys())
+                        labels = list(prod_dra.graph['mdp'].nodes[o_t]['label'].keys())
                         label_str_list = tuple([elem for fs in labels for elem in fs])  # 展开所有 frozenset
                         ol_t = ol_t + [ label_str_list ]
 
@@ -342,6 +345,18 @@ if __name__ == "__main__":
     # TODO 对比实验
     # 我的问题是, 入侵者到底拿到的是什么数据
     # 进而, 如何通过实验现象来描述opacity
+    if is_run_opaque_synthesis:
+        plot_cost_hists_together_4_comparision(
+            [
+                [cost_list_pi, cost_list_gamma],  # 方法 1
+                [cost_list_pi_p, cost_list_gamma_p],  # 方法 2
+            ],
+            colors_pi=["#C99E8C", "#57C3C2"],
+            colors_gamma=["#465E65", "#FE4567"],
+            labels_pi=[r"$\pi$ in opaque run", r"$\pi$ in non-opaque run"],
+            labels_gamma=[r"$\gamma$ in opaque run", r"$\gamma$ in non-opaque run"],
+            title="Cost for Satisfaction of APs"
+        )
 
     # TODO
     # draw_action_principle()

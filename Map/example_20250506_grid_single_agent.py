@@ -24,7 +24,8 @@ control_observable_dict = None
 
 def observation_func_0506(state_id, y_len=5):
     #return observation_func(state_id, y_len)
-    row = int(state_id) % y_len // 2               # TODO Modifiied, different observation function
+    #row = int(state_id) % y_len // 2               # TODO Modifiied, different observation function
+    row = int(state_id) % y_len
     return str(row)
 
 def observation_inv_function_0506(obs_val, observation_dict_t=observation_dict, x_len=5, y_len=5):
