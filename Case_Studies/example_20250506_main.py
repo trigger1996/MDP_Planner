@@ -186,16 +186,18 @@ def execute_example_in_origin_product_mdp(N, total_T, prod_dra, best_all_plan, s
                 x = X[i]
                 x_x_inv = observer_inv_func(observer_func(x))
                 o = list(product(*x_x_inv))
-                o = list(set(o).intersection(set(prod_dra.graph['mdp'].nodes)))
+                # o = list(set(o).intersection(set(prod_dra.graph['mdp'].nodes)))                                       # TODO
+                o = [set(o_t).intersection(set(prod_dra.graph['mdp'].nodes)) for o_t in o]
                 if type(o) == tuple:
                     o = list(set([o_t for o_t in o]))
                 O.append(o)
 
                 ol_t = []
                 for o_t in o:
-                    labels = list(prod_dra.graph['mdp'].nodes[o_t]['label'].keys())
-                    label_str_list = tuple([elem for fs in labels for elem in fs])  # 展开所有 frozenset
-                    ol_t = ol_t + [ label_str_list ]
+                    for state_t in o_t:
+                        labels = list(prod_dra.graph['mdp'].nodes[state_t]['label'].keys())                                 # [o_t]['label'].keys()) TODO
+                        label_str_list = tuple([elem for fs in labels for elem in fs])  # 展开所有 frozenset
+                        ol_t = ol_t + [ label_str_list ]
 
                 OL.append(ol_t)
                 OL_SET.append(set(ol_t))
@@ -209,7 +211,7 @@ def execute_example_in_origin_product_mdp(N, total_T, prod_dra, best_all_plan, s
 
     print('[Product Dra] process all done')
 
-    cost_list_pi = []
+    cost_list_pi    = []
     cost_list_gamma = []
     diff_exp_list   = []
     color_init = 32
@@ -306,7 +308,7 @@ if __name__ == "__main__":
         # try:
         # TODO
         if True:
-            cost_list_pi, cost_list_gamma = execute_example_4_product_mdp3(N, total_T, team_mdp, prod_dra_pi, best_all_plan,
+            cost_list_pi, cost_list_gamma, diff_exp_list = execute_example_4_product_mdp3(N, total_T, team_mdp, prod_dra_pi, best_all_plan,
                                                                            state_seq, label_seq, opt_prop, ap_gamma,
                                                                            attr='Opaque')
 

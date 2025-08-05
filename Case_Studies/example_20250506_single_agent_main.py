@@ -168,7 +168,6 @@ def execute_example_in_origin_product_mdp(N, total_T, prod_dra, best_all_plan, s
         MM.append(M)
         PP.append(PX)
 
-
     # TODO
     # product dra不好改, 那么这里利用observervation func求解O(x)和Observed label set
     OO = []
@@ -184,16 +183,18 @@ def execute_example_in_origin_product_mdp(N, total_T, prod_dra, best_all_plan, s
                 x = X[i]
                 x_x_inv = observer_inv_func(observer_func(x))
                 o = list(product(*x_x_inv))
-                o = list(set(o).intersection(set(prod_dra.graph['mdp'].nodes)))
+                # o = list(set(o).intersection(set(prod_dra.graph['mdp'].nodes)))                                       # TODO
+                o = [set(o_t).intersection(set(prod_dra.graph['mdp'].nodes)) for o_t in o]
                 if type(o) == tuple:
                     o = list(set([o_t for o_t in o]))
                 O.append(o)
 
                 ol_t = []
                 for o_t in o:
-                    labels = list(prod_dra.graph['mdp'].nodes[o_t]['label'].keys())
-                    label_str_list = tuple([elem for fs in labels for elem in fs])  # 展开所有 frozenset
-                    ol_t = ol_t + [ label_str_list ]
+                    for state_t in o_t:
+                        labels = list(prod_dra.graph['mdp'].nodes[state_t]['label'].keys())                                 # [o_t]['label'].keys()) TODO
+                        label_str_list = tuple([elem for fs in labels for elem in fs])  # 展开所有 frozenset
+                        ol_t = ol_t + [ label_str_list ]
 
                 OL.append(ol_t)
                 OL_SET.append(set(ol_t))
@@ -327,7 +328,7 @@ if __name__ == "__main__":
     if True:
         cost_list_pi_p, cost_list_gamma_p = execute_example_in_origin_product_mdp(N, total_T, prod_dra, best_all_plan_p,
                                                                                   state_seq, label_seq, opt_prop,
-                                                                                  ap_gamma, attr='Opaque')
+                                                                                  ap_gamma, attr='Non-Opaque')
     # except:
     #     print_c("No best plan synthesized, try re-run this program", color=33)
     # is_average = True

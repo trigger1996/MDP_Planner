@@ -42,7 +42,7 @@ def observation_inv_function_0506(obs_val, observation_dict_t=observation_dict, 
     #global inaccessible_grids_in_map
 
     # 如果没有传入观测字典，就构建一个
-    if observation_dict_t is None:
+    if observation_dict_t is None or len(observation_dict_t) == 0:
         observation_dict_t = build_observation_dict_all_states(x_len, y_len)
 
     # 返回对应观测值的所有状态
