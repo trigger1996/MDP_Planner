@@ -22,7 +22,7 @@ from User.team_dra3 import product_team_mdp3
 from User.team_lp3  import synthesize_full_plan_w_opacity3
 from User.grid_utils import sort_team_numerical_states
 from User.vis2 import print_c, print_colored_sequence, print_highlighted_sequences
-from User.plot import plot_cost_hist, plot_cost_hists_multi
+from User.plot import plot_cost_hist, plot_cost_hists_multi, plot_cost_hists_together_4_comparision
 
 # for debugging
 # import random
@@ -184,20 +184,23 @@ def execute_example_in_origin_product_mdp(N, total_T, prod_dra, best_all_plan, s
         try:
             for i in range(0, len(X)):
                 x = X[i]
-                x_x_inv = observer_inv_func(observer_func(x))
-                o = list(product(*x_x_inv))
-                # o = list(set(o).intersection(set(prod_dra.graph['mdp'].nodes)))                                       # TODO
-                o = [set(o_t).intersection(set(prod_dra.graph['mdp'].nodes)) for o_t in o]
+                # x_x_inv = observer_inv_func(observer_func(x))
+                # o = list(product(*x_x_inv))
+                o = observer_inv_func(observer_func(x))
+                o = list(set(o).intersection(set(prod_dra.graph['mdp'].nodes)))
+                # o = [set(o_t).intersection(set(prod_dra.graph['mdp'].nodes)) for o_t in o]
                 if type(o) == tuple:
                     o = list(set([o_t for o_t in o]))
                 O.append(o)
 
                 ol_t = []
                 for o_t in o:
-                    for state_t in o_t:
-                        labels = list(prod_dra.graph['mdp'].nodes[state_t]['label'].keys())                                 # [o_t]['label'].keys()) TODO
+                    # for state_t in o_t:
+                    if True:
+                        # labels = list(prod_dra.graph['mdp'].nodes[state_t]['label'].keys())                                 # [o_t]['label'].keys())
+                        labels = list(prod_dra.graph['mdp'].nodes[o_t]['label'].keys())
                         label_str_list = tuple([elem for fs in labels for elem in fs])  # 展开所有 frozenset
-                        ol_t = ol_t + [ label_str_list ]
+                        ol_t = ol_t + [label_str_list]
 
                 OL.append(ol_t)
                 OL_SET.append(set(ol_t))
