@@ -186,7 +186,8 @@ def execute_example_in_origin_product_mdp(N, total_T, prod_dra, best_all_plan, s
                 x = X[i]
                 # x_x_inv = observer_inv_func(observer_func(x))
                 # o = list(product(*x_x_inv))
-                o = observer_inv_func(observer_func(x))
+                x_x_inv = observer_inv_func(observer_func(x))
+                o = product(*x_x_inv)
                 o = list(set(o).intersection(set(prod_dra.graph['mdp'].nodes)))
                 # o = [set(o_t).intersection(set(prod_dra.graph['mdp'].nodes)) for o_t in o]
                 if type(o) == tuple:
@@ -251,6 +252,7 @@ def execute_example_in_origin_product_mdp(N, total_T, prod_dra, best_all_plan, s
             print_colored_sequence(Y)
             print_colored_sequence(X_INV)
             print_colored_sequence(AP_INV)
+            print_colored_sequence(OLL_SET[i])                  # Added
             print_c("[cost / achieved_index] " + str(cost_cycle_pi_t), color=color_init)
             #
             print_highlighted_sequences(X_U, Y, X_INV, AP_INV, marker1=opt_prop, marker2=ap_gamma, attr=attr)
