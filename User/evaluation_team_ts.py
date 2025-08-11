@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+from tabulate import tabulate
 
 def calculate_cost_from_runs(product_mdp, x, o, l, u, ol, ol_set, opt_prop, is_remove_zeros=True):
     #
@@ -386,3 +387,96 @@ def calculate_observed_cost_from_runs(product_mdp, x, o, l, u, ol, ol_set, opt_p
 
 
     return cost_list, cost_list_gamma, diff_exp_list
+
+def construct_policy_comparasion_tables(plan_prefix, plan_suffix, plan_prefix_p, plan_suffix_p):
+    # non-p is from observer mdp
+    # p is from original product mdp
+
+    prefix_product_state   = [state_t[0] for state_t in list(plan_prefix[0].keys())]
+    prefix_product_state_p = [state_t for state_t in list(plan_prefix_p[0].keys())]
+    prefix_state_all = set(prefix_product_state).union(set(prefix_product_state_p))
+
+    suffix_product_state   = [state_t[0] for state_t in list(plan_suffix[0].keys())]
+    suffix_product_state_p = [state_t for state_t in list(plan_suffix_p[0].keys())]
+    suffix_state_all = set(suffix_product_state).union(set(suffix_product_state_p))
+
+    # prefix policy dict
+    #
+    # data_structure
+    # { state:  { prefix: {action : prob}, suffix : {action : prob}}}
+    policy_prefix_2_print = {}
+    for state_t in list(plan_prefix[0].keys()):
+        policy_prefix_2_print[state_t[0]] = {'opaque': plan_prefix[0][state_t]}
+    for state_t in list(plan_prefix_p[0].keys()):
+        if state_t in prefix_product_state and state_t in prefix_product_state_p:
+            debug_var = 1
+        if state_t in policy_prefix_2_print.keys():
+            policy_prefix_2_print[state_t]['non-opaque'] = plan_prefix_p[0][state_t]
+        else:
+            policy_prefix_2_print[state_t] = {'non-opaque': plan_prefix_p[0][state_t]}
+
+    # suffix policy dict
+    policy_suffix_2_print = {}
+    for state_t in list(plan_suffix[0].keys()):
+        policy_suffix_2_print[state_t[0]] = {'opaque': plan_suffix[0][state_t]}
+    for state_t in list(plan_suffix_p[0].keys()):
+        if state_t in suffix_product_state and state_t in suffix_product_state_p:
+            debug_var = 2
+        if state_t in policy_suffix_2_print.keys():
+            policy_suffix_2_print[state_t]['non-opaque'] = plan_suffix_p[0][state_t]
+        else:
+            policy_suffix_2_print[state_t] = {'non-opaque': plan_suffix_p[0][state_t]}
+
+    # 表格化打印 prefix
+    print("\n=== Policy Prefix Table ===")
+    prefix_table = []
+    for state, policies in policy_prefix_2_print.items():
+        prefix_table.append([
+            str(state),
+            str(policies.get('opaque', '—')),
+            str(policies.get('non-opaque', '—'))
+        ])
+    print(tabulate(prefix_table, headers=["State", "Opaque", "Non-Opaque"], tablefmt="grid"))
+
+    # 表格化打印 suffix
+    print("\n=== Policy Suffix Table ===")
+    suffix_table = []
+    for state, policies in policy_suffix_2_print.items():
+        suffix_table.append([
+            str(state),
+            str(policies.get('opaque', '—')),
+            str(policies.get('non-opaque', '—'))
+        ])
+    print(tabulate(suffix_table, headers=["State", "Opaque", "Non-Opaque"], tablefmt="grid"))
+
+    # 差异对比（prefix）
+    print("\n=== Prefix States with Different Policies ===")
+    diff_prefix_table = []
+    for state, policies in policy_prefix_2_print.items():
+        if 'opaque' in policies and 'non-opaque' in policies:
+            if policies['opaque'] != policies['non-opaque']:
+                diff_prefix_table.append([
+                    str(state),
+                    str(policies['opaque']),
+                    str(policies['non-opaque'])
+                ])
+    if diff_prefix_table:
+        print(tabulate(diff_prefix_table, headers=["State", "Opaque", "Non-Opaque"], tablefmt="grid"))
+    else:
+        print("No differences found in prefix policies.")
+
+    # 差异对比（suffix）
+    print("\n=== Suffix States with Different Policies ===")
+    diff_suffix_table = []
+    for state, policies in policy_suffix_2_print.items():
+        if 'opaque' in policies and 'non-opaque' in policies:
+            if policies['opaque'] != policies['non-opaque']:
+                diff_suffix_table.append([
+                    str(state),
+                    str(policies['opaque']),
+                    str(policies['non-opaque'])
+                ])
+    if diff_suffix_table:
+        print(tabulate(diff_suffix_table, headers=["State", "Opaque", "Non-Opaque"], tablefmt="grid"))
+    else:
+        print("No differences found in suffix policies.")

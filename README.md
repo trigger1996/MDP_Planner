@@ -22,7 +22,7 @@ Installation
 ```
 sudo apt update
 
-pip3 install rich ortools seaborn matplotlib networkx
+pip3 install rich ortools seaborn matplotlib networkx tabulate colorama
 
 sudo apt install python3-tk
 

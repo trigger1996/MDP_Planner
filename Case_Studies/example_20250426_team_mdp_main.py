@@ -10,7 +10,7 @@ from functools import cmp_to_key
 from itertools import product
 from subprocess import check_output
 from Map.example_20250426_team_mdp import construct_team_mdp, team_observation_func_0426, team_observation_inv_func_0426, control_observable_dict, run_2_observations_seqs, observation_seq_2_inference
-from User.evaluation_team_ts import calculate_cost_from_runs, calculate_observed_cost_from_runs, calculate_sync_observed_cost_from_runs
+from User.evaluation_team_ts import calculate_cost_from_runs, calculate_observed_cost_from_runs, calculate_sync_observed_cost_from_runs, construct_policy_comparasion_tables
 from MDP_TG.mdp import Motion_MDP
 from MDP_TG.dra import Dra
 from MDP_TG.lp  import syn_full_plan_rex
@@ -349,6 +349,9 @@ if __name__ == "__main__":
             labels_gamma=[r"$\gamma$ in opaque run", r"$\gamma$ in non-opaque run"],
             title="Cost for Satisfaction of APs"
         )
+
+        # Added
+        construct_policy_comparasion_tables(best_all_plan[0], best_all_plan[1], best_all_plan_p[0], best_all_plan[1])
 
     # TODO 对比实验
     # 我的问题是, 入侵者到底拿到的是什么数据
