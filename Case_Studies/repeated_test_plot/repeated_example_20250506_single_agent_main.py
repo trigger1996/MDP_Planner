@@ -9,7 +9,7 @@ matplotlib.use("TkAgg")
 #
 from functools import cmp_to_key
 from subprocess import check_output
-from Map.example_20250426_team_mdp import construct_team_mdp, team_observation_func_0426, control_observable_dict, run_2_observations_seqs, observation_seq_2_inference, calculate_cost_from_runs
+from Map.example_20250506_grid_single_agent import construct_single_agent_mdp, observation_func_0506, control_observable_dict
 from MDP_TG.mdp import Motion_MDP
 from MDP_TG.dra import Dra
 from MDP_TG.lp  import syn_full_plan_rex
@@ -37,7 +37,7 @@ def run_one_param_group(team_mdp, ltl_formula_converted, ap_list, param_group, m
             team_mdp, ltl_formula, opt_prop, ap_list,
             risk_threshold,
             differential_exp_cost,
-            observation_func=team_observation_func_0426,
+            observation_func=observation_func_0506,
             ctrl_obs_dict=control_observable_dict
         )
         if best_all_plan is not None:
@@ -68,7 +68,7 @@ if __name__ == "__main__":
     N = 500
     is_average = True
 
-    team_mdp, initial_node, initial_label = construct_team_mdp()
+    team_mdp, initial_node, initial_label = construct_single_agent_mdp()
     ap_list                               = obtain_all_aps_from_team_mdp(team_mdp)
 
     ltl_formula = 'GF (gather -> (!gather U drop))'

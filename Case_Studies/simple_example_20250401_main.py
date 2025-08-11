@@ -85,7 +85,7 @@ def execute_example_4_product_mdp3(N, total_T, prod_dra, best_all_plan, state_se
     cost_list_pi = []
     cost_list_gamma = []
     for n in range(0, N):
-        X, OX, O, X_OPA, L, OL, U, M = prod_dra.execution_in_observer_graph(total_T)
+        X, OX, O, X_OPA, L, OL, OL_SET, U, M = prod_dra.execution_in_observer_graph(total_T)
 
         XX.append(X)
         LL.append(L)

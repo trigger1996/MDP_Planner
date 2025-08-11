@@ -57,7 +57,7 @@ def construct_single_agent_mdp(is_visualize=False):
 
     observation_dict = build_observation_dict_all_states(x_len=5, y_len=5)
 
-    robot_nodes_w_aps_1, robot_edges_1, U_1, grid_nodes_1, start_ids_1, initial_label_1 = build_mdp_with_grid(5, 5, start_position=start_positions[1])
+    robot_nodes_w_aps_1, robot_edges_1, U_1, grid_nodes_1, start_ids_1, initial_label_1 = build_mdp_with_grid(5, 5, start_position=start_positions[2])          # alternative: start_positions[1]
 
     #
     # 这里有一些斜角边因为共用动作冲突会只被保留一条
