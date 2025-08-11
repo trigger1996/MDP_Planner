@@ -24,7 +24,7 @@ parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 sys.path.append(parent_dir)
 
 # 现在可以正常导入上一级模块
-from Case_Studies.example_20250426_team_mdp_main import obtain_all_aps_from_team_mdp, ltl_convert, execute_example_in_origin_product_mdp, execute_example_4_product_mdp3, print_best_all_plan
+from Case_Studies.example_20250506_single_agent_main import obtain_all_aps_from_team_mdp, ltl_convert, execute_example_in_origin_product_mdp, execute_example_4_product_mdp3, print_best_all_plan
 
 def run_one_param_group(team_mdp, ltl_formula_converted, ap_list, param_group, max_attempt=10):
     gamma, d, risk_threshold, differential_exp_cost = param_group
@@ -68,13 +68,12 @@ if __name__ == "__main__":
     N = 500
     is_average = True
 
-    team_mdp, initial_node, initial_label = construct_single_agent_mdp()
-    ap_list                               = obtain_all_aps_from_team_mdp(team_mdp)
-
     ltl_formula = 'GF (gather -> (!gather U drop))'
     opt_prop = 'gather'
     ltl_formula_converted = ltl_convert(ltl_formula)
 
+    mdp, initial_node, initial_label, node_positions = construct_single_agent_mdp(is_visualize=True)
+    ap_list = obtain_all_aps_from_team_mdp(mdp)
 
     # gamma = 0.125
     # d = 100                                   # for rex
@@ -94,8 +93,11 @@ if __name__ == "__main__":
                 style='bold')
 
         try:
+            mdp, initial_node, initial_label, node_positions = construct_single_agent_mdp(is_visualize=True)            # 其实会发现很多时候解不出来就是mdp的问题
+            ap_list = obtain_all_aps_from_team_mdp(mdp)
+
             best_plan_opq, best_plan_non_opq, prod_dra_pi = run_one_param_group(
-                team_mdp, ltl_formula_converted, ap_list, param_group, max_attempt=1)
+                mdp, ltl_formula_converted, ap_list, param_group, max_attempt=1)
             results.append(((param_group, best_plan_opq, prod_dra_pi), (param_group, best_plan_non_opq)))
         except RuntimeError as e:
             print_c(str(e), color='white', bg_color='red', style='bold')
@@ -114,7 +116,7 @@ if __name__ == "__main__":
             [initial_node], [initial_label], opt_prop, best_plan_opq[3][0], attr='Opaque'
         )
 
-        prod_dra = product_team_mdp3(team_mdp, dra)
+        prod_dra = product_team_mdp3(mdp, dra)
         cost_list_pi_p, cost_list_gamma_p = execute_example_in_origin_product_mdp(
             N, total_T, prod_dra, best_plan_non_opq,
             [initial_node], [initial_label], opt_prop, best_plan_opq[3][0], attr='Non-Opaque'
