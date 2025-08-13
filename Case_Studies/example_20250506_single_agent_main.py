@@ -274,7 +274,7 @@ if __name__ == "__main__":
     # ------
     gamma = 0.075
     d = 100
-    risk_threshold = 0.15  # default:  0.1
+    risk_threshold = gamma  # default:  0.1
     differential_exp_cost = 0.5  # 1.590106
     is_run_opaque_synthesis = True
     if is_run_opaque_synthesis:
@@ -295,7 +295,7 @@ if __name__ == "__main__":
     total_T = 150
     state_seq = [initial_node, ]
     label_seq = [initial_label, ]
-    N = 5
+    N = 200
     is_average = True
     #
     # #

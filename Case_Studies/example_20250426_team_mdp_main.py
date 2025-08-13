@@ -269,8 +269,8 @@ if __name__ == "__main__":
     # ------
     gamma = 0.125
     d = 100
-    risk_threshold = 0.05  # default:  0.1
-    differential_exp_cost = 5  # 1.590106
+    risk_threshold = gamma          # default:  0.1
+    differential_exp_cost = 5       # 1.590106
     is_run_opaque_synthesis = True
     if is_run_opaque_synthesis:
         best_all_plan, prod_dra_pi = synthesize_full_plan_w_opacity3(team_mdp, ltl_formula, opt_prop, ap_list,

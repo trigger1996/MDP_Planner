@@ -69,16 +69,44 @@ def plot_cost_hists_multi(*cost_lists, bins=25, colors=None, labels=None,
     if labels is None:
         labels = [f'Dataset {i + 1}' for i in range(num_datasets)]
 
+    '''
+        ChatGPT said:
+        
+        我看你这张图，柱子（histogram）本身最高在 1 以下，但那条红色的光滑曲线（KDE）峰值超过了 1。
+        
+        这是合理的，因为：
+        
+            你用的是 stat="probability"，所以直方图柱子的高度是概率，不会超过 1。
+        
+            但是 kde=True 画出来的曲线是概率密度函数（PDF），它的纵轴是密度，不是概率，完全可能超过 1（尤其是数据集中在一个很窄的范围时，密度峰值会很高）。
+        
+            你的纵轴标签是 Probability，但它同时在表示直方图的概率和 KDE 的密度，这会让人误解。
+        
+        如果想避免混淆，你有两个选择：
+        
+            分开画：直方图用概率（stat="probability"），KDE 单独画在另一个 y 轴（密度轴）。
+        
+            统一成密度：把直方图也改成 stat="density"，然后 y 轴标签改为 Probability Density。这样曲线和柱子单位一致，高度超过 1 就正常了。    
+    '''
     for i, cost_list in enumerate(cost_lists):
         data = extract_data(cost_list)
         sns.histplot(data, bins=bins, kde=True, color=colors[i], edgecolor=colors[i],
                      label=labels[i], stat="probability", alpha=0.6)
 
-    plt.title(title,   fontsize=18)
-    plt.xlabel(xlabel, fontsize=16)
-    plt.ylabel(ylabel, fontsize=16)
-    plt.legend()
-    plt.grid(True)
+    # 标题 & 标签字体
+    plt.title(title, fontsize=28)
+    plt.xlabel(xlabel, fontsize=26)
+    plt.ylabel(ylabel, fontsize=26)
+
+    # 坐标刻度字体
+    plt.xticks(fontsize=22)
+    plt.yticks(fontsize=22)
+
+    # 图例字体
+    plt.legend(fontsize=20)
+
+    # 网格线加粗
+    plt.grid(True, linewidth=1.2)
     plt.tight_layout()
 
 
@@ -124,11 +152,20 @@ def plot_cost_hists_together_4_comparision(cost_groups, bins=25,
                      label=labels_gamma[i], stat="probability", alpha=0.6, linewidth=1.5)
 
     #
-    plt.title(title,   fontsize=18)
-    plt.xlabel(xlabel, fontsize=16)
-    plt.ylabel(ylabel, fontsize=16)
-    plt.legend(loc='best', fontsize=16)  # 注意这里才是 prop
-    plt.grid(True)
+    # 标题 & 标签字体
+    plt.title(title, fontsize=36)
+    plt.xlabel(xlabel, fontsize=34)
+    plt.ylabel(ylabel, fontsize=34)
+
+    # 坐标刻度字体
+    plt.xticks(fontsize=32)
+    plt.yticks(fontsize=32)
+
+    # 图例字体
+    plt.legend(loc='best', fontsize=28)
+
+    # 网格线加粗
+    plt.grid(True, linewidth=1.5)
     plt.tight_layout()
 
 def plot_cost_hists_together_4_comparision_multi_groups(
