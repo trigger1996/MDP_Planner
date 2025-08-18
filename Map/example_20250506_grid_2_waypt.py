@@ -42,14 +42,14 @@ def convert_edges_to_yaml_format(robot_edges):
 
 def generate_full_yaml(x_len=5, y_len=5,
                        output_path='./yaml/20250506_map_w_edges.yaml',
-                       x_offset=-3.0, y_offset=-3.0):
+                       x_offset=-1.6, y_offset=-1.6):               # in NED
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     robot_nodes_w_aps, robot_edges, _, grid_nodes, _, _ = build_mdp_with_grid(x_len, y_len, start_position=(0, 0))
 
     resolution = 0.8
 
     yaml_data = OrderedDict()
-    yaml_data['name'] = 'test2025'
+    yaml_data['name'] = 'example_20250506'
     yaml_data['waypoint'] = convert_nodes_to_waypoints(
         robot_nodes_w_aps, grid_nodes, resolution,
         transition_time=0, x_offset=x_offset, y_offset=y_offset

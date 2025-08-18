@@ -50,7 +50,7 @@ def convert_edges_to_yaml_format(robot_edges):
 
 
 def generate_individual_mdp_yaml(output_path='./yaml/20250426_map_w_edges.yaml',
-                                 scale=0.85, x_offset=-4.0, y_offset=-4.0):
+                                 scale=0.85, x_offset=-2.5, y_offset=0.):
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
 
     # 调用你的构建函数
