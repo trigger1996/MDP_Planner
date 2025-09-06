@@ -55,7 +55,8 @@ def plot_cost_hists_multi(*cost_lists, bins=25, colors=None, labels=None,
                           title=r"$\mathbf{Cost\ Distribution}$",
                           xlabel=r"$\mathbf{Cost}$",
                           ylabel=r"$\mathbf{Probability}$"):
-    plt.figure()
+    #plt.figure()
+    plt.figure(figsize=(3.5, 3.9), dpi=300)
 
     def extract_data(cost_list):
         cost_list.sort(key=lambda x: x[0])
@@ -93,17 +94,24 @@ def plot_cost_hists_multi(*cost_lists, bins=25, colors=None, labels=None,
         sns.histplot(data, bins=bins, kde=True, color=colors[i], edgecolor=colors[i],
                      label=labels[i], stat="probability", alpha=0.6)
 
-    # 标题 & 标签字体
-    plt.title(title, fontsize=28)
-    plt.xlabel(xlabel, fontsize=26)
-    plt.ylabel(ylabel, fontsize=26)
+    # # 标题 & 标签字体
+    # plt.title(title, fontsize=28)
+    # plt.xlabel(xlabel, fontsize=26)
+    # plt.ylabel(ylabel, fontsize=26)
+    plt.title(title, fontsize=10.5)
+    plt.xlabel(xlabel, fontsize=10)
+    plt.ylabel(ylabel, fontsize=10)
 
-    # 坐标刻度字体
-    plt.xticks(fontsize=22)
-    plt.yticks(fontsize=22)
+    # # 坐标刻度字体
+    # plt.xticks(fontsize=22)
+    # plt.yticks(fontsize=22)
+    plt.xticks(fontsize=9)
+    plt.yticks(fontsize=9)
 
-    # 图例字体
-    plt.legend(fontsize=20)
+    # # 图例字体
+    # plt.legend(fontsize=20)
+    plt.legend(loc='best', fontsize=9)
+
 
     # 网格线加粗
     plt.grid(True, linewidth=1.2)
@@ -117,8 +125,13 @@ def plot_cost_hists_together_4_comparision(cost_groups, bins=25,
                                            title=r"$\mathbf{Cost\ Distribution}$",
                                            xlabel=r"$\mathbf{Cost}$",
                                            ylabel=r"$\mathbf{Probability}$"):
-
-    plt.figure()
+    '''
+    LaTeX A4双栏：一栏大约宽3.5inch(≈ 8.9cm)，如果要并排两张图，就得控制宽度~ 3.5inch。
+    长宽比：你要16: 9的一半 → 宽度: 高度 ≈ 8: 9。
+    如果宽度~ 3.5 in，那么高度~ 3.9 in。matplotlib设置：用figsize = (3.5, 3.9)来固定大小。dpi = 300，保证论文里也清晰。
+    '''
+    plt.figure(figsize=(3.5, 3.9), dpi=300)
+    #plt.figure()
 
     def extract_data(cost_list):
         cost_list.sort(key=lambda x: x[0])
@@ -153,16 +166,22 @@ def plot_cost_hists_together_4_comparision(cost_groups, bins=25,
 
     #
     # 标题 & 标签字体
-    plt.title(title, fontsize=36)
-    plt.xlabel(xlabel, fontsize=34)
-    plt.ylabel(ylabel, fontsize=34)
+    # plt.title(title, fontsize=36)
+    # plt.xlabel(xlabel, fontsize=34)
+    # plt.ylabel(ylabel, fontsize=34)
+    plt.title(title, fontsize=10.5)
+    plt.xlabel(xlabel, fontsize=10)
+    plt.ylabel(ylabel, fontsize=10)
 
     # 坐标刻度字体
-    plt.xticks(fontsize=32)
-    plt.yticks(fontsize=32)
+    # plt.xticks(fontsize=32)
+    # plt.yticks(fontsize=32)
+    plt.xticks(fontsize=9)
+    plt.yticks(fontsize=9)
 
     # 图例字体
-    plt.legend(loc='best', fontsize=28)
+    #plt.legend(loc='best', fontsize=28)
+    plt.legend(loc='best', fontsize=9)
 
     # 网格线加粗
     plt.grid(True, linewidth=1.5)
