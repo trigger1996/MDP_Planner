@@ -142,7 +142,7 @@ def construct_team_mdp():
 
     # TODO
     # 1 影响系统安全性的remove, 除去开始点外处于同一点的状态
-    team_mdp.remove_unsafe_nodes()
+    team_mdp.remove_unsafe_nodes(excluding_nodes=[('0', '0'), ('1', '1')])  # 2025.12.24 Added
     #
     # 2 根据地图推导出来的特殊状态
     remove_specific_states_4_team_mdp(team_mdp)

@@ -143,8 +143,10 @@ class MDP3(Motion_MDP):
             else:
                 print_c(f"[MDP3] State not found: {state}", color='yellow')
 
-    def remove_unsafe_nodes(self):
+    def remove_unsafe_nodes(self, excluding_nodes=None):
         nodes_to_remove = []
+        if excluding_nodes == None:
+            excluding_nodes = []
         #
         # 1 nodes with unsafe states
         for team_node_t in self.nodes():
@@ -153,7 +155,7 @@ class MDP3(Motion_MDP):
                 if individual_node_t != team_node_t[0]:
                     is_all_state_equal = False
 
-            if is_all_state_equal:
+            if is_all_state_equal and team_node_t not in excluding_nodes:
                 nodes_to_remove.append(team_node_t)
 
         if self.graph['init_state'] in nodes_to_remove:
